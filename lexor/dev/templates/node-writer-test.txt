@@ -1,0 +1,14 @@
+"""${UPPER}(LANG): Write ${UPPER}(STYLE) ${UPPER}(NW)  test
+
+Testing suite for writing $(LANG) $(NW) in the $(STYLE) style.
+
+"""
+
+from nose.tools import eq_
+from tests import parse_write
+
+
+def test_$(STYLE)():
+    """$(LANG).writer.$(STYLE).$(NW): """
+    t1, t2 = parse_write(__file__, 'file.$(LANG)', 'file', '$(STYLE)', '$(LANG)')
+    eq_(t1, t2)

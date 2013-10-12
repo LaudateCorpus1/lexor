@@ -1,0 +1,29 @@
+"""${UPPER}(LANG): Parse ${UPPER}(NP) test
+
+Testing suite for parsing $(LANG) $(NP) in the $(STYLE) style.
+
+"""
+
+from nose.tools import eq_
+from tests import print_log
+import lexor
+
+
+def test_ok():
+    """$(LANG).parser.$(NP).$(STYLE): Intended use """
+    text = """..."""
+    doc, _ = lexor.parse(text, '$(LANG)', '$(STYLE)')
+    # Create different tests
+    #eq_(doc[0].name, "")
+    #eq_(doc[0].data, "")
+
+
+def test_missing():
+    """$(LANG).parser.$(NP).$(STYLE): Missing closing tag """
+    text = """..."""
+    doc, log = lexor.parse(text, '$(LANG)', '$(STYLE)')
+    # Create different tests
+    #eq_(doc[0].name, "#cdata-section")
+    #eq_(doc[0].data, " ... ")
+    #eq_(log[0].name, "error")
+    #print_log(log[0])

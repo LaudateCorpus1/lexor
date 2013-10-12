@@ -1,0 +1,28 @@
+"""${UPPER}(LANG): ${UPPER}(STYLE) Writer Style
+
+Writer description.
+
+"""
+
+from lexor.dev import init
+from lexor.lang import load_aux
+
+__all__ = ['INFO', 'MAPPING']
+
+INFO = init(
+    version=(0, 0, 0, 'alpha', 0),
+    lang='$(LANG)',
+    type='writer',
+    description='writer description',
+    author='',
+    author_email='',
+    license='BSD License',
+    path=__file__
+)
+MOD = load_aux(INFO)['nw']
+
+MAPPING = {
+    #'#text': MOD.Text,
+    #'#comment': MOD.Comment,
+    '__default__': MOD['NWmodule'].NWobject
+}
