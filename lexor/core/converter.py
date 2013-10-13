@@ -135,7 +135,7 @@ class Converter(object):
         self.log = Document("lexor", "log")
         self._init_converter(self)
         self._convert(doc)
-        self._convert_func(self, doc)
+        self._convert_func(self, self.doc)
 
     def warn(self, node, msg):
         """Provide the node in which the warning occurr and a message. """
