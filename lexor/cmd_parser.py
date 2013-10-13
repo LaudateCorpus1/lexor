@@ -241,15 +241,20 @@ def convert_and_write(parser, opt):
             for style in styles:
                 try:
                     converter.set(in_lang, lang, style[0])
+                    wstyle = style[1]
                     try:
-                        writer.set(lang, style[1])
+                        if '.' in wstyle:
+                            (lang, wstyle) = wstyle.split('.')
+                            if wstyle == '_':
+                                wstyle = 'default'
+                        writer.set(lang, wstyle)
                         converter.convert(parser.doc)
                         write_log(log_writer, converter.log, opt)
-                        fname = '%s.%s.%s' % (opt['filename'], style, lang)
+                        fname = '%s.%s.%s' % (opt['filename'], wstyle, lang)
                         write_document(writer, converter.doc, fname, opt)
                     except IOError:
                         msg = "ERROR: Writing style not found: " \
-                              "[%s:%s]\n" % (lang, style[1])
+                              "[%s:%s]\n" % (lang, wstyle)
                         warn(msg)
                 except IOError:
                     msg = "ERROR: Converting style not found: " \

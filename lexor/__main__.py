@@ -58,6 +58,7 @@ commands:
 example:
 
     lexor file.html --to markdown[cstyle:wstyle]
+    lexor file.html --to markdown[cstyle:otherlang.wstyle]
     lexor file.html --to html~min,plain,_~
     lexor file.html --to html~plain,_~mk[cstyle:wstyle,cstyle1,cstyle2] 
 
