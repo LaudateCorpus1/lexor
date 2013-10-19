@@ -30,15 +30,15 @@ def run(argp):
     base, name = os.path.split(moddir)
     if base == '':
         base = '.'
-    
+
     mod = load_source('tmp_name', style)
     info = mod.INFO
     if info['to_lang']:
-        filename = '%s/lexor.%s.%s.%s.%s-%s.zip' 
-        filename = filename % (dirpath, info['lang'], info['type'], 
+        filename = '%s/lexor.%s.%s.%s.%s-%s.zip'
+        filename = filename % (dirpath, info['lang'], info['type'],
                                info['to_lang'], info['style'], info['ver'])
     else:
-        filename = '%s/lexor.%s.%s.%s-%s.zip' 
+        filename = '%s/lexor.%s.%s.%s-%s.zip'
         filename = filename % (dirpath, info['lang'], info['type'],
                                info['style'], info['ver'])
 

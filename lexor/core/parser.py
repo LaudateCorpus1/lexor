@@ -351,7 +351,7 @@ class Parser(object):
             if match is False:
                 self._process_text(crt)
             elif self._process_node(crt, node, processor) is node:
-                crt = node                
+                crt = node
         for node, processor in self._in_progress:
             msg = "Parser did not find closing string for " \
                   "the Node of name '%s'. " \

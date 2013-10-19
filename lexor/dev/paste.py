@@ -5,12 +5,7 @@ Routine to append paste templates.
 """
 
 import os
-import sys
-import site
-from glob import iglob
-from imp import load_source
-from lexor.dev import Template, open_file, error, warn
-from lexor.config import read_config, write_config
+from lexor.dev import Template, open_file, error
 
 __all__ = ['run']
 
@@ -33,6 +28,7 @@ def make_style(base, lang, style, type_, tolang=None):
     open_file(sfile)
 
 
+#pylint: disable-msg=R0913
 def make_auxilary(base, lang, style, type_, name, tolang=None):
     """Creates a new node parser module. """
     template = '%s/templates/%s.txt' % (base, type_)
@@ -68,6 +64,7 @@ def make_auxilary(base, lang, style, type_, name, tolang=None):
 
 
 def _get_option(array, index, msg):
+    """Exit if array index is not accessible."""
     try:
         return array[index]
     except IndexError:

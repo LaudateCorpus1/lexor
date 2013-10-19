@@ -6,11 +6,8 @@ file.
 """
 
 import os
-import sys
-import site
-from glob import iglob
 from imp import load_source
-from lexor.dev import error, warn
+from lexor.dev import error
 from lexor.config import read_config, write_config
 
 __all__ = ['run']
@@ -27,10 +24,10 @@ def run(argp):
     except IOError:
         error("ERROR: Not a valid module.")
     if mod.INFO['type'] == 'converter':
-        key = '%s.%s.%s.%s' % (mod.INFO['lang'], mod.INFO['type'], 
+        key = '%s.%s.%s.%s' % (mod.INFO['lang'], mod.INFO['type'],
                                mod.INFO['to_lang'], mod.INFO['style'])
     else:
-        key = '%s.%s.%s' % (mod.INFO['lang'], mod.INFO['type'], 
+        key = '%s.%s.%s' % (mod.INFO['lang'], mod.INFO['type'],
                             mod.INFO['style'])
     config = read_config()
     if 'develop' in config:

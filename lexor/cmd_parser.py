@@ -218,6 +218,7 @@ def write_log(writer, log, opt):
         writer.write(log, sys.stderr)
 
 
+#TODO: Too many branches (13/12)
 def convert_and_write(parser, opt):
     """Auxilary function to reduce the number of branches in run. """
     in_lang = opt['input_lang']

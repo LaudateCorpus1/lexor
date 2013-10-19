@@ -97,7 +97,7 @@ class NodeWriter(object):
     def caret(self, value):
         """Caret setter. """
         self.writer.caret = value
-    
+
     def wrap(self, string, lim, space=True):
         """Writes a string if its length is less than lim. """
         if len(string) < lim - self.caret:

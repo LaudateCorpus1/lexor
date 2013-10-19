@@ -13,7 +13,7 @@ and converting styles.
 import os
 import sys
 import site
-from os.path import dirname, splitext, abspath
+from os.path import splitext, abspath
 from imp import load_source
 from glob import iglob
 from lexor.config import read_config

@@ -10,9 +10,9 @@ implementation follows most of the recommendations of [w3].
 from cStringIO import StringIO
 import lexor.core.writer
 
-__all__ = [ 
+__all__ = [
     'Node', 'CharacterData', 'Text', 'ProcessingInstruction', 'Comment',
-    'DocumentType', 
+    'DocumentType',
     'Element', 'RawText', 'Void', 'Document', 'DocumentFragment'
 ]
 
@@ -128,7 +128,7 @@ class Node(object):
         by accessing the attribute `index` in case of performance
         issues. """
         return self.index
-    
+
     @property
     def element_index(self):
         """READ-ONLY: The number of preceding element siblings. """
@@ -151,7 +151,7 @@ class Node(object):
         by accessing the attribute `prev` in case of performance
         issues. """
         return self.prev
-    
+
     @property
     def previous_element(self):
         """READ-ONLY: The last sibling Element preceding this node.
@@ -773,7 +773,7 @@ class DocumentFragment(Document):
         self.child.append(new_child)
         new_child.parent = self
         return new_child
-    
+
     def __repr__(self):
         """x.__repr__() <==> repr(x)"""
         return ''.join([repr(node) for node in self.child])

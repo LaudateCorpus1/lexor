@@ -5,7 +5,7 @@ Read and write the configuration file using the configparser module.
 """
 
 import os
-from lexor.dev import error, warn
+from lexor.dev import error
 import configparser
 
 __all__ = ['run', 'read_config', 'write_config']
@@ -23,7 +23,7 @@ def read_config():
 
 def write_config(config):
     """Write the configuration file ~/.lexorconfig"""
-    with open(os.path.expanduser('~/.lexorconfig'), 'w') as cfile: 
+    with open(os.path.expanduser('~/.lexorconfig'), 'w') as cfile:
         config.write(cfile)
 
 

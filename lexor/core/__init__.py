@@ -12,7 +12,7 @@ and `Writer`.
 ## parser
 
 The parser module provides the `Parser` and the abstract class
-`NodeParser` which helps us write derive objects for future languages
+`NodeParser` which helps us write derived objects for future languages
 to parse.
 
 ## converter
