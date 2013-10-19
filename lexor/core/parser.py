@@ -346,6 +346,8 @@ class Parser(object):
                 if node is not None:
                     match = True
                     break
+                elif self.caret == self.end:
+                    break
             if match is False:
                 self._process_text(crt)
             elif self._process_node(crt, node, processor) is node:

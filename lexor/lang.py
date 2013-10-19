@@ -31,7 +31,12 @@ if 'LEXORPATH' in os.environ:
 
 def get_style_module(type_, lang, style, to_lang=None):
     """Return a parsing/writing/converting module. """
+    config = read_config()
+    if lang in config['lang']:
+        lang = config['lang'][lang]
     if to_lang:
+        if to_lang in config['lang']:
+            to_lang = config['lang'][to_lang]
         key = '%s.%s.%s.%s' % (lang, type_, to_lang, style)
         name = '%s.%s.%s/%s' % (lang, type_, to_lang, style)
         modname = 'lexor-%s-%s-%s-%s' % (lang, type_, to_lang, style)
@@ -39,7 +44,6 @@ def get_style_module(type_, lang, style, to_lang=None):
         key = '%s.%s.%s' % (lang, type_, style)
         name = '%s.%s/%s' % (lang, type_, style)
         modname = 'lexor-%s-%s-%s' % (lang, type_, style)
-    config = read_config()
     if 'develop' in config:
         try:
             return load_source(modname, config['develop'][key])
