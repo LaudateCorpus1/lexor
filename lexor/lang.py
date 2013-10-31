@@ -93,3 +93,13 @@ def load_aux(info):
     else:
         modbase = 'lexor-lang_%s_%s' % (info['lang'], info['type'])
     return load_mod(modbase, dirpath)
+
+def load_rel(path, module):
+    """Load relative to a path. If path is the name of a file the
+    filename will be dropped. """
+    if not os.path.isdir(path):
+        path = os.path.dirname(os.path.realpath(path))
+    if '.py' in module:
+        module = module[1:-3]
+    file = '%s/%s.py' % (path, module)
+    return load_source('load-rel-%s' % module, file)
