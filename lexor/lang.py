@@ -75,9 +75,10 @@ def load_mod(modbase, dirpath):
     "modbase_modname" where modname is a module in the directory."""
     mod = dict()
     for path in iglob('%s/*.py' % dirpath):
-        module = path.split('/')[-1][:-3]
-        modname = '%s_%s' % (modbase, module)
-        mod[module] = load_source(modname, path)
+        if 'test' not in path:
+            module = path.split('/')[-1][:-3]
+            modname = '%s_%s' % (modbase, module)
+            mod[module] = load_source(modname, path)
     return mod
 
 
