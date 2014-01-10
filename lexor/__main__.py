@@ -162,7 +162,7 @@ Version:
 
 
 def run():
-    """Run promus from the command line. """
+    """Run lexor from the command line. """
     command, arg = parse_options()
     if command:
         cmd_map = {
