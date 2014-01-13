@@ -16,7 +16,7 @@ import site
 from os.path import splitext, abspath
 from imp import load_source
 from glob import iglob
-from lexor.config import read_config
+from lexor.command.config import get_cfg
 
 __all__ = ['LEXOR_PATH', 'get_style_module']
 
@@ -31,7 +31,8 @@ if 'LEXORPATH' in os.environ:
 
 def get_style_module(type_, lang, style, to_lang=None):
     """Return a parsing/writing/converting module. """
-    config = read_config()
+    config = get_cfg([])
+    #config = read_config()
     if lang in config['lang']:
         lang = config['lang'][lang]
     if to_lang:

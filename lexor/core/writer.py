@@ -11,7 +11,7 @@ desire.
 
 import re
 from cStringIO import StringIO
-from lexor.lang import get_style_module
+from lexor.core.lang import get_style_module
 import lexor.core.elements
 
 __all__ = ['Writer', 'NodeWriter', 'replace']

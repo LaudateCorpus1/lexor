@@ -9,7 +9,7 @@ desire.
 
 """
 
-from lexor.lang import get_style_module
+from lexor.core.lang import get_style_module
 from lexor.core.elements import Document, DocumentFragment
 from lexor.core.elements import CharacterData, Element
 

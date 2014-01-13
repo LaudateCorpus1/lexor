@@ -9,7 +9,7 @@ able to parse character sequences in the way you desire.
 """
 
 import re
-from lexor.lang import get_style_module
+from lexor.core.lang import get_style_module
 import lexor.core.elements as elements
 
 __all__ = ['Parser', 'NodeParser']
