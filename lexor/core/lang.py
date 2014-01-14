@@ -16,7 +16,7 @@ import site
 from os.path import splitext, abspath
 from imp import load_source
 from glob import iglob
-from lexor.command.config import get_cfg
+import lexor.command.config as config
 
 __all__ = ['LEXOR_PATH', 'get_style_module']
 
@@ -31,13 +31,12 @@ if 'LEXORPATH' in os.environ:
 
 def get_style_module(type_, lang, style, to_lang=None):
     """Return a parsing/writing/converting module. """
-    config = get_cfg([])
-    #config = read_config()
-    if lang in config['lang']:
-        lang = config['lang'][lang]
+    cfg = config.get_cfg(['develop', 'version'])
+    if lang in cfg['lang']:
+        lang = cfg['lang'][lang]
     if to_lang:
-        if to_lang in config['lang']:
-            to_lang = config['lang'][to_lang]
+        if to_lang in cfg['lang']:
+            to_lang = cfg['lang'][to_lang]
         key = '%s.%s.%s.%s' % (lang, type_, to_lang, style)
         name = '%s.%s.%s/%s' % (lang, type_, to_lang, style)
         modname = 'lexor-%s-%s-%s-%s' % (lang, type_, to_lang, style)
@@ -45,18 +44,18 @@ def get_style_module(type_, lang, style, to_lang=None):
         key = '%s.%s.%s' % (lang, type_, style)
         name = '%s.%s/%s' % (lang, type_, style)
         modname = 'lexor-%s-%s-%s' % (lang, type_, style)
-    if 'develop' in config:
+    if 'develop' in cfg:
         try:
-            return load_source(modname, config['develop'][key])
+            return load_source(modname, cfg['develop'][key])
         except KeyError:
             pass
         except IOError:
             pass
     path = ''
     for base in LEXOR_PATH:
-        if 'version' in config:
+        if 'version' in cfg:
             try:
-                path = '%s/%s-%s.py' % (base, name, config['version'][key])
+                path = '%s/%s-%s.py' % (base, name, cfg['version'][key])
             except KeyError:
                 pass
         else:
@@ -85,9 +84,9 @@ def load_mod(modbase, dirpath):
 
 def load_aux(info):
     """Wrapper around load_mod for easy use when developing styles.
-    The only parameter is the dictionary INFO that needs to exist
-    with every style. INFO is returned by the init function in
-    lexor.dev """
+    The only parameter is the dictionary `INFO` that needs to exist
+    with every style. `INFO` is returned by the init function in
+    the lexor module."""
     dirpath = splitext(abspath(info['path']))[0]
     if info['to_lang']:
         modbase = 'lexor-lang_%s_converter_%s'
@@ -96,6 +95,7 @@ def load_aux(info):
         modbase = 'lexor-lang_%s_%s' % (info['lang'], info['type'])
     return load_mod(modbase, dirpath)
 
+
 def load_rel(path, module):
     """Load relative to a path. If path is the name of a file the
     filename will be dropped. """
@@ -103,5 +103,5 @@ def load_rel(path, module):
         path = os.path.dirname(os.path.realpath(path))
     if '.py' in module:
         module = module[1:-3]
-    file = '%s/%s.py' % (path, module)
-    return load_source('load-rel-%s' % module, file)
+    fname = '%s/%s.py' % (path, module)
+    return load_source('load-rel-%s' % module, fname)

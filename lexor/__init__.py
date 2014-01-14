@@ -11,26 +11,23 @@ The core of lexor defines basic objects such as `Document` and
 provides the main objects that define the functions provided in this
 module.
 
-## lang
+## command
 
-This module is in charge of providing all the available languages to
-the parsers, converters and writers upon request.
-
-## dev
-
-This is the development module which is used mainly by `lexor-dev` to
-help the users define their own languages for the parsers, converters
-and writers.
+This module is in charge of providing all the available commands to
+lexor.
 
 """
 
 from sys import stdout
 from os.path import realpath, basename, splitext
+from .core.lang import load_aux
 from .core.parser import Parser
 from .core.writer import Writer
 from .core.converter import Converter
+from .command import error
+from .__version__ import get_version
 
-__all__ = ['parse', 'read', 'convert', 'write']
+__all__ = ['parse', 'read', 'convert', 'write', 'init', 'load_aux']
 
 
 def parse(text, lang='xml', style='default'):
@@ -93,3 +90,35 @@ def write(doc, filename=None, mode='w'):
         writer.write(doc, filename, mode)
     else:
         writer.write(doc, stdout)
+
+
+def init(**keywords):
+    """Every lexor style needs to call the init function. These are
+    the valid keywords to initialize a style:
+
+        version: Must be in form (major, minor, micro, alpha/beta/rc/final, #)
+        lang
+        [to_lang]
+        type
+        description
+        author
+        author_email
+        [url]
+        license
+        path: Must be present and set to __file__.
+
+    """
+    valid_keys = ['version', 'lang', 'to_lang', 'type', 'description',
+                  'author', 'author_email', 'url', 'path', 'license']
+    info = dict()
+    for key in valid_keys:
+        info[key] = None
+    for key in keywords.keys():
+        if key not in valid_keys:
+            error("ERROR: Valid keys for lexor.init are %s" % valid_keys)
+        else:
+            info[key] = keywords[key]
+    info['style'] = splitext(basename(info['path']))[0]
+    info['style'] = info['style'].split('-')[0]
+    info['ver'] = get_version(info['version'])
+    return info
