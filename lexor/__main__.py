@@ -37,7 +37,33 @@ def get_argparse_options(argp):
     return opt
 
 
-def preparse_args(argv, argp, subp, complete=None):
+def preparse_args_argcomplete(argv, argp, subp, complete):
+    """Pre-parse the arguments for argcomplete. """
+    opt = get_argparse_options(argp)
+    parsers = subp.choices.keys()
+    index = 1
+    arg = None
+    try:
+        while argv[index] in opt:
+            index += opt[argv[index]]
+        if index == 1 and argv[index][0] == '-':
+            return
+        arg = argv[index]
+        if arg == 'defaults':
+            argv.insert(index, '_')
+        if argv[index+1] in parsers:
+            return
+    except IndexError:
+        pass
+    if complete == ' ':
+        if arg in parsers:
+            argv.insert(index, '_')
+    else:
+        if arg in parsers and len(argv) - 1 > index:
+            argv.insert(index, '_')
+
+
+def preparse_args(argv, argp, subp):
     """Pre-parse the arguments to be able to have a default subparser
     based on the filename provided. """
     opt = get_argparse_options(argp)
@@ -49,11 +75,8 @@ def preparse_args(argv, argp, subp, complete=None):
         while argv[index] in opt:
             index += opt[argv[index]]
         if index == 1 and argv[index][0] == '-':
-            if complete is not None:
-                pass
-            else:
-                argv.insert(index, 'to')
-                argv.insert(index, '_')
+            argv.insert(index, 'to')
+            argv.insert(index, '_')
             return
         arg = argv[index]
         if arg == 'defaults':
@@ -61,23 +84,13 @@ def preparse_args(argv, argp, subp, complete=None):
         if argv[index+1] in parsers:
             return
         if arg not in parsers:
-            if complete is None:
-                argv.insert(index+1, default)
+            argv.insert(index+1, default)
     except IndexError:
-        if complete is not None:
-            pass
-        elif arg not in parsers:
+        if arg not in parsers:
             argv.append(default)
             if arg is None:
                 arg = default
-    if complete is not None:
-        if complete == ' ':
-            if arg in parsers:
-                argv.insert(index, '_')
-        else:
-            if arg in parsers and len(argv) - 1 > index:
-                argv.insert(index, '_')
-    elif arg in parsers:
+    if arg in parsers:
         argv.insert(index, '_')
 
 
@@ -122,7 +135,7 @@ Version:
         if 'COMP_LINE' in os.environ:
             argv = os.environ['COMP_LINE'].split()
             last = ' ' if os.environ['COMP_LINE'][-1] == ' ' else ''
-            preparse_args(argv, argp, subp, last)
+            preparse_args_argcomplete(argv, argp, subp, last)
             os.environ['COMP_LINE'] = ' '.join(argv) + last
             os.environ['COMP_POINT'] = str(len(os.environ['COMP_LINE']))
         argcomplete.autocomplete(argp)
