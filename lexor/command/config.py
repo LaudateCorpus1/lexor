@@ -32,7 +32,17 @@ CONFIG = {
 }
 
 
-class ConfigDispAction(argparse.Action):  # pylint: disable-msg=R0903
+def var_completer(**_):
+    """var completer. """
+    return ['SEC.KEY']
+
+
+def value_completer(**_):
+    """value completer. """
+    return ['VALUE']
+
+
+class ConfigDispAction(argparse.Action):  # pylint: disable=R0903
     """Derived argparse Action class to use when displaying the
     configuration file and location."""
     def __call__(self, parser, namespace, values, option_string=None):
@@ -49,9 +59,10 @@ def add_parser(subp, fclass):
                            formatter_class=fclass,
                            description=textwrap.dedent(DESC))
     tmpp.add_argument('var', type=str,
-                      help='Must be in the form of sec.key')
+                      help='Must be in the form of sec.key'
+                      ).completer = var_completer
     tmpp.add_argument('value', type=str,  nargs='?', default=None,
-                      help='var value')
+                      help='var value').completer = value_completer
     tmpp.add_argument('-v', action='store_true',
                       help='print config file location')
     tmpp.add_argument('--display', action=ConfigDispAction,
@@ -120,7 +131,7 @@ def _update_single(cfg, name, defaults=None):
             cfg[name][var] = os.path.expandvars(str(val))
     else:
         try:
-            mod = import_mod('excentury.command.%s' % name)
+            mod = import_mod('lexor.command.%s' % name)
             if hasattr(mod, "DEFAULTS"):
                 for var, val in mod.DEFAULTS.iteritems():
                     cfg[name][var] = os.path.expandvars(val)

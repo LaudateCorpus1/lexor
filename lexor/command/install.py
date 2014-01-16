@@ -8,13 +8,28 @@ import os
 import sys
 import site
 import shutil
+import textwrap
 import distutils.dir_util
 from glob import iglob
 from imp import load_source
-from lexor.dev import error
-from lexor.config import read_config, write_config
+from lexor.command import error
+import lexor.command.config as config
 
-__all__ = ['run']
+DESC = """
+Install a parser/writer/converter style.
+
+"""
+
+
+def add_parser(subp, fclass):
+    """Add a parser to the main subparser. """
+    tmpp = subp.add_parser('install', help='install a style',
+                           formatter_class=fclass,
+                           description=textwrap.dedent(DESC))
+    tmpp.add_argument('style', type=str,
+                      help='name of style to install')
+    tmpp.add_argument('--user', action='store_true',
+                      help='install in user-site')
 
 
 def install_style(style, install_dir):
@@ -33,26 +48,33 @@ def install_style(style, install_dir):
         typedir = typedir % (install_dir, info['lang'], info['type'])
 
     if not os.path.exists(typedir):
-        os.makedirs(typedir)
+        try:
+            os.makedirs(typedir)
+        except OSError:
+            msg = 'OSError: unable to create directory. Did you `sudo`?\n'
+            error(msg)
 
     moddir = os.path.splitext(style)[0]
     base, name = os.path.split(moddir)
     if base == '':
         base = '.'
 
-    print 'installing...'
-
     # Copy main file
     old = '%s/%s.py' % (base, name)
     new = '%s/%s-%s.py' % (typedir, name, info['ver'])
-    print new
-    shutil.copyfile(old, new)
+    sys.stdout.write('writing %s ... ' % new)
+    try:
+        shutil.copyfile(old, new)
+    except OSError:
+        msg = 'OSError: unable to copy file. Did you `sudo`?\n'
+    sys.stdout.write('done\n')
 
     # Copy auxilary modules
     old = '%s/%s' % (base, name)
     new = '%s/%s-%s' % (typedir, name, info['ver'])
-    print new
+    sys.stdout.write('writing %s/* ... ' % new)
     distutils.dir_util.copy_tree(old, new)
+    sys.stdout.write('done\n')
 
     # Compile the style
     new = '%s/%s-%s.py' % (typedir, name, info['ver'])
@@ -64,28 +86,30 @@ def install_style(style, install_dir):
         load_source('tmp_mod', path)
 
     # Check if its on development
-    config = read_config()
-    if 'develop' in config:
-        if key in config['develop']:
-            del config['develop'][key]
+    cfg_file = config.read_config()
+    if 'develop' in cfg_file:
+        if key in cfg_file['develop']:
+            del cfg_file['develop'][key]
 
-    if 'version' in config:
-        config['version'][key] = info['ver']
+    if 'version' in cfg_file:
+        cfg_file['version'][key] = info['ver']
     else:
-        config.add_section('version')
-        config['version'][key] = info['ver']
+        cfg_file.add_section('version')
+        cfg_file['version'][key] = info['ver']
 
     # Write configuration
-    write_config(config)
+    config.write_config(cfg_file)
 
-def run(argp):
-    """Create a source distribution. """
-    if argp.user:
+
+def run():
+    """Run the command. """
+    arg = config.CONFIG['arg']
+    if arg.user:
         install_dir = '%s/lib/lexor' % site.getuserbase()
     else:
         install_dir = '%s/lib/lexor' % sys.prefix
 
-    style = argp.style
+    style = arg.style
     if '.py' not in style:
         style = '%s.py' % style
     if not os.path.exists(style):

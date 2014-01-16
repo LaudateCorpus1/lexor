@@ -6,6 +6,7 @@ Package a style along with auxiliary and test files.
 
 import os
 import textwrap
+import glob
 from glob import iglob
 from imp import load_source
 from zipfile import ZipFile
@@ -22,13 +23,35 @@ Distribute a style along with auxiliary and test files.
 """
 
 
+def style_completer(parsed_args, **_):
+    """Return a list of valid files to edit."""
+    config.CONFIG['arg'] = parsed_args
+    cfg = config.get_cfg('dist', DEFAULTS)
+    root = cfg['lexor']['root']
+    path = cfg['dist']['path']
+    choices = []
+    if path[0] in ['/', '.']:
+        abspath = path
+    else:
+        abspath = '%s/%s' % (root, path)
+    try:
+        if abspath == '.':
+            choices.extend(glob.glob('*.py'))
+        else:
+            choices.extend(glob.glob('%s/*.py' % abspath))
+    except OSError:
+        pass
+    return choices
+
+
 def add_parser(subp, fclass):
     """Add a parser to the main subparser. """
     tmpp = subp.add_parser('dist', help='distribute a style',
                            formatter_class=fclass,
                            description=textwrap.dedent(DESC))
     tmpp.add_argument('style', type=str,
-                      help='name of style to distribute')
+                      help='name of style to distribute'
+                      ).completer = style_completer
     tmpp.add_argument('--path', type=str,
                       help='distribution directory')
 

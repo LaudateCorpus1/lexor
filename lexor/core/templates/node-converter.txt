@@ -1,12 +1,10 @@
-"""${UPPER}(LANG) to ${UPPER}(TOLANG) ${UPPER}(NC) NodeConverter
+"""{LANG} to {TOLANG} {NP} NodeConverter
 
 Node writer description.
 
 """
 
 from lexor.core.converter import NodeConverter
-
-__all__ = ['NC_object']
 
 
 class NC_object(NodeConverter):
@@ -21,7 +19,7 @@ class NC_object(NodeConverter):
         converter and the node. You can thus set extra variables in
         the converter or modify the node. DO NOT modify any of the
         parents of the node. If there is a need to modify any of
-        parents of the node then set a variable in the converter
-        to point to the node so that later on in the `convert` function
+        parents of the node then set a variable in the converter to
+        point to the node so that later on in the `convert` function
         it can be modified. """
         pass

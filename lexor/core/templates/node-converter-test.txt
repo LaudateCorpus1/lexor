@@ -1,0 +1,14 @@
+"""{LANG} to {TOLANG} Converter {STYLE} {NP} test
+
+Testing suite for converter {lang} to {tolang} {np} in the {style} style.
+
+"""
+
+from nose.tools import eq_
+from tests import parse_convert_write
+
+
+def test_{style}():
+    """{lang}.converter.{tolang}.{style}.{np}: """
+    t1, t2 = parse_convert_write(__file__, 'file.{lang}', 'file', '{style}', '{tolang}')
+    eq_(t1, t2)

@@ -36,7 +36,9 @@ def run():
     try:
         mod = load_source("tmp-mod", path)
     except IOError:
-        error("ERROR: Not a valid module.")
+        error("ERROR: Not a valid module.\n")
+    if not hasattr(mod, 'INFO'):
+        error("ERROR: module does not have `INFO`\n")
     if mod.INFO['type'] == 'converter':
         key = '%s.%s.%s.%s' % (mod.INFO['lang'], mod.INFO['type'],
                                mod.INFO['to_lang'], mod.INFO['style'])
@@ -45,6 +47,9 @@ def run():
                             mod.INFO['style'])
     cfg_file = config.read_config()
     if 'develop' in cfg_file:
+        if key in cfg_file['develop']:
+            if cfg_file['develop'][key] == path:
+                error('%s is already begin developed from %s\n' % (key, path))
         cfg_file['develop'][key] = path
     else:
         cfg_file.add_section('develop')

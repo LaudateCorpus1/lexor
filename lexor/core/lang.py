@@ -31,7 +31,7 @@ if 'LEXORPATH' in os.environ:
 
 def get_style_module(type_, lang, style, to_lang=None):
     """Return a parsing/writing/converting module. """
-    cfg = config.get_cfg(['develop', 'version'])
+    cfg = config.read_config()
     if lang in cfg['lang']:
         lang = cfg['lang'][lang]
     if to_lang:
@@ -51,13 +51,12 @@ def get_style_module(type_, lang, style, to_lang=None):
             pass
         except IOError:
             pass
-    path = ''
     for base in LEXOR_PATH:
         if 'version' in cfg:
             try:
                 path = '%s/%s-%s.py' % (base, name, cfg['version'][key])
             except KeyError:
-                pass
+                path = ''
         else:
             path = '%s/%s.py' % (base, name)
         try:

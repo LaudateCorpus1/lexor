@@ -7,10 +7,44 @@ Execute lexor by transforming a file "to" another language.
 import os
 import re
 import sys
+import textwrap
 from lexor.command import error, warn
 from lexor.core.parser import Parser
 from lexor.core.writer import Writer
 from lexor.core.converter import Converter
+
+
+DESC = """
+Transform the inputfile to another language. To see the available
+languages see the module command
+
+"""
+
+
+def add_parser(subp, fclass):
+    """Add a parser to the main subparser. """
+    types = ['parser', 'writer', 'converter',
+             'node-parser', 'node-writer', 'node-converter']
+    tmpp = subp.add_parser('to', help='transform to another language',
+                           formatter_class=fclass,
+                           description=textwrap.dedent(DESC))
+    tmpp.add_argument('tolang', metavar='lang', type=str, nargs='?',
+                      help='languate to which it will be converted')
+    tmpp.add_argument('--from', type=str, metavar='FROM',
+                      dest='fromlang',
+                       help='language to be parsed in')
+    tmpp.add_argument('--log', type=str,
+                       help='language in which the logs will be written')
+    tmpp.add_argument('--write', '-w', action='store_true',
+                      help='write to file')
+    tmpp.add_argument('--quite', '-q', action='store_true',
+                       help='supress warning messages')
+    tmpp.add_argument('--nodisplay', '-n', action='store_true',
+                      help="supress output")
+
+
+
+
 
 
 RE = re.compile(r'.*?[ :,~\[\]]')

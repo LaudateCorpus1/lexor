@@ -30,7 +30,7 @@ def valid_files(parsed_args, **_):
     paths = cfg['edit']['path'].split(':')
     choices = []
     for path in paths:
-        if path[0] in ['/']:
+        if path[0] in ['/', '.']:
             abspath = path
         else:
             abspath = '%s/%s' % (root, path)
