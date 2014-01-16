@@ -28,6 +28,7 @@ CONFIG = {
     'path': None,  # read only
     'name': None,  # read only
     'cfg_path': None,  # COMMAND LINE USE ONLY
+    'cfg_user': None,  # COMMAND LINE USE ONLY
     'arg': None  # COMMAND LINE USE ONLY
 }
 
@@ -46,6 +47,9 @@ class ConfigDispAction(argparse.Action):  # pylint: disable=R0903
     """Derived argparse Action class to use when displaying the
     configuration file and location."""
     def __call__(self, parser, namespace, values, option_string=None):
+        global CONFIG
+        CONFIG['cfg_user'] = namespace.cfg_user
+        CONFIG['cfg_path'] = namespace.cfg_path
         cfg_file = read_config()
         fname = '%s/%s' % (CONFIG['path'], CONFIG['name'])
         print('lexor configuration file: %s' % fname)
@@ -74,7 +78,10 @@ def read_config():
     """Read a configuration file."""
     cfg_file = configparser.ConfigParser(allow_no_value=True)
     name = 'lexor.config'
-    if CONFIG['cfg_path'] is None:
+    if CONFIG['cfg_user']:
+        path = os.environ['HOME']
+        name = '.lexor.config'
+    elif CONFIG['cfg_path'] is None:
         path = '.'
         if not os.path.exists(name):
             if 'LEXOR_CONFIG_PATH' in os.environ:

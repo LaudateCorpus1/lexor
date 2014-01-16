@@ -32,6 +32,8 @@ if 'LEXORPATH' in os.environ:
 def get_style_module(type_, lang, style, to_lang=None):
     """Return a parsing/writing/converting module. """
     cfg = config.read_config()
+    if style == '_':
+        style = 'default'
     if lang in cfg['lang']:
         lang = cfg['lang'][lang]
     if to_lang:

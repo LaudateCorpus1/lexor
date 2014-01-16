@@ -63,15 +63,14 @@ def run():
     fname = arg.inputfile
     found = False
     for path in paths:
-        if path[0] == '/':
+        if path[0] in ['/', '.']:
             abspath = '%s/%s' % (path, fname)
         else:
             abspath = '%s/%s/%s' % (root, path, fname)
         if exists(abspath):
             found = True
             break
-    if found:
-        cmd = '%s "%s" > /dev/null' % (cfg['edit']['editor'], abspath)
-    else:
+    if not found:
         error("ERROR: file not found.\n")
+    cmd = '%s "%s" > /dev/null' % (cfg['edit']['editor'], abspath)    
     system(cmd)

@@ -123,6 +123,8 @@ Version:
     argp.add_argument('--cfg', type=str, dest='cfg_path',
                       metavar='CFG_PATH',
                       help='configuration file directory')
+    argp.add_argument('--cfg-user', action='store_true', dest='cfg_user',
+                      help='select user configuration file. Overides --cfg')
     subp = argp.add_subparsers(title='subcommands',
                                dest='parser_name',
                                help='additional help',
@@ -142,7 +144,6 @@ Version:
     except NameError:
         pass
     preparse_args(sys.argv, argp, subp)
-    print sys.argv
     return argp.parse_args()
 
 
@@ -158,6 +159,7 @@ def run():
             mod[tmp_name] = tmp_mod
     arg = parse_options(mod)
     config.CONFIG['cfg_path'] = arg.cfg_path
+    config.CONFIG['cfg_user'] = arg.cfg_user
     config.CONFIG['arg'] = arg
     mod[arg.parser_name].run()
 
