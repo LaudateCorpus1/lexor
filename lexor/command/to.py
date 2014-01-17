@@ -15,13 +15,14 @@ from lexor.core.converter import Converter
 import lexor.command.config as config
 
 DEFAULTS = {
-    'parse_lang': 'xml:_',
-    'log': 'lexor:log'
+    'parse_lang': 'lexor:_',
+    'log': 'lexor:log',
+    'lang': 'html[_:min]'
 }
 
 DESC = """
 Transform the inputfile to another language. To see the available
-languages see the `module` command.
+languages use the `lang` command.
 
 examples:
 
@@ -170,48 +171,17 @@ def run():
         error(msg)
     parser.parse(text, t_name)
     write_log(log_writer, parser.log, arg.quiet)
-    #convert_and_write(parser, opt)
+    if not arg.tolang:
+        arg.tolang.append(input_language(cfg['to']['lang']))
+    convert_and_write(f_name, parser, in_lang, log, arg)
 
 
-def write_log(writer, log, quiet):
-    """Write the log file to stderr. """
-    if quiet is False and len(log) > 0:
-        writer.write(log, sys.stderr)
-
-
-def write_document(writer, doc, fname, opt):
-    """Auxilary function for convert_and_write. """
-    if opt['nodisplay'] is False:
-        writer.write(doc, sys.stdout)
-    if opt['write'] is True:
-        writer.write(doc, fname)
-
-"""
-'text': text,
-'textname': t_name,
-'filename': f_name,
-'input_lang': parse_lang[0],
-'input_style': parse_lang[1],
-'log_lang': log[0],
-'log_style': log[1],
-'output_info': arg.tolang,
-'write': arg.write,
-'quiet': arg.quiet,
-'nodisplay': arg.nodisplay
-"""
-
-
-#TODO: Too many branches (13/12)
-def convert_and_write(parser, opt):
+def convert_and_write(f_name, parser, in_lang, log, arg):
     """Auxilary function to reduce the number of branches in run. """
-    in_lang = opt['input_lang']
-    out = opt['output_info']
     try:
-        log_writer = Writer(opt['log_lang'], opt['log_style'])
+        log_writer = Writer(log[0], log[1])
     except IOError:
-        msg = "ERROR: log writing style not found: " \
-              "[%s:%s]\n" % (opt['log_lang'], opt['log_style'])
-        error(msg)
+        error("ERROR: log writing style not found: [%s:%s]\n" % log)
     try:
         writer = Writer()
     except IOError:
@@ -220,37 +190,85 @@ def convert_and_write(parser, opt):
         converter = Converter()
     except IOError:
         error("ERROR: Converting style not found: [xml ==> xml:default]\n")
-    for (action, lang, styles) in out:
+    param = {
+        'parser': parser,
+        'converter': converter,
+        'writer': writer,
+        'log_writer': log_writer,
+        'f_name': f_name,
+        'in_lang': in_lang,
+        'arg': arg
+    }
+    for (action, lang, styles) in arg.tolang:
+        param['styles'] = styles
+        param['lang'] = lang
         if action == 'c':
-            for style in styles:
-                try:
-                    converter.set(in_lang, lang, style[0])
-                    wstyle = style[1]
-                    try:
-                        if '.' in wstyle:
-                            (lang, wstyle) = wstyle.split('.')
-                            if wstyle == '_':
-                                wstyle = 'default'
-                        writer.set(lang, wstyle)
-                        converter.convert(parser.doc)
-                        write_log(log_writer, converter.log, opt)
-                        fname = '%s.%s.%s' % (opt['filename'], wstyle, lang)
-                        write_document(writer, converter.doc, fname, opt)
-                    except IOError:
-                        msg = "ERROR: Writing style not found: " \
-                              "[%s:%s]\n" % (lang, wstyle)
-                        warn(msg)
-                except IOError:
-                    msg = "ERROR: Converting style not found: " \
-                          "[%s ==> %s:%s]\n" % (in_lang, lang, style[0])
-                    warn(msg)
+            run_converter(param)
         if action == 'w':
-            for style in styles:
-                try:
-                    writer.set(lang, style)
-                    fname = '%s.%s.%s' % (opt['filename'], style, lang)
-                    write_document(writer, parser.doc, fname, opt)
-                except IOError:
-                    msg = "ERROR: Writing style not found: " \
-                          "[%s:%s]\n" % (lang, style)
-                    warn(msg)
+            run_writer(param)
+
+
+def write_log(writer, log, quiet):
+    """Write the log file to stderr. """
+    if quiet is False and len(log) > 0:
+        writer.write(log, sys.stderr)
+
+
+def write_document(writer, doc, fname, arg):
+    """Auxilary function for convert_and_write. """
+    if arg.nodisplay is False:
+        writer.write(doc, sys.stdout)
+    if arg.write is True:
+        writer.write(doc, fname)
+
+
+def run_converter(param):
+    """Auxilary function for convert and write. """
+    lang = param['lang']
+    f_name = param['f_name']
+    in_lang = param['in_lang']
+    arg = param['arg']
+    parser = param['parser']
+    converter = param['converter']
+    writer = param['writer']
+    log_writer = param['log_writer']
+    for style in param['styles']:
+        try:
+            converter.set(in_lang, lang, style[0])
+            wstyle = style[1]
+            try:
+                if '.' in wstyle:
+                    (lang, wstyle) = wstyle.split('.')
+                    if wstyle == '_':
+                        wstyle = 'default'
+                writer.set(lang, wstyle)
+                converter.convert(parser.doc)
+                write_log(log_writer, converter.log, arg.quiet)
+                fname = '%s.%s.%s' % (f_name, wstyle, lang)
+                write_document(writer, converter.doc, fname, arg)
+            except IOError:
+                msg = "ERROR: Writing style not found: " \
+                      "[%s:%s]\n" % (lang, wstyle)
+                warn(msg)
+        except IOError:
+            msg = "ERROR: Converting style not found: " \
+                  "[%s ==> %s:%s]\n" % (in_lang, lang, style[0])
+            warn(msg)
+
+
+def run_writer(param):
+    """Auxilary function for convert and write. """
+    lang = param['lang']
+    f_name = param['f_name']
+    arg = param['arg']
+    parser = param['parser']
+    writer = param['writer']
+    for style in param['styles']:
+        try:
+            writer.set(lang, style)
+            fname = '%s.%s.%s' % (f_name, style, lang)
+            write_document(writer, parser.doc, fname, arg)
+        except IOError:
+            msg = "ERROR: Writing style not found: " \
+                  "[%s:%s]\n" % (lang, style)
+            warn(msg)
