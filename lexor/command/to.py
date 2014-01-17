@@ -5,7 +5,6 @@ Execute lexor by transforming a file "to" another language.
 """
 
 import os
-import re
 import sys
 import textwrap
 import argparse
@@ -156,6 +155,11 @@ def run():
 
     try:
         parser = Parser(in_lang, in_style)
+        if hasattr(parser.style_module, 'VERSIONS'):
+            versions = parser.style_module.VERSIONS
+            msg = 'WARNING: No version specified in configuration.\n' \
+                  'Using the first module in this list:\n\n  %s\n\n'
+            warn(msg % '\n  '.join(versions))
     except IOError:
         msg = "ERROR: Parsing style not found: [%s:%s]\n" % parse_lang
         error(msg)
@@ -174,6 +178,14 @@ def write_log(writer, log, quiet):
     if quiet is False and len(log) > 0:
         writer.write(log, sys.stderr)
 
+
+def write_document(writer, doc, fname, opt):
+    """Auxilary function for convert_and_write. """
+    if opt['nodisplay'] is False:
+        writer.write(doc, sys.stdout)
+    if opt['write'] is True:
+        writer.write(doc, fname)
+
 """
 'text': text,
 'textname': t_name,
@@ -187,14 +199,6 @@ def write_log(writer, log, quiet):
 'quiet': arg.quiet,
 'nodisplay': arg.nodisplay
 """
-
-def write_document(writer, doc, fname, opt):
-    """Auxilary function for convert_and_write. """
-    if opt['nodisplay'] is False:
-        writer.write(doc, sys.stdout)
-    if opt['write'] is True:
-        writer.write(doc, fname)
-
 
 
 #TODO: Too many branches (13/12)

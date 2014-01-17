@@ -13,13 +13,32 @@ and converting styles.
 import os
 import sys
 import site
+import textwrap
 from os.path import splitext, abspath
 from imp import load_source
-from glob import iglob
+from glob import iglob, glob
 import lexor.command.config as config
 
 __all__ = ['LEXOR_PATH', 'get_style_module']
 
+DEFAULTS = {
+    'md': 'markdown',
+    'mdown': 'markdown',
+    'mkdn': 'markdown',
+    'mkd': 'markdown',
+    'mdwn': 'markdown',
+    'mdtxt': 'markdown',
+    'mdtext': 'markdown',
+    'text': 'markdown',
+    'lex': 'lexor'
+}
+DESC = """
+Show the styles available to lexor through the current configuration
+file. You should run this command whenever you create a new
+configuration file so that lexor may select the available languages
+for you without the need to reinstall the styles.
+
+"""
 LEXOR_PATH = [
     '%s/lib/lexor' % site.getuserbase(),
     '%s/lib/lexor' % sys.prefix
@@ -29,9 +48,50 @@ if 'LEXORPATH' in os.environ:
     LEXOR_PATH = os.environ['LEXORPATH'].split(':') + LEXOR_PATH
 
 
-def get_style_module(type_, lang, style, to_lang=None):
-    """Return a parsing/writing/converting module. """
+def add_parser(subp, fclass):
+    """Add a parser to the main subparser. """
+    subp.add_parser('lang', help='see available styles',
+                    formatter_class=fclass,
+                    description=textwrap.dedent(DESC))
+
+
+def _handle_kind(path, cfg):
+    """Helper function for _handle_lang. """
+    print path
+    print cfg
+
+def _handle_lang(path, cfg):
+    """Helper function for run. """
+    for kind in path:
+        print '    %s:' % kind
+        _handle_kind(path[kind], cfg)
+
+def run():
+    """Run the command. """
+    paths = []
+    for base in LEXOR_PATH:
+        paths += glob('%s/*' % base)
+    path = dict()
     cfg = config.read_config()
+    for loc in paths:
+        kind = os.path.basename(loc)
+        try:
+            name, kind = kind.split('.')
+        except ValueError:
+            continue
+        if name not in path:
+            path[name] = dict()
+        if kind not in path[name]:
+            path[name][kind] = [loc]
+        else:
+            path[name][kind].append(loc)
+    for lang in path:
+        print '%s:' % lang
+        _handle_lang(path[lang], cfg)
+
+
+def _get_info(cfg, type_, lang, style, to_lang=None):
+    """Helper function for get_style_module. """
     if style == '_':
         style = 'default'
     if lang in cfg['lang']:
@@ -46,26 +106,40 @@ def get_style_module(type_, lang, style, to_lang=None):
         key = '%s.%s.%s' % (lang, type_, style)
         name = '%s.%s/%s' % (lang, type_, style)
         modname = 'lexor-%s-%s-%s' % (lang, type_, style)
+    return key, name, modname
+
+
+def get_style_module(type_, lang, style, to_lang=None):
+    """Return a parsing/writing/converting module. """
+    cfg = config.get_cfg(['lang', 'develop', 'version'])
+    config.update_single(cfg, 'lang', DEFAULTS)
+    key, name, modname = _get_info(cfg, type_, lang, style, to_lang)
     if 'develop' in cfg:
         try:
             return load_source(modname, cfg['develop'][key])
-        except KeyError:
+        except (KeyError, IOError):
             pass
-        except IOError:
-            pass
+    versions = []
     for base in LEXOR_PATH:
         if 'version' in cfg:
             try:
                 path = '%s/%s-%s.py' % (base, name, cfg['version'][key])
             except KeyError:
-                path = ''
+                versions += glob('%s/%s*.py' % (base, name))
+                path = '%s/%s.py' % (base, name)
         else:
+            versions += glob('%s/%s*.py' % (base, name))
             path = '%s/%s.py' % (base, name)
         try:
             return load_source(modname, path)
         except IOError:
             continue
-    raise IOError("lexor module not found: %s" % name)
+    try:
+        mod = load_source(modname, versions[0])
+        mod.VERSIONS = versions
+        return mod
+    except (IOError, IndexError):
+        raise IOError("lexor module not found: %s" % name)
 
 
 def load_mod(modbase, dirpath):

@@ -131,7 +131,7 @@ def run():
     write_config(cfg_file)
 
 
-def _update_single(cfg, name, defaults=None):
+def update_single(cfg, name, defaults=None):
     "Helper function for get_cfg."
     if defaults:
         for var, val in defaults.iteritems():
@@ -175,12 +175,12 @@ def get_cfg(names, defaults=None):
     if isinstance(names, list):
         for name in names:
             cfg[name] = dict()
-            _update_single(cfg, name)
+            update_single(cfg, name)
             _update_from_file(cfg, name, cfg_file)
     else:
         if names != 'lexor':
             cfg[names] = dict()
-            _update_single(cfg, names, defaults)
+            update_single(cfg, names, defaults)
             _update_from_file(cfg, names, cfg_file)
     if CONFIG['arg']:
         argdict = vars(CONFIG['arg'])

@@ -9,7 +9,7 @@ able to parse character sequences in the way you desire.
 """
 
 import re
-from lexor.core.lang import get_style_module
+from lexor.command.lang import get_style_module
 import lexor.core.elements as elements
 
 __all__ = ['Parser', 'NodeParser']
@@ -88,6 +88,7 @@ class Parser(object):
         style in which text will be parsed. """
         self._lang = lang
         self._style = style
+        self.style_module = None
         self._np = None
         self._next_check = None
         self._set_node_parsers(lang, style)
@@ -102,10 +103,10 @@ class Parser(object):
 
     def _set_node_parsers(self, lang, style):
         """Imports the correct module based on the language and style. """
-        mod = get_style_module('parser', lang, style)
+        self.style_module = get_style_module('parser', lang, style)
         self._next_check = dict()
         self._np = dict()
-        for key, val in mod.MAPPING.iteritems():
+        for key, val in self.style_module.MAPPING.iteritems():
             self._next_check[key] = re.compile('.*?[%s]' % val[0])
             self._np[key] = [p(self) for p in val[1]]
 

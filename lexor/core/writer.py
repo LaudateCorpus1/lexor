@@ -11,7 +11,7 @@ desire.
 
 import re
 from cStringIO import StringIO
-from lexor.core.lang import get_style_module
+from lexor.command.lang import get_style_module
 import lexor.core.elements
 
 __all__ = ['Writer', 'NodeWriter', 'replace']
@@ -134,6 +134,7 @@ class Writer(object):
     def __init__(self, lang='xml', style='default'):
         """Create a new `Writer` by specifying the language and the
         style in which `Node` objects will be written. """
+        self.style_module = None
         self._lang = lang
         self._style = style
         self._filename = None
@@ -235,13 +236,13 @@ class Writer(object):
 
     def _set_node_writers(self, lang, style):
         """Imports the correct module based on the language and style. """
-        mod = get_style_module('writer', lang, style)
+        self.style_module = get_style_module('writer', lang, style)
         self._nw = dict()
         self._nw['__default__'] = DefaultWriter(self)
         self._nw['#document'] = NodeWriter(self)
         self._nw['#document-fragment'] = NodeWriter(self)
         self._nw['#text'] = NodeWriter(self)
-        for key, val in mod.MAPPING.iteritems():
+        for key, val in self.style_module.MAPPING.iteritems():
             self._nw[key] = val(self)
 
     def _set_node_writers_writer(self):
