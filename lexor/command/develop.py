@@ -29,8 +29,10 @@ def add_parser(subp, fclass):
 def run():
     """Append the path to the develop section in the configuration
     file. """
+    cfg_file = config.read_config()
     arg = config.CONFIG['arg']
     path = os.path.abspath(arg.path)
+    rel_path = path[len(config.CONFIG['path'])+1:]
     if '.py' not in path:
         path = '%s.py' % path
     try:
@@ -45,14 +47,13 @@ def run():
     else:
         key = '%s.%s.%s' % (mod.INFO['lang'], mod.INFO['type'],
                             mod.INFO['style'])
-    cfg_file = config.read_config()
     if 'develop' in cfg_file:
         if key in cfg_file['develop']:
-            if cfg_file['develop'][key] == path:
+            if cfg_file['develop'][key] == rel_path:
                 error('%s is already begin developed from %s\n' % (key, path))
-        cfg_file['develop'][key] = path
+        cfg_file['develop'][key] = rel_path
     else:
         cfg_file.add_section('develop')
-        cfg_file['develop'][key] = path
-    print('%s --> %s' % (key, path))
+        cfg_file['develop'][key] = rel_path
+    print('%s --> %s' % (key, rel_path))
     config.write_config(cfg_file)

@@ -142,7 +142,10 @@ def get_style_module(type_, lang, style, to_lang=None):
     key, name, modname = _get_info(cfg, type_, lang, style, to_lang)
     if 'develop' in cfg:
         try:
-            return load_source(modname, cfg['develop'][key])
+            path = cfg['develop'][key]
+            if path[0] != '/':
+                path = '%s/%s' % (config.CONFIG['path'], path)
+            return load_source(modname, path)
         except (KeyError, IOError):
             pass
     versions = []
