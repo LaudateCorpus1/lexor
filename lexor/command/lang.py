@@ -14,6 +14,7 @@ import os
 import sys
 import site
 import textwrap
+from pkg_resources import parse_version
 from os.path import splitext, abspath
 from imp import load_source
 from glob import iglob, glob
@@ -55,16 +56,40 @@ def add_parser(subp, fclass):
                     description=textwrap.dedent(DESC))
 
 
-def _handle_kind(path, cfg):
+def _handle_kind(paths, cfg):
     """Helper function for _handle_lang. """
-    print path
-    print cfg
+    styles = dict()
+    if paths:
+        kind = os.path.basename(paths[0])
+    for path in paths:
+        tmp = [os.path.basename(ele) for ele in glob('%s/*.py' % path)]
+        for style in tmp:
+            index = style.find('-')
+            if index == -1:
+                continue
+            if style[:index] not in styles:
+                styles[style[:index]] = []
+            styles[style[:index]].append(style[index+1:-3])
+    if 'version' not in cfg:
+        cfg.add_section('version')
+    for style in styles:
+        key = '%s.%s' % (kind, style)
+        if key in cfg['version']:
+            ver = cfg['version'][key]
+            print '        [*] %s -> %s' % (style, ver)
+        else:
+            ver = max(styles[style], key=parse_version)
+            cfg['version'][key] = ver
+            print '        [+] %s -> %s' % (style, ver)
+    config.write_config(cfg)
+
 
 def _handle_lang(path, cfg):
     """Helper function for run. """
     for kind in path:
         print '    %s:' % kind
         _handle_kind(path[kind], cfg)
+
 
 def run():
     """Run the command. """
@@ -76,7 +101,7 @@ def run():
     for loc in paths:
         kind = os.path.basename(loc)
         try:
-            name, kind = kind.split('.')
+            name, kind = kind.split('.', 1)
         except ValueError:
             continue
         if name not in path:
@@ -88,6 +113,7 @@ def run():
     for lang in path:
         print '%s:' % lang
         _handle_lang(path[lang], cfg)
+        print('')
 
 
 def _get_info(cfg, type_, lang, style, to_lang=None):
