@@ -527,6 +527,10 @@ class CData(CharacterData):
         CharacterData.__init__(self, data)
         self.name = '#cdata-section'
 
+    def clone_node(self, _=True):
+        """Returns a new CData with the same data content. """
+        return CData(self.data)
+
 
 class DocumentType(CharacterData):
     """A node to store the doctype declaration. This node will not

@@ -1,0 +1,14 @@
+"""{LANG}: Write {STYLE} {NP}  test
+
+Testing suite for writing {LANG} {NP} in the {STYLE} style.
+
+"""
+
+from nose.tools import eq_
+from tests import parse_write
+
+
+def test_{style}():
+    """{lang}.writer.{style}.{np}: """
+    t1, t2 = parse_write(__file__, 'file.{lang}', 'file', '{style}', '{lang}')
+    eq_(t1, t2)

@@ -1,17 +1,14 @@
-"""${UPPER}(LANG): ${UPPER}(STYLE) Parsing Style
+"""{LANG}: {STYLE} Parsing Style
 
 Parser description.
 
 """
 
-from lexor.dev import init
-from lexor.lang import load_aux
-
-__all__ = ['INFO', 'MAPPING']
+from lexor import init, load_aux
 
 INFO = init(
     version=(0, 0, 0, 'alpha', 0),
-    lang='$(LANG)',
+    lang='{lang}',
     type='parser',
     description='parser description',
     author='',
@@ -20,9 +17,8 @@ INFO = init(
     path=__file__
 )
 MOD = load_aux(INFO)
-
-MAPPING = {
+MAPPING = {{
     '__default__': ('\n', [
         #MOD['NPmodule'].NPobject,
     ])
-}
+}}

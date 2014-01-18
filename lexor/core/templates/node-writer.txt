@@ -1,4 +1,4 @@
-"""${UPPER}(LANG): ${UPPER}(NW) NodeWriter
+"""{LANG}: {NP} NodeWriter
 
 Node writer description.
 
@@ -6,8 +6,6 @@ Node writer description.
 
 from lexor.core.writer import NodeWriter
 #import lexor.core.elements
-
-__all__ = ['Default']
 
 
 class Default(NodeWriter):
@@ -18,7 +16,7 @@ class Default(NodeWriter):
         the first encounter with the `Node`. """
         #self.write()
         pass
-    
+
     def data(self, node):
         """This method gets called only by `CharacterData` nodes.
         This method should be overloaded to write their attribute
@@ -33,7 +31,7 @@ class Default(NodeWriter):
         This method by default returns `True` so that the `Writer`
         can traverse through the child nodes. """
         return True
-    
+
     def end(self, node):
         """Overload this method to write part of the `Node` object in
         the last encounter with the `Node`. """

@@ -1,4 +1,4 @@
-"""${UPPER}(LANG): ${UPPER}(NP) NodeParser
+"""{LANG}: {NP} NodeParser
 
 Node parser description.
 
@@ -6,8 +6,6 @@ Node parser description.
 
 from lexor.core.parser import NodeParser
 #from lexor.core.elements import Element
-
-__all__ = ['NP']
 
 
 class NP(NodeParser):
@@ -19,6 +17,6 @@ class NP(NodeParser):
         caret = parser.caret
 
     def close(self, node):
-        """Returns the position where the element was closed. """
+        """Return the position where the element was closed. """
         # This may be deleted if there is no need for closing function
         pass

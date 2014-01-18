@@ -9,7 +9,7 @@ desire.
 
 """
 
-from lexor.lang import get_style_module
+from lexor.command.lang import get_style_module
 from lexor.core.elements import Document, DocumentFragment
 from lexor.core.elements import CharacterData, Element
 
@@ -65,6 +65,7 @@ class Converter(object):
     def __init__(self, fromlang='xml', tolang='xml', style='default'):
         """Create a new `Converter` by specifying the language and the
         style in which `Node` objects will be written. """
+        self.style_module = None
         self._fromlang = fromlang
         self._tolang = tolang
         self._style = style
@@ -146,13 +147,14 @@ class Converter(object):
 
     def _set_node_converters(self, fromlang, tolang, style):
         """Imports the correct module based on the languages and style. """
-        mod = get_style_module('converter', fromlang, style, tolang)
+        self.style_module = get_style_module('converter', fromlang,
+                                             style, tolang)
         self._nc = dict()
         self._nc['__default__'] = NodeConverter(self)
-        for key, val in mod.MAPPING.iteritems():
+        for key, val in self.style_module.MAPPING.iteritems():
             self._nc[key] = val(self)
-        self._convert_func = mod.convert
-        self._init_converter = mod.init_converter
+        self._convert_func = self.style_module.convert
+        self._init_converter = self.style_module.init_converter
 
     def _process(self, node):
         """Evaluate the process function of the node converter based

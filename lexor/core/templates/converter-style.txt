@@ -1,25 +1,26 @@
-"""${UPPER}(LANG) to ${UPPER}(TOLANG) ${UPPER}(STYLE) Converter Style
+"""{LANG} to {TOLANG} {STYLE} Converter Style
 
 Converter description.
 
 """
 
-from lexor.dev import init
-from lexor.lang import load_aux
-
-__all__ = ['MAPPING', 'INFO', 'init_converter', 'convert']
+from lexor import init, load_aux
 
 INFO = init(
     version=(0, 0, 1, 'beta', 0),
-    lang='$(LANG)',
-    to_lang='$(TOLANG)',
+    lang='{lang}',
+    to_lang='{tolang}',
     type='converter',
-    description='convert from $(LANG) to $(TOLANG)',
+    description='convert from {lang} to {tolang}',
     author='',
     author_email='',
     license='BSD License',
     path=__file__
 )
+MOD = load_aux(INFO)['nc']
+MAPPING = {{
+
+}}
 
 def init_converter(converter):
     """Set the properties that the converter will need in the
@@ -27,11 +28,6 @@ def init_converter(converter):
     and `log` are reserved. Do not overwrite them. """
     pass
 
-MOD = load_aux(INFO)['nc']
-
-MAPPING = {
-
-}
 
 def convert(converter, doc):
     """Useful description goes here. """

@@ -12,169 +12,156 @@ import os
 import sys
 import argparse
 import textwrap
+import os.path as pt
+from glob import iglob
 from lexor.__version__ import VERSION
-import lexor.config
-import lexor.dev.dist
-import lexor.dev.install
-import lexor.dev.develop
-import lexor.dev.paste
-import lexor.cmd_parser
+from lexor.command import import_mod
+from lexor.command.edit import valid_files
+import lexor.command.config as config
+try:
+    import argcomplete
+except ImportError:
+    pass
 
-def _get_parser(parsers):
-    """Return the type of parser to be executed. A valid file name
-    has a higher priority over a command. If a command is requested
-    while the first argument is a valid file then you may specify
-    that the argument is a command by using the option `--cmd`."""
+
+# pylint: disable=W0212
+def get_argparse_options(argp):
+    "Helper function to preparse the arguments. "
+    opt = dict()
+    for action in argp._optionals._actions:
+        for key in action.option_strings:
+            if action.type is None:
+                opt[key] = 1
+            else:
+                opt[key] = 2
+    return opt
+
+
+def preparse_args_argcomplete(argv, argp, subp, complete):
+    """Pre-parse the arguments for argcomplete. """
+    opt = get_argparse_options(argp)
+    parsers = subp.choices.keys()
+    index = 1
     arg = None
-    found = False
-    for arg in sys.argv[1:]:
-        if arg == '--cmd':
-            found = True
-        elif arg[0] != '-':
-            break
+    try:
+        while argv[index] in opt:
+            index += opt[argv[index]]
+        if index == 1 and argv[index][0] == '-':
+            return
+        arg = argv[index]
+        if arg == 'defaults':
+            argv.insert(index, '_')
+        if argv[index+1] in parsers:
+            return
+    except IndexError:
+        pass
+    if complete == ' ':
+        if arg in parsers:
+            argv.insert(index, '_')
+    else:
+        if arg in parsers and len(argv) - 1 > index:
+            argv.insert(index, '_')
+
+
+def preparse_args(argv, argp, subp):
+    """Pre-parse the arguments to be able to have a default subparser
+    based on the filename provided. """
+    opt = get_argparse_options(argp)
+    parsers = subp.choices.keys()
+    index = 1
+    arg = None
+    default = 'to'
+    try:
+        while argv[index] in opt:
+            index += opt[argv[index]]
+        if index == 1 and argv[index][0] == '-':
+            argv.insert(index, 'to')
+            argv.insert(index, '_')
+            return
+        arg = argv[index]
+        if arg == 'defaults':
+            argv.insert(index, '_')
+        if argv[index+1] in parsers:
+            return
+        if arg not in parsers:
+            argv.insert(index+1, default)
+    except IndexError:
+        if arg not in parsers:
+            argv.append(default)
+            if arg is None:
+                arg = default
     if arg in parsers:
-        if found:
-            return arg
-        if os.path.isfile(arg):
-            return None
-        return arg
-    return None
+        argv.insert(index, '_')
 
 
-def parse_options():
-    """Interpret the command line inputs and options. """
-    desc = """lexor is a document converter. In case no INPUTFILE is
-given lexor will read from STDIN. """
+def parse_options(mod):
+    "Interpret the command line inputs and options. "
+    desc = """
+lexor can perform various commands. Use the help option with a
+command for more information.
+
+"""
     ver = "lexor %s" % VERSION
     epi = """
-commands:
-    config      edit the configuration file ~/.lexorconfig
-    dist        create a zip file containing the distribution
-    install     install a parser/writer/converter style
-    develop     develop a style in the given path
-    paste       paste a template
+shortcut:
 
-example:
-    
-    lexor file.html --to markdown[cstyle:wstyle]
-    lexor file.html --to markdown[cstyle:otherlang.wstyle]
-    lexor file.html --to html~min,plain,_~
-    lexor file.html --to html~plain,_~mk[cstyle:wstyle,cstyle1,cstyle2]
-  
-  Store output to `output.html` and store warnings in `log.html`:
-      lexor doc.md > output.html 2> log.html
-  
-  Pipe the output from another program:
-       cat doc.md | lexor --from markdown
-  
-  Write to files without displaying output:
-      lexor --quite --nodisplay --write doc.md
+    lexor file.ext lang <==> lexor fle.ext to lang
 
 More info:
-  http://jmlopez-rod.github.com/lexor/
+  http://jmlopez-rod.github.com/lexor
 
 Version:
   This is lexor version %s
 
 """ % VERSION
-    argp = argparse.ArgumentParser(
-                    formatter_class=argparse.RawDescriptionHelpFormatter,
-                    description=textwrap.dedent(desc),
-                    version=ver, epilog=textwrap.dedent(epi))
-    command = _get_parser([
-        'config', 'dist', 'install', 'develop', 'paste'
-    ])
-    if not command:
-        argp.add_argument('INPUTFILE', type=str, nargs='?', default=None,
-                          help='input file to process')
-        argp.add_argument('--from', dest='fromlang', type=str, nargs='?',
-                          default=None, help='language to be parsed in')
-        argp.add_argument('--to', dest='tolang', type=str,
-                          default=None, nargs='?',
-                          help='language to which it will be converted')
-        argp.add_argument('--write', dest='write', action='store_const',
-                          const=True, default=False, help='write to file')
-        argp.add_argument('--log', dest='log', type=str, nargs='?',
-                          default=None,
-                          help='language in which the logs will be written')
-        argp.add_argument('-q', '--quite', dest='quite', action='store_const',
-                          const=True, default=False,
-                          help='supress warning messages')
-        argp.add_argument('--nodisplay', dest='nodisplay', action='store_const',
-                          const=True, default=False, help='supress output')
-    else:
-        argp.add_argument('--cmd', action='store_const',
-                          const=True, default=False,
-                          help='force argument to be treated as a command')
-        subp = argp.add_subparsers(title='Subcommands',
-                                   help='additional help',
-                                   dest='parser_name', metavar="<command>")
-        # CONFIG
-        desc = """edit the configuration file ~/.lexorconfig"""
-        tmpp = subp.add_parser('config', help='configure lexor',
-                                description=desc)
-        tmpp.add_argument('key', type=str,
-                          help='Must be in the form of section.key')
-        tmpp.add_argument('value', type=str,  nargs='?', default=None,
-                          help='key value')
-        # DIST
-        desc = """create a zip file containing the distribution """
-        tmpp = subp.add_parser('dist', help='distribute a style',
-                                description=desc)
-        tmpp.add_argument('style', type=str,
-                          help='name of style')
-        tmpp.add_argument('--dir', type=str, dest='dir',
-                          default=None, help='distribution directory')
-        # INSTALL
-        desc = """install a parser/writer/converter style """
-        tmpp = subp.add_parser('install', help='install a style',
-                                description=desc)
-        tmpp.add_argument('style', type=str,
-                           help='name of the style to install')
-        tmpp.add_argument('--user', action='store_const',
-                          const=True, default=False,
-                          help='install in user-site')
-        # DEVELOP
-        desc = """develop a style in the given path """
-        tmpp = subp.add_parser('develop', help='install a style',
-                                description=desc)
-        tmpp.add_argument('path', type=str,
-                           help='path to the style, it may be relative.')
-
-        # PASTE
-        desc = """paste a template """
-        tmpp = subp.add_parser('paste', help='paste a style',
-                                description=desc)
-        tmpp.add_argument('style', type=str,
-                           help='the style name')
-        tmpp.add_argument('lang', type=str,
-                           help='language')
-        tmpp.add_argument('type', type=str, choices=[
-                          'parser', 'writer', 'converter',
-                          'node-parser', 'node-writer', 'node-converter'],
-                           help='the type of file to write')
-        tmpp.add_argument('optional', nargs='*', default=None,
-                          help="[to language] [auxilary filename]")
-
-        tmpp = subp.add_parser('parser', help='make a style')
-        tmpp.add_argument('repo', type=str, help='path to repository')
-    return command, argp.parse_args()
+    raw = argparse.RawDescriptionHelpFormatter
+    argp = argparse.ArgumentParser(formatter_class=raw, version=ver,
+                                   description=textwrap.dedent(desc),
+                                   epilog=textwrap.dedent(epi))
+    argp.add_argument('inputfile', type=str, default='_', nargs='?',
+                      help='input file to process').completer = valid_files
+    argp.add_argument('--cfg', type=str, dest='cfg_path',
+                      metavar='CFG_PATH',
+                      help='configuration file directory')
+    argp.add_argument('--cfg-user', action='store_true', dest='cfg_user',
+                      help='select user configuration file. Overides --cfg')
+    subp = argp.add_subparsers(title='subcommands',
+                               dest='parser_name',
+                               help='additional help',
+                               metavar="<command>")
+    names = mod.keys()
+    names.sort()
+    for name in names:
+        mod[name].add_parser(subp, raw)
+    try:
+        if 'COMP_LINE' in os.environ:
+            argv = os.environ['COMP_LINE'].split()
+            last = ' ' if os.environ['COMP_LINE'][-1] == ' ' else ''
+            preparse_args_argcomplete(argv, argp, subp, last)
+            os.environ['COMP_LINE'] = ' '.join(argv) + last
+            os.environ['COMP_POINT'] = str(len(os.environ['COMP_LINE']))
+        argcomplete.autocomplete(argp)
+    except NameError:
+        pass
+    preparse_args(sys.argv, argp, subp)
+    return argp.parse_args()
 
 
 def run():
-    """Run lexor from the command line. """
-    command, arg = parse_options()
-    if command:
-        cmd_map = {
-            'config': lexor.config.run,
-            'dist': lexor.dev.dist.run,
-            'install': lexor.dev.install.run,
-            'develop': lexor.dev.develop.run,
-            'paste': lexor.dev.paste.run
-        }
-        cmd_map[command](arg)
-    else:
-        lexor.cmd_parser.execute(arg)
+    """Run excentury from the command line. """
+    mod = dict()
+    rootpath = pt.split(pt.abspath(__file__))[0]
+    mod_names = [name for name in iglob('%s/command/*.py' % rootpath)]
+    for name in mod_names:
+        tmp_name = pt.split(name)[1][:-3]
+        tmp_mod = import_mod('lexor.command.%s' % tmp_name)
+        if hasattr(tmp_mod, 'add_parser'):
+            mod[tmp_name] = tmp_mod
+    arg = parse_options(mod)
+    config.CONFIG['cfg_path'] = arg.cfg_path
+    config.CONFIG['cfg_user'] = arg.cfg_user
+    config.CONFIG['arg'] = arg
+    mod[arg.parser_name].run()
 
 
 if __name__ == '__main__':

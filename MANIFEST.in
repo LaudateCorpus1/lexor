@@ -1,4 +1,4 @@
 include bin/lexor
 include Makefile
 include MANIFEST.in
-include lexor/dev/*.txt
+include lexor/core/templates/*.txt
