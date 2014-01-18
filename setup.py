@@ -30,10 +30,6 @@ setup(name='lexor',
       scripts=[
           'bin/lexor',
           ],
-      package_data={
-          'lexor.dev': ['*.txt'],
-          },
-      include_package_data=True,
       classifiers=[
           'Development Status :: %s' % DEVSTATUS,
           'License :: OSI Approved :: BSD License',
