@@ -20,11 +20,11 @@ lexor.
 
 from sys import stdout
 from os.path import realpath, basename, splitext
-from .core.lang import load_aux
 from .core.parser import Parser
 from .core.writer import Writer
 from .core.converter import Converter
 from .command import error
+from .command.lang import load_aux
 from .__version__ import get_version
 
 __all__ = ['parse', 'read', 'convert', 'write', 'init', 'load_aux']

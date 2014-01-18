@@ -1,7 +1,17 @@
 """lexor setup script"""
 
-from setuptools import find_packages, setup
-from lexor.__version__ import VERSION, VERSION_INFO
+import imp
+import os.path as pt
+from setuptools import setup
+
+
+def get_version():
+    "Get version & version_info without importing markdown.__init__ "
+    path = pt.join(pt.dirname(__file__), 'lexor', '__version__.py')
+    mod = imp.load_source('lexor_version', path)
+    return mod.VERSION, mod.VERSION_INFO
+
+VERSION, VERSION_INFO = get_version()
 
 DESCRIPTION = "Document converter implemented in python."
 LONG_DESCRIPTION = "Lexor is a parser, converter and writer."
@@ -26,10 +36,21 @@ setup(name='lexor',
       author_email='jmlopez.rod@gmail.com',
       url='http://math.uh.edu/~jmlopez/lexor',
       license='BSD License',
-      packages=find_packages(),
-      scripts=[
-          'bin/lexor',
+      packages=[
+          'lexor',
+          'lexor.command',
+          'lexor.core',
           ],
+      scripts=['bin/lexor'],
+      install_requires=[
+          'configparser>=3.3.0r2',
+          'argcomplete>=0.6.7',
+          'nose>=1.3',
+          ],
+      package_data={
+          'lexor.core': ['*.txt'],
+          },
+      include_package_data=True,
       classifiers=[
           'Development Status :: %s' % DEVSTATUS,
           'License :: OSI Approved :: BSD License',
