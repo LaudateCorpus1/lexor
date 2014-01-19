@@ -189,3 +189,15 @@ def get_cfg(names, defaults=None):
         _update_from_arg(cfg, argdict, 'lexor')
         CONFIG['arg'] = None
     return cfg
+
+
+def get_style_cfg(name, defaults):
+    "Obtain style settings from the configuration file"
+    cfg_file = read_config()
+    cfg = dict()
+    for var, val in defaults.iteritems():
+        cfg[var] = os.path.expandvars(str(val))
+    if name in cfg_file:
+        for var, val in cfg_file[name].iteritems():
+            cfg[var] = os.path.expandvars(val)
+    return cfg

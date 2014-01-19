@@ -4,6 +4,7 @@ Execute lexor by transforming a file "to" another language.
 
 """
 
+import re
 import os
 import sys
 import textwrap
@@ -31,6 +32,9 @@ examples:
     lexor file.html to html~min,plain,_~
     lexor file.html to html~plain,_~mk[cstyle:wstyle,cstyle1,cstyle2]
 
+    lexor Makefile to xml --from makefile
+    lexor Makefile to xml --from makefile:otherstyle
+
   Store output to `output.html` and store warnings in `log.html`:
       lexor doc.md > output.html 2> log.html
 
@@ -43,45 +47,109 @@ examples:
 """
 
 
+def split_at(delimiter, text, opens='[<(', closes=']>)', quotes='"\''):
+    """Custom function to split at commas. Taken from stackoverflow
+    http://stackoverflow.com/a/20599372/788553"""
+    result = []
+    buff = ""
+    level = 0
+    is_quoted = False
+    for char in text:
+        if char in delimiter and level == 0 and not is_quoted:
+            result.append(buff)
+            buff = ""
+        else:
+            buff += char
+            if char in opens:
+                level += 1
+            elif char in closes:
+                level -= 1
+            elif char in quotes:
+                is_quoted = not is_quoted
+    if not buff == "":
+        result.append(buff)
+    return result
+
+
 def language_style(lang_str):
     """Parses a language string. In particular, the options --from
     and --log. """
-    tmp = lang_str.lower().split(':')
-    input_lang = tmp[0]
-    input_style = '_'
+    tmp = split_at(':', lang_str.lower())
     if len(tmp) == 2:
-        input_style = tmp[1]
+        input_lang = tmp[0]
+        input_style = style_parameters(tmp[1])
+    else:
+        index = tmp[0].find('@')
+        if index == -1:
+            input_lang = tmp[0]
+            input_style = style_parameters('_')
+        else:
+            input_lang = tmp[0][:index]
+            input_style = style_parameters(tmp[0][index:])
+    if input_lang == '':
+        input_lang = '_'
+    if input_style['name'] == '':
+        input_style['name'] = '_'
     return input_lang, input_style
+
+
+def parse_styles(lang_str):
+    """Parses a language string. In particular, the options --from
+    and --log. """
+    tmp = split_at(':', lang_str.lower())
+    if len(tmp) == 2:
+        cstyle = style_parameters(tmp[0])
+        wstyle = style_parameters(tmp[1])
+    else:
+        cstyle = style_parameters(tmp[0])
+        wstyle = style_parameters('_')
+    if cstyle['name'] == '':
+        cstyle['name'] = '_'
+    if wstyle['name'] == '':
+        wstyle['name'] = '_'
+    return cstyle, wstyle
+
+
+def style_parameters(style):
+    """Parsers a style name along with its parameters. """
+    style = split_at('@', style)
+    style_dict = {'name': style[0], 'params': dict()}
+    for ele in style[1:]:
+        try:
+            var, val = ele.split('=')
+        except ValueError:
+            msg = 'style arguments must be of the form @var=val'
+            raise argparse.ArgumentTypeError(msg)
+        if val[0] == '[':
+            val = val[1:-1]
+        style_dict['params'][var] = val
+    return style_dict
 
 
 def input_language(tolang):
     """Parses the tolang argument. """
-    index = tolang.find('[')
-    type_ = None
-    if index == -1:
-        index = tolang.find('~')
-        if index == -1:
-            return ('c', tolang, [('_', '_')])
-        else:
-            type_ = 'w'
-            if tolang[-1] != '~':
-                msg = 'must finish with `~`'
-                raise argparse.ArgumentTypeError(msg)
-    else:
+    type_ = 'w'
+    match = re.match("(.+)~(.+)~", tolang)
+    if not match:
         type_ = 'c'
-        if tolang[-1] != ']':
-            msg = 'must finish with `]`'
+        index = tolang.find('[')
+        if index == -1 or tolang[-1] != ']':
+            msg = 'must be of the form lang[...] or lang~...~'
             raise argparse.ArgumentTypeError(msg)
-    styles = tolang[index+1:-1]
+        lang_name = tolang[:index]
+        styles = tolang[index+1:-1]
+    else:
+        lang_name, styles = match.groups()
     if type_ == 'w':
-        msg = '`:` is not supported in "%s~%s~"' % (tolang[:index], styles)
-        styles = styles.split(',')
+        msg = '`:` is not supported in "%s~%s~"' % (lang_name, styles)
+        styles = split_at(',', styles)
         for style in styles:
             if ':' in style:
                 raise argparse.ArgumentTypeError(msg)
+        styles = [style_parameters(ele) for ele in styles]
     else:
-        styles = [language_style(ele) for ele in styles.split(',')]
-    return type_, tolang[:index], styles
+        styles = [parse_styles(ele) for ele in split_at(',', styles)]
+    return type_, lang_name, styles
 
 
 def add_parser(subp, fclass):
@@ -155,20 +223,20 @@ def run():
         log = language_style(log)
 
     try:
-        parser = Parser(in_lang, in_style)
+        parser = Parser(in_lang, in_style['name'])
         if hasattr(parser.style_module, 'VERSIONS'):
             versions = parser.style_module.VERSIONS
             msg = 'WARNING: No version specified in configuration.\n' \
                   'Using the first module in this list:\n\n  %s\n\n'
             warn(msg % '\n  '.join(versions))
     except IOError:
-        msg = "ERROR: Parsing style not found: [%s:%s]\n" % parse_lang
-        error(msg)
+        msg = "ERROR: Parsing style not found: [%s:%s]\n"
+        error(msg % (in_lang, in_style['name']))
     try:
-        log_writer = Writer(log[0], log[1])
+        log_writer = Writer(log[0], log[1]['name'])
     except IOError:
-        msg = "ERROR: log writing style not found: [%s:%s]\n" % log
-        error(msg)
+        msg = "ERROR: log writing style not found: [%s:%s]\n"
+        error(msg % (log[0], log[1]['name']))
     parser.parse(text, t_name)
     write_log(log_writer, parser.log, arg.quiet)
     if not arg.tolang:
@@ -179,7 +247,7 @@ def run():
 def convert_and_write(f_name, parser, in_lang, log, arg):
     """Auxilary function to reduce the number of branches in run. """
     try:
-        log_writer = Writer(log[0], log[1])
+        log_writer = Writer(log[0], log[1]['name'])
     except IOError:
         error("ERROR: log writing style not found: [%s:%s]\n" % log)
     try:
@@ -233,9 +301,10 @@ def run_converter(param):
     writer = param['writer']
     log_writer = param['log_writer']
     for style in param['styles']:
+        cstyle = style[0]['name']
         try:
-            converter.set(in_lang, lang, style[0])
-            wstyle = style[1]
+            converter.set(in_lang, lang, cstyle)
+            wstyle = style[1]['name']
             try:
                 if '.' in wstyle:
                     (lang, wstyle) = wstyle.split('.')
@@ -252,7 +321,7 @@ def run_converter(param):
                 warn(msg)
         except IOError:
             msg = "ERROR: Converting style not found: " \
-                  "[%s ==> %s:%s]\n" % (in_lang, lang, style[0])
+                  "[%s ==> %s:%s]\n" % (in_lang, lang, cstyle)
             warn(msg)
 
 
@@ -265,10 +334,10 @@ def run_writer(param):
     writer = param['writer']
     for style in param['styles']:
         try:
-            writer.set(lang, style)
-            fname = '%s.%s.%s' % (f_name, style, lang)
+            writer.set(lang, style['name'])
+            fname = '%s.%s.%s' % (f_name, style['name'], lang)
             write_document(writer, parser.doc, fname, arg)
         except IOError:
             msg = "ERROR: Writing style not found: " \
-                  "[%s:%s]\n" % (lang, style)
+                  "[%s:%s]\n" % (lang, style['name'])
             warn(msg)

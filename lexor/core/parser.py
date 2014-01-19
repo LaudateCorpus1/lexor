@@ -126,6 +126,8 @@ class Parser(object):
             self.doc = elements.DocumentFragment(self._lang)
         self.log = elements.Document("lexor", "log")
         self._parse()
+        if hasattr(self.style_module, 'ERR_CODE'):
+            self.log.error_code = self.style_module.ERR_CODE
 
     @property
     def cdata(self):
@@ -223,6 +225,23 @@ class Parser(object):
         else:
             tmpcolumn = self.pos[1] + index - self.caret
         return [tmpline, tmpcolumn]
+
+    def error_code(self, name, pos, code, arg=(), uri=None):
+        """Provide name of the calling node processor, the position
+        of the caret where the error occurred and the error code.
+        Some error code requires to format its message. For that you
+        may provide a tuple with the arguments (all strings) to the
+        parameter `arg`. The defult value of uri is set to None to
+        let the parser know that you wish to use the parser's uri as
+        the name of the document where the error occurred. """
+        if uri is None:
+            uri = self._uri
+        node = elements.Void('error_code')
+        node['position'] = list(pos)
+        node['code'] = code
+        node['file'] = uri
+        node['fmt_arg'] = arg
+        self.log.append_child(node)
 
     def warn(self, pos, msg, uri=None):
         """Provide the position of the caret and a message to store a
