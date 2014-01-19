@@ -32,9 +32,9 @@ def run():
     cfg_file = config.read_config()
     arg = config.CONFIG['arg']
     path = os.path.abspath(arg.path)
-    rel_path = path[len(config.CONFIG['path'])+1:]
     if '.py' not in path:
         path = '%s.py' % path
+    rel_path = path[len(config.CONFIG['path'])+1:]
     try:
         mod = load_source("tmp-mod", path)
     except IOError:

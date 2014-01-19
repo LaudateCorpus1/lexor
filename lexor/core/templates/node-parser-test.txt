@@ -5,7 +5,7 @@ Testing suite for parsing {lang} {np} in the {style} style.
 """
 
 from nose.tools import eq_
-from tests import print_log
+from lexor.command.test import print_log
 import lexor
 
 
