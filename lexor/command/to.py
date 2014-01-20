@@ -223,7 +223,7 @@ def run():
         log = language_style(log)
 
     try:
-        parser = Parser(in_lang, in_style['name'])
+        parser = Parser(in_lang, in_style['name'], in_style['params'])
         if hasattr(parser.style_module, 'VERSIONS'):
             versions = parser.style_module.VERSIONS
             msg = 'WARNING: No version specified in configuration.\n' \
@@ -233,7 +233,7 @@ def run():
         msg = "ERROR: Parsing style not found: [%s:%s]\n"
         error(msg % (in_lang, in_style['name']))
     try:
-        log_writer = Writer(log[0], log[1]['name'])
+        log_writer = Writer(log[0], log[1]['name'], log[1]['params'])
     except IOError:
         msg = "ERROR: log writing style not found: [%s:%s]\n"
         error(msg % (log[0], log[1]['name']))
@@ -247,7 +247,7 @@ def run():
 def convert_and_write(f_name, parser, in_lang, log, arg):
     """Auxilary function to reduce the number of branches in run. """
     try:
-        log_writer = Writer(log[0], log[1]['name'])
+        log_writer = Writer(log[0], log[1]['name'], log[1]['params'])
     except IOError:
         error("ERROR: log writing style not found: [%s:%s]\n" % log)
     try:
@@ -303,14 +303,14 @@ def run_converter(param):
     for style in param['styles']:
         cstyle = style[0]['name']
         try:
-            converter.set(in_lang, lang, cstyle)
+            converter.set(in_lang, lang, cstyle, style[0]['params'])
             wstyle = style[1]['name']
             try:
                 if '.' in wstyle:
                     (lang, wstyle) = wstyle.split('.')
                     if wstyle == '_':
                         wstyle = 'default'
-                writer.set(lang, wstyle)
+                writer.set(lang, wstyle, style[0]['params'])
                 converter.convert(parser.doc)
                 write_log(log_writer, converter.log, arg.quiet)
                 fname = '%s.%s.%s' % (f_name, wstyle, lang)
@@ -334,7 +334,7 @@ def run_writer(param):
     writer = param['writer']
     for style in param['styles']:
         try:
-            writer.set(lang, style['name'])
+            writer.set(lang, style['name'], style['params'])
             fname = '%s.%s.%s' % (f_name, style['name'], lang)
             write_document(writer, parser.doc, fname, arg)
         except IOError:

@@ -10,6 +10,7 @@ able to parse character sequences in the way you desire.
 
 import re
 from lexor.command.lang import get_style_module
+import lexor.command.config as config
 import lexor.core.elements as elements
 
 __all__ = ['Parser', 'NodeParser']
@@ -83,15 +84,16 @@ class Parser(object):
     """To see the languages that it is able to parse see the
     `lexor.lang` module. """
 
-    def __init__(self, lang='xml', style='default'):
+    def __init__(self, lang='xml', style='default', defaults=None):
         """Create a new parser by specifying the language and the
         style in which text will be parsed. """
+        self.defaults = None
         self._lang = lang
         self._style = style
         self.style_module = None
         self._np = None
         self._next_check = None
-        self._set_node_parsers(lang, style)
+        self._set_node_parsers(lang, style, defaults)
         self.text = None
         self.end = None
         self.pos = None
@@ -101,9 +103,11 @@ class Parser(object):
         self.log = None
         self._in_progress = None
 
-    def _set_node_parsers(self, lang, style):
+    def _set_node_parsers(self, lang, style, defaults=None):
         """Imports the correct module based on the language and style. """
         self.style_module = get_style_module('parser', lang, style)
+        name = '%s-parser-%s' % (lang, style)
+        config.set_style_cfg(self, name, defaults)
         self._next_check = dict()
         self._np = dict()
         for key, val in self.style_module.MAPPING.iteritems():
@@ -226,6 +230,7 @@ class Parser(object):
             tmpcolumn = self.pos[1] + index - self.caret
         return [tmpline, tmpcolumn]
 
+    # pylint: disable=R0913
     def error_code(self, name, pos, code, arg=(), uri=None):
         """Provide name of the calling node processor, the position
         of the caret where the error occurred and the error code.
@@ -237,6 +242,7 @@ class Parser(object):
         if uri is None:
             uri = self._uri
         node = elements.Void('error_code')
+        node['reporter'] = name
         node['position'] = list(pos)
         node['code'] = code
         node['file'] = uri

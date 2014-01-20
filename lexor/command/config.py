@@ -191,13 +191,20 @@ def get_cfg(names, defaults=None):
     return cfg
 
 
-def get_style_cfg(name, defaults):
-    "Obtain style settings from the configuration file"
+def set_style_cfg(obj, name, defaults):
+    """Given an obj, this can be a Parser, Converter or Writer. It
+    sets the attribute defaults to the specified defaults in the
+    configuration file or by the user by overwriting values in the
+    parameter defaults."""
+    obj.defaults = dict()
+    if hasattr(obj.style_module, 'DEFAULTS'):
+        mod_defaults = obj.style_module.DEFAULTS
+        for var, val in mod_defaults.iteritems():
+            obj.defaults[var] = os.path.expandvars(str(val))
     cfg_file = read_config()
-    cfg = dict()
-    for var, val in defaults.iteritems():
-        cfg[var] = os.path.expandvars(str(val))
     if name in cfg_file:
         for var, val in cfg_file[name].iteritems():
-            cfg[var] = os.path.expandvars(val)
-    return cfg
+            obj.defaults[var] = os.path.expandvars(val)
+    if defaults:
+        for var, val in defaults.iteritems():
+            obj.defaults[var] = val

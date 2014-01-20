@@ -9,6 +9,7 @@ desire.
 
 """
 
+import lexor.command.config as config
 from lexor.command.lang import get_style_module
 from lexor.core.elements import Document, DocumentFragment
 from lexor.core.elements import CharacterData, Element
@@ -65,6 +66,7 @@ class Converter(object):
     def __init__(self, fromlang='xml', tolang='xml', style='default'):
         """Create a new `Converter` by specifying the language and the
         style in which `Node` objects will be written. """
+        self.defaults = None
         self.style_module = None
         self._fromlang = fromlang
         self._tolang = tolang
@@ -109,12 +111,13 @@ class Converter(object):
         self._style = value
         self._set_node_converters(self._fromlang, self._tolang, self._style)
 
-    def set(self, fromlang, tolang, style):
+    def set(self, fromlang, tolang, style, defaults=None):
         """Sets the languages and styles in one call. """
         self._style = style
         self._tolang = tolang
         self._fromlang = fromlang
-        self._set_node_converters(self._fromlang, self._tolang, self._style)
+        self._set_node_converters(self._fromlang, self._tolang, 
+                                  self._style, defaults)
 
     @property
     def lexorlog(self):
@@ -145,10 +148,12 @@ class Converter(object):
         warning['message'] = msg
         self.log.append_child(warning)
 
-    def _set_node_converters(self, fromlang, tolang, style):
+    def _set_node_converters(self, fromlang, tolang, style, defaults=None):
         """Imports the correct module based on the languages and style. """
         self.style_module = get_style_module('converter', fromlang,
                                              style, tolang)
+        name = '%s-converter-%s-%s' % (fromlang, tolang, style)
+        config.set_style_cfg(self, name, defaults)
         self._nc = dict()
         self._nc['__default__'] = NodeConverter(self)
         for key, val in self.style_module.MAPPING.iteritems():

@@ -12,6 +12,7 @@ desire.
 import re
 from cStringIO import StringIO
 from lexor.command.lang import get_style_module
+import lexor.command.config as config
 import lexor.core.elements
 
 __all__ = ['Writer', 'NodeWriter', 'replace']
@@ -127,20 +128,23 @@ class DefaultWriter(NodeWriter):
         self.write('</%s>' % node.name)
 
 
+# The default of 7 attributes for class is too restrictive.
+# pylint: disable=R0902
 class Writer(object):
     """To see the languages in which a `Writer` object is able to
     write see the `lexor.lang` module. """
 
-    def __init__(self, lang='xml', style='default'):
+    def __init__(self, lang='xml', style='default', defaults=None):
         """Create a new `Writer` by specifying the language and the
         style in which `Node` objects will be written. """
+        self.defaults = None
         self.style_module = None
         self._lang = lang
         self._style = style
         self._filename = None
         self._file = None  # Points to a file object
         self._nw = None    # Array of NodeWriters
-        self._set_node_writers(lang, style)
+        self._set_node_writers(lang, style, defaults)
         # May be useful to write in a certain style
         self.caret = 0
 
@@ -172,11 +176,11 @@ class Writer(object):
         self._style = value
         self._set_node_writers(self._lang, self._style)
 
-    def set(self, lang, style):
+    def set(self, lang, style, defaults=None):
         """Set the language and style in one call. """
         self._style = style
         self._lang = lang
-        self._set_node_writers(self._lang, self._style)
+        self._set_node_writers(self._lang, self._style, defaults)
 
     def __str__(self):
         """Attempts to retrive the last written string. """
@@ -234,9 +238,11 @@ class Writer(object):
         if self._filename is not file:
             self._file.close()
 
-    def _set_node_writers(self, lang, style):
+    def _set_node_writers(self, lang, style, defaults=None):
         """Imports the correct module based on the language and style. """
         self.style_module = get_style_module('writer', lang, style)
+        name = '%s-writer-%s' % (lang, style)
+        config.set_style_cfg(self, name, defaults)
         self._nw = dict()
         self._nw['__default__'] = DefaultWriter(self)
         self._nw['#document'] = NodeWriter(self)
