@@ -19,6 +19,7 @@ __all__ = ['Parser', 'NodeParser']
 class NodeParser(object):
     """An object that has two methods: `makeNode` and `close`. The
     first method is required to be overloaded in derived objects."""
+    name = None
 
     def __init__(self, parser):
         """A `NodeParser` needs to be initialized with a `Parser`
@@ -76,6 +77,10 @@ class NodeParser(object):
         """
         msg = '%s did not implement `close`' % self.__class__
         raise NotImplementedError(msg)
+
+    def error(self, pos, code, args=()):
+        """Issue an error/warning code. """
+        self.parser.error_code(self.name, pos, code, args)
 
 
 # The default of 7 attributes for class is too restrictive.
@@ -249,6 +254,7 @@ class Parser(object):
         node['fmt_arg'] = arg
         self.log.append_child(node)
 
+    # @deprecated
     def warn(self, pos, msg, uri=None):
         """Provide the position of the caret and a message to store a
         warning. The defult value of uri is set to None to let the
@@ -262,6 +268,7 @@ class Parser(object):
         warning['file'] = uri
         self.log.append_child(warning)
 
+    # @deprecated
     def error(self, pos, msg, uri=None):
         """Provide the position of the caret and a message to store a
         warning. The defult value of uri is set to None to let the

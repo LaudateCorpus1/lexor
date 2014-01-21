@@ -16,7 +16,6 @@ import lexor
 import lexor.command.config as config
 from glob import iglob
 
-__all__ = ['WRAPPER', 'print_log', 'parse_write', 'parse_convert_write']
 
 WRAPPER = textwrap.TextWrapper(width=70, break_long_words=False)
 
@@ -51,7 +50,7 @@ def add_parser(subp, fclass):
     tmpp.add_argument('--installed', action='store_true',
                       help='run all installed tests')
     tmpp.add_argument('--verbose', '-v', action='store_true',
-                      help='run all installed tests')
+                      help='display test messages')
 
 
 def run():
@@ -139,6 +138,7 @@ def _display_failed(failed):
         print(fail[1])
 
 
+# @deprecated
 def print_log(node):
     """Display the error obtained from parsing. """
     pos = node['position']
