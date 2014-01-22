@@ -134,9 +134,13 @@ class Parser(object):
             self._uri = 'string@0x%x' % id(text)
             self.doc = elements.DocumentFragment(self._lang)
         self.log = elements.Document("lexor", "log")
-        self._parse()
         if hasattr(self.style_module, 'ERR_CODE'):
             self.log.error_code = self.style_module.ERR_CODE
+        if hasattr(self.style_module, 'pre_process'):
+            self.style_module.pre_process(self)
+        self._parse()
+        if hasattr(self.style_module, 'post_process'):
+            self.style_module.post_process(self)
 
     @property
     def cdata(self):
