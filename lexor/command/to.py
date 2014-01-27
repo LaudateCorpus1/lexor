@@ -179,17 +179,22 @@ def get_input(input_file, cfg, default='_'):
     that text. The last output is the extension of the file. """
     if input_file is '_':
         return sys.stdin.read(), 'STDIN', 'STDIN', default
-    root = cfg['lexor']['root']
-    paths = cfg['edit']['path'].split(':')
     found = False
-    for path in paths:
-        if path[0] in ['/', '.']:
-            abspath = '%s/%s' % (path, input_file)
-        else:
-            abspath = '%s/%s/%s' % (root, path, input_file)
+    if input_file[0] != '/':
+        root = cfg['lexor']['root']
+        paths = cfg['edit']['path'].split(':')
+        for path in paths:
+            if path[0] in ['/', '.']:
+                abspath = '%s/%s' % (path, input_file)
+            else:
+                abspath = '%s/%s/%s' % (root, path, input_file)
+            if os.path.exists(abspath):
+                found = True
+                break
+    else:
+        abspath = input_file
         if os.path.exists(abspath):
             found = True
-            break
     if not found:
         error("ERROR: The file '%s' does not exist.\n" % input_file)
     text = open(abspath, 'r').read()
