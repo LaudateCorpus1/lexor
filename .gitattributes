@@ -1,0 +1,12 @@
+# EXPORT #
+##########
+build/ export-ignore
+dist/ export-ignore
+lexor.egg-info/ export-ignore
+.acl export-ignore
+.bashrc export-ignore
+.description export-ignore
+.gitattributes export-ignore
+.gitignore export-ignore
+.jmlopez.profile export-ignore
+Makefile export-ignore
