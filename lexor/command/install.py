@@ -30,6 +30,8 @@ def add_parser(subp, fclass):
                       help='name of style to install')
     tmpp.add_argument('--user', action='store_true',
                       help='install in user-site')
+    tmpp.add_argument('--path', type=str,
+                      help='specify the installation path')
 
 
 def install_style(style, install_dir):
@@ -104,7 +106,9 @@ def install_style(style, install_dir):
 def run():
     """Run the command. """
     arg = config.CONFIG['arg']
-    if arg.user:
+    if arg.path:
+        install_dir = arg.path
+    elif arg.user:
         install_dir = '%s/lib/lexor' % site.getuserbase()
     else:
         install_dir = '%s/lib/lexor' % sys.prefix

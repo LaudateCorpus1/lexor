@@ -10,7 +10,7 @@ export LEXOR_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export PATH=$LEXOR_ROOT/bin:$PATH
 
 # Python and C/C++
-export PYTHONPATH=$LEXOR_ROOT/python:$PYTHONPATH
+export PYTHONPATH=$LEXOR_ROOT:$PYTHONPATH
 
 # LEXOR_CONFIG:
 # If you have a configuration file for lexor that you wish to
