@@ -457,6 +457,7 @@ class Text(CharacterData):
         """Returns a new Text with the same data content. """
         return Text(self.data)
 
+
 class ProcessingInstruction(CharacterData):
     """Represents a "processing instruction", used to keep
     processor-specific information in the text of the document. """
@@ -727,6 +728,7 @@ class Document(Element):
         self.owner = self
         self.lang = lang
         self.style = style
+        self.uri_ = None
 
     @property
     def language(self):
@@ -751,6 +753,14 @@ class Document(Element):
         For performance simply use self.style.
         """
         return self.style
+
+    @property
+    def uri(self):
+        """The Uniform Resource Identifier. This property may become
+        useful if the document represents a file. This property
+        should be set by the a Parser object telling you the location
+        of the file that it parsed into the Document object. """
+        return self.uri_
 
     @writing_style.setter
     def writing_style(self, val):

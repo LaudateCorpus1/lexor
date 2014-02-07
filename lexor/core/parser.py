@@ -130,6 +130,7 @@ class Parser(object):
         if uri:
             self._uri = uri
             self.doc = elements.Document(self._lang)
+            self.doc.uri_ = uri
         else:
             self._uri = 'string@0x%x' % id(text)
             self.doc = elements.DocumentFragment(self._lang)

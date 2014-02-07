@@ -283,7 +283,6 @@ class Writer(object):
             return 'r'
         elif crt.child:
             if self._write_child(crt) is None:
-                # Missing self._write_end(crt)?
                 return 'r'
             else:
                 return 'd'
