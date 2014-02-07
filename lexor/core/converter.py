@@ -190,7 +190,8 @@ class Converter(object):
         # A doc needs to be copied by default. You may prohibit
         # to copy the children, but there must be a document.
         crt = doc
-        self.doc = type(crt)(doc.lang)
+        self.doc = Document(doc.lang, doc.style)
+        self.doc.uri_ = doc.uri_
         crtcopy = self.doc
         self._process(crtcopy)
         if self._copy_children(crt):
