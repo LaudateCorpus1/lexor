@@ -30,7 +30,7 @@ examples:
     lexor file.html to markdown[cstyle:wstyle]
     lexor file.html to markdown[cstyle:otherlang.wstyle]
     lexor file.html to html~min,plain,_~
-    lexor file.html to html~plain,_~mk[cstyle:wstyle,cstyle1,cstyle2]
+    lexor file.html to html~plain,_~ mk[cstyle:wstyle,cstyle1,cstyle2]
 
     lexor Makefile to xml --from makefile
     lexor Makefile to xml --from makefile:otherstyle
@@ -133,11 +133,18 @@ def input_language(tolang):
     if not match:
         type_ = 'c'
         index = tolang.find('[')
-        if index == -1 or tolang[-1] != ']':
-            msg = 'must be of the form lang[...] or lang~...~'
-            raise argparse.ArgumentTypeError(msg)
-        lang_name = tolang[:index]
-        styles = tolang[index+1:-1]
+        if index == -1:
+            if tolang[-1] == ']':
+                msg = 'did you mean to write lang[...]?'
+                raise argparse.ArgumentTypeError(msg)
+            lang_name = tolang
+            styles = '_'
+        else:
+            if tolang[-1] != ']':
+                msg = 'must be of the form lang[...] or lang~...~'
+                raise argparse.ArgumentTypeError(msg)
+            lang_name = tolang[:index]
+            styles = tolang[index+1:-1]
     else:
         lang_name, styles = match.groups()
     if type_ == 'w':
