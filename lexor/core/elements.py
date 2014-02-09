@@ -533,6 +533,37 @@ class CData(CharacterData):
         return CData(self.data)
 
 
+class Entity(CharacterData):
+    """From merriam-webster [definition][1]:
+
+    - something that exists by itself.
+    - something that is separate from other things.
+
+    This node acts in the same way as a Text node but it has one main
+    difference. The data it contains should contain no white spaces.
+    This node should be reserved for special characters or words that
+    have different meanings across different languages. For instance
+    in HTML you have the `&amp;` to represent `&`. In LaTeX you have
+    to type `\$` to represent `$`. Using this node will help you
+    handle these Entities hopefully more efficiently than simply
+    finding and replacing them in a Text node.
+
+    [1]: http://www.merriam-webster.com/dictionary/entity
+
+    """
+
+    __slots__ = ()
+
+    def __init__(self, text=''):
+        """Create an `Entity` node with its data set to `text`."""
+        CharacterData.__init__(self, text)
+        self.name = '#entity'
+
+    def clone_node(self, _=True):
+        """Returns a new Entiry with the same data content. """
+        return Entity(self.data)
+
+
 class DocumentType(CharacterData):
     """A node to store the doctype declaration. This node will not
     follow the specifications at this point (May 30, 2013). This node
@@ -791,3 +822,4 @@ class DocumentFragment(Document):
     def __repr__(self):
         """x.__repr__() <==> repr(x)"""
         return ''.join([repr(node) for node in self.child])
+
