@@ -7,6 +7,7 @@ implementation follows most of the recommendations of [w3].
 
 """
 
+import os
 from cStringIO import StringIO
 import lexor.core.writer
 
@@ -274,6 +275,9 @@ class Node(object):
             style = self.owner.style
             lang = self.owner.lang
         writer = lexor.core.writer.Writer(lang, style)
+        if self.owner is not None and self.owner.defaults is not None:
+            for var, val in self.owner.defaults.iteritems():
+                writer.defaults[var] = os.path.expandvars(str(val))
         writer.write(self)
         val = str(writer)
         writer.close()
@@ -544,7 +548,7 @@ class Entity(CharacterData):
     This node should be reserved for special characters or words that
     have different meanings across different languages. For instance
     in HTML you have the `&amp;` to represent `&`. In LaTeX you have
-    to type `\$` to represent `$`. Using this node will help you
+    to type `\\$` to represent `$`. Using this node will help you
     handle these Entities hopefully more efficiently than simply
     finding and replacing them in a Text node.
 
@@ -760,6 +764,7 @@ class Document(Element):
         self.lang = lang
         self.style = style
         self.uri_ = None
+        self.defaults = None
 
     @property
     def language(self):
@@ -822,4 +827,3 @@ class DocumentFragment(Document):
     def __repr__(self):
         """x.__repr__() <==> repr(x)"""
         return ''.join([repr(node) for node in self.child])
-

@@ -6,6 +6,7 @@ To run do: nosetests -vs
 
 """
 
+from nose.tools import eq_
 from lexor.command import exec_cmd
 from lexor.command.lang import LEXOR_PATH
 from os.path import dirname, exists
@@ -138,6 +139,16 @@ def _display_failed(failed):
         print(fail[1])
 
 
+def compare_with(str_obj, expected):
+    """Calls nose.eq_ to compare the strings and prints a custom
+    message. """
+    hline = '_'*60
+    msg = "str_obj -->\n%s\n%s\n%s\n\
+expected -->\n%s\n%s\n%s\n" % (hline, str_obj, hline,
+                               hline, expected, hline)
+    eq_(str_obj, expected, msg)
+
+
 # @deprecated
 def print_log(node):
     """Display the error obtained from parsing. """
@@ -149,6 +160,7 @@ def print_log(node):
     sys.stderr.write('\n\n ... ')
 
 
+# @deprecated
 def parse_write(callerfile, in_, out_, style, lang):
     """Provide the filename as the input and the style you wish
     to compare it against. """
@@ -169,6 +181,7 @@ def parse_write(callerfile, in_, out_, style, lang):
     return str(doc), text
 
 
+# @deprecated
 def parse_convert_write(callerfile, in_, out_, style, tolang):
     """Provide the filename as the input and the style you wish
     to compare it against. """
