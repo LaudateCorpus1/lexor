@@ -6,7 +6,7 @@ from setuptools import setup
 
 
 def get_version():
-    "Get version & version_info without importing markdown.__init__ "
+    "Get version & version_info without importing lexor.__init__ "
     path = pt.join(pt.dirname(__file__), 'lexor', '__version__.py')
     mod = imp.load_source('lexor_version', path)
     return mod.VERSION, mod.VERSION_INFO
