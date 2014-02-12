@@ -120,8 +120,12 @@ def style_parameters(style):
         except ValueError:
             msg = 'style arguments must be of the form @var=val'
             raise argparse.ArgumentTypeError(msg)
-        if val[0] == '[':
-            val = val[1:-1]
+        try:
+            if val[0] == '[':
+                val = val[1:-1]
+        except IndexError:
+            msg = 'To give empty values try @var=[]'
+            raise argparse.ArgumentTypeError(msg)
         style_dict['params'][var] = val
     return style_dict
 

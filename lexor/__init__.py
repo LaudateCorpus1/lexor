@@ -18,6 +18,7 @@ lexor.
 
 """
 
+import os
 from sys import stdout
 from os.path import realpath, basename, splitext
 from .core.parser import Parser
@@ -70,7 +71,7 @@ def convert(doc, lang=None, style="default"):
     return (converter.document, converter.log)
 
 
-def write(doc, filename=None, mode='w'):
+def write(doc, filename=None, mode='w', **options):
     """Write doc to a file. To write to the standard output use the
     default parameters, otherwise provide a file name. If filename is
     provided you have the option of especifying the mode: 'w' or 'a'.
@@ -86,6 +87,11 @@ def write(doc, filename=None, mode='w'):
         style = doc.owner.style
         lang = doc.owner.lang
     writer = Writer(lang, style)
+    if doc.owner is not None and doc.owner.defaults is not None:
+        for var, val in doc.owner.defaults.iteritems():
+            writer.defaults[var] = os.path.expandvars(str(val))
+    for var, val in options.iteritems():
+        writer.defaults[var] = os.path.expandvars(str(val))
     if filename:
         writer.write(doc, filename, mode)
     else:

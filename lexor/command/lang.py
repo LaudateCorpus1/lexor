@@ -113,7 +113,7 @@ def run():
     for lang in path:
         print '%s:' % lang
         _handle_lang(path[lang], cfg)
-        print('')
+        print ''
 
 
 def _get_info(cfg, type_, lang, style, to_lang=None):
@@ -193,10 +193,12 @@ def load_aux(info):
     the lexor module."""
     dirpath = splitext(abspath(info['path']))[0]
     if info['to_lang']:
-        modbase = 'lexor-lang_%s_converter_%s'
-        modbase = modbase % (info['lang'], info['to_lang'])
+        modbase = 'lexor-lang_%s_converter_%s' % (info['lang'],
+                                                  info['to_lang'])
     else:
-        modbase = 'lexor-lang_%s_%s' % (info['lang'], info['type'])
+        modbase = 'lexor-lang_%s_%s_%s' % (info['lang'],
+                                           info['type'],
+                                           info['style'])
     return load_mod(modbase, dirpath)
 
 
