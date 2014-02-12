@@ -9,6 +9,7 @@ able to parse character sequences in the way you desire.
 """
 
 import re
+import sys
 from lexor.command.lang import get_style_module
 import lexor.command.config as config
 import lexor.core.elements as elements
@@ -78,9 +79,14 @@ class NodeParser(object):
         msg = '%s did not implement `close`' % self.__class__
         raise NotImplementedError(msg)
 
+    # @deprecated
     def error(self, pos, code, args=()):
         """Issue an error/warning code. """
         self.parser.error_code(self.name, pos, code, args)
+
+    def msg(self, code, pos, arg=None, uri=None):
+        """Send a message to the parser. """
+        self.parser.msg(self.__module__, code, pos, arg, uri)
 
 
 # The default of 7 attributes for class is too restrictive.
@@ -119,6 +125,22 @@ class Parser(object):
             self._next_check[key] = re.compile('.*?[%s]' % val[0])
             self._np[key] = [p(self) for p in val[1]]
 
+    def _map_explanations(self, mod, exp):
+        """Create a map of msg codes to explanations. """
+        for mod_name, module in mod.iteritems():
+            exp[mod_name] = dict()
+            codes = module.MSG.keys()
+            for index in xrange(len(module.MSG_EXPLANATION)):
+                sub = len(codes) - 1
+                while sub > -1:
+                    code = codes[sub]
+                    if code in module.MSG_EXPLANATION[index]:
+                        del codes[sub]
+                        exp[mod_name][code] = index
+                    sub -= 1
+                if not codes:
+                    break
+
     def parse(self, text, uri=None):
         """parses the given `text`. To see the results of this method see
         the `document` and `log` property. If no `uri` is given then
@@ -135,11 +157,16 @@ class Parser(object):
             self._uri = 'string@0x%x' % id(text)
             self.doc = elements.DocumentFragment(self._lang)
         self.log = elements.Document("lexor", "log")
+        self.log.modules = dict()
+        self.log.explanation = dict()
+        # @to-be-removed
         if hasattr(self.style_module, 'ERR_CODE'):
             self.log.error_code = self.style_module.ERR_CODE
         if hasattr(self.style_module, 'pre_process'):
             self.style_module.pre_process(self)
         self._parse()
+        if self.log.modules:
+            self._map_explanations(self.log.modules, self.log.explanation)
         if hasattr(self.style_module, 'post_process'):
             self.style_module.post_process(self)
 
@@ -241,6 +268,25 @@ class Parser(object):
         return [tmpline, tmpcolumn]
 
     # pylint: disable=R0913
+    def msg(self, mod_name, code, pos, arg=None, uri=None):
+        """Provide the name of module issuing the message, the code
+        number, the position of caret and optional arguments and uri.
+        This information gets stored in the log. """
+        if uri is None:
+            uri = self._uri
+        if arg is None:
+            arg = ()
+        node = elements.Void('msg')
+        node['module'] = mod_name
+        node['code'] = code
+        node['position'] = list(pos)
+        node['uri'] = uri
+        node['arg'] = arg
+        if mod_name not in self.log.modules:
+            self.log.modules[mod_name] = sys.modules[mod_name]
+        self.log.append_child(node)
+
+    # @deprecated
     def error_code(self, name, pos, code, arg=(), uri=None):
         """Provide name of the calling node processor, the position
         of the caret where the error occurred and the error code.

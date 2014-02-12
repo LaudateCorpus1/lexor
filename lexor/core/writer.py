@@ -15,8 +15,6 @@ from lexor.command.lang import get_style_module
 import lexor.command.config as config
 import lexor.core.elements
 
-__all__ = ['Writer', 'NodeWriter', 'replace']
-
 
 def _replacer(*key_val):
     """Helper function for replace.
@@ -137,15 +135,16 @@ class Writer(object):
     def __init__(self, lang='xml', style='default', defaults=None):
         """Create a new `Writer` by specifying the language and the
         style in which `Node` objects will be written. """
-        self.defaults = None
+        self.defaults = defaults
         self.style_module = None
         self._lang = lang
         self._style = style
         self._filename = None
         self._file = None  # Points to a file object
         self._nw = None    # Array of NodeWriters
-        self._set_node_writers(lang, style, defaults)
+        self.root = None   # The node to be written
         # May be useful to write in a certain style
+        self._reload = True  # Create new NodeWriters
         self.caret = 0
 
     @property
@@ -163,7 +162,7 @@ class Writer(object):
     def language(self, value):
         """_lang setter method. """
         self._lang = value
-        self._set_node_writers(self._lang, self._style)
+        self._reload = True
 
     @property
     def writing_style(self):
@@ -174,13 +173,14 @@ class Writer(object):
     def writing_style(self, value):
         """_style setter method. """
         self._style = value
-        self._set_node_writers(self._lang, self._style)
+        self._reload = True
 
     def set(self, lang, style, defaults=None):
         """Set the language and style in one call. """
         self._style = style
         self._lang = lang
-        self._set_node_writers(self._lang, self._style, defaults)
+        self.defaults = defaults
+        self._reload = True
 
     def __str__(self):
         """Attempts to retrive the last written string. """
@@ -226,8 +226,16 @@ class Writer(object):
             self._filename = filename
             self._file = open(filename, mode)
         self.caret = 0
+        self.root = node
+        if self._reload:
+            self._set_node_writers(self._lang, self._style, self.defaults)
+            self._reload = False
         self._set_node_writers_writer()
+        if hasattr(self.style_module, 'pre_process'):
+            self.style_module.pre_process(self, node)
         self._write(node)
+        if hasattr(self.style_module, 'post_process'):
+            self.style_module.post_process(self, node)
         if isinstance(filename, file):
             pass
         elif filename is not None:
