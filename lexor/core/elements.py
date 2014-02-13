@@ -40,7 +40,7 @@ def _write_node_info(node, strf):
     strf.write('@[0x%x]' % id(node))
     if node.name == '#document':
         strf.write(':(%s:%s)' % (node.lang, node.style))
-    elif node.name == 'warning':
+    elif node.name == 'msg':
         pos = node['position']
         strf.write(':(%d, %d)' % (pos[0], pos[1]))
     else:
@@ -52,7 +52,9 @@ def _write_node_info(node, strf):
     elif node.child:
         strf.write('\n')
         return 'd'
-    return 'r'
+    else:
+        strf.write('\n')
+        return 'r'
 
 
 # There might be a thing as too many properties and methods.

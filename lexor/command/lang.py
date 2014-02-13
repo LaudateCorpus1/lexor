@@ -127,11 +127,11 @@ def _get_info(cfg, type_, lang, style, to_lang=None):
             to_lang = cfg['lang'][to_lang]
         key = '%s.%s.%s.%s' % (lang, type_, to_lang, style)
         name = '%s.%s.%s/%s' % (lang, type_, to_lang, style)
-        modname = 'lexor-%s-%s-%s-%s' % (lang, type_, to_lang, style)
+        modname = 'lexor-lang_%s_%s_%s_%s' % (lang, type_, to_lang, style)
     else:
         key = '%s.%s.%s' % (lang, type_, style)
         name = '%s.%s/%s' % (lang, type_, style)
-        modname = 'lexor-%s-%s-%s' % (lang, type_, style)
+        modname = 'lexor-lang_%s_%s_%s' % (lang, type_, style)
     return key, name, modname
 
 

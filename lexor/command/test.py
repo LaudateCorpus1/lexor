@@ -2,25 +2,23 @@
 
 This module contains various test for lexor.
 
-To run do: nosetests -vs
-
 """
+from __future__ import print_function
 
-from nose.tools import eq_
-from lexor.command import exec_cmd
-from lexor.command.lang import LEXOR_PATH
-from os.path import dirname, exists
-import sys
 import re
-import textwrap
+import sys
 import lexor
-import lexor.command.config as config
+import textwrap
 from glob import iglob
+from nose.tools import eq_
+from lexor.command import exec_cmd, warn
+from lexor.command.lang import LEXOR_PATH, get_style_module
+from lexor.core.parser import Parser
+from os.path import dirname, exists
+import lexor.command.config as config
 
-
+RE = re.compile(r'(?P<code>[A-Z][0-9]*|Okay):')
 WRAPPER = textwrap.TextWrapper(width=70, break_long_words=False)
-
-
 DESC = """
 This command only takes in one optional parameter. If no parameter
 is given then it will attempt to run all the tests available.
@@ -147,6 +145,95 @@ def compare_with(str_obj, expected):
 expected -->\n%s\n%s\n%s\n" % (hline, str_obj, hline,
                                hline, expected, hline)
     eq_(str_obj, expected, msg)
+
+
+def parse_msg(msg):
+    """Obtain the tests embedded inside the messages declared in a
+    style. The format of the messages is as follows:
+
+        <tab>[A-Z][0-9]*: <msg>
+
+    or
+
+        <tab>([A-Z][0-9]*|Okay):
+        <tab><tab>msg ...
+        <tab><tab>msg continues
+        <tab>([A-Z][0-9]*|Okay): msg
+
+    Where <tab> consists of 4 whitespaces. This function returns the
+    message without the tests and a list of tuples of the form
+    `(code, msg)` along with the message """
+    lines = msg.split('\n')
+    tests = []
+    index = 0
+    while index < len(lines):
+        match = RE.match(lines[index].strip())
+        if match is None:
+            index += 1
+        else:
+            end = index
+            break
+    while index < len(lines):
+        line = lines[index].strip()
+        match = RE.match(line)
+        if match is not None:
+            line = line[match.end():].strip()
+            if line == '' and index + 1 < len(lines):
+                tmp = lines[index+1]
+                if RE.match(tmp[4:]) is None:
+                    line += tmp[8:]
+                    index += 1
+                    while index + 1 < len(lines):
+                        tmp = lines[index+1]
+                        if RE.match(tmp[4:]) is not None:
+                            break
+                        line += '\n' + tmp[8:]
+                        index += 1
+            tests.append((match.group('code'), line))
+        index += 1
+    return '\n'.join([line[4:] for line in lines[:end]]), tests
+
+
+def find_failed(tests, lang, style):
+    """Run the tests and return a list of the tests that fail. """
+    failed = []
+    parser = Parser(lang, style)
+    for test in tests:
+        parser.parse(test[1])
+        if test[0] == 'Okay':
+            if len(parser.log.child) != 0:
+                failed.append(test)
+        else:
+            found = False
+            for node in parser.log.child:
+                if test[0] == node['code']:
+                    found = True
+                    break
+            if not found:
+                failed.append(test)
+    return failed
+
+
+def nose_msg_explanations(lang, type_, style, name):
+    """Gather the MSG_EXPLANATION list and run the tests it
+    contains."""
+    mod = get_style_module(type_, lang, style)
+    mod = sys.modules['%s_%s' % (mod.__name__, name)]
+    errors = False
+    warn('\n')
+    for num, msg in enumerate(mod.MSG_EXPLANATION):
+        warn('MSG_EXPLANATION[%d] ... ' % num)
+        msg, tests = parse_msg(msg)
+        failed = find_failed(tests, lang, style)
+        err = ['    %s: %r' % (fail[0], fail[1]) for fail in failed]
+        if err:
+            errors = True
+            warn('\n%s\n' % '\n'.join(err))
+        else:
+            warn('ok\n')
+        err = '\n'.join(err)
+    eq_(errors, False, "Errors in MSG_EXPLANATION")
+    warn('...................... ')
 
 
 # @deprecated

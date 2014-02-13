@@ -1,29 +1,14 @@
 """{LANG}: Parse {NP} test
 
-Testing suite for parsing {lang} {np} in the {style} style.
+Testing suite to parse {lang} {np} in the {style} style.
 
 """
 
-from nose.tools import eq_
-from lexor.command.test import print_log
-import lexor
+from lexor.command.test import nose_msg_explanations
 
 
-def test_ok():
-    """{lang}.parser.{np}.{style}: Intended use """
-    text = """..."""
-    doc, _ = lexor.parse(text, '{lang}', '{style}')
-    # Create different tests
-    #eq_(doc[0].name, "")
-    #eq_(doc[0].data, "")
-
-
-def test_missing():
-    """{lang}.parser.{np}.{style}: Missing closing tag """
-    text = """..."""
-    doc, log = lexor.parse(text, '{lang}', '{style}')
-    # Create different tests
-    #eq_(doc[0].name, "#cdata-section")
-    #eq_(doc[0].data, " ... ")
-    #eq_(log[0].name, "error")
-    #print_log(log[0])
+def test_{np}():
+    """{lang}.parser.{style}.{np}: MSG_EXPLANATION """
+    nose_msg_explanations(
+        '{lang}', 'parser', '{style}', '{np}'
+    )
