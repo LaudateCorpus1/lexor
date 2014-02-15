@@ -14,8 +14,6 @@ from lexor.command.lang import get_style_module
 import lexor.command.config as config
 import lexor.core.elements as elements
 
-__all__ = ['Parser', 'NodeParser']
-
 
 class NodeParser(object):
     """An object that has two methods: `makeNode` and `close`. The
@@ -50,7 +48,7 @@ class NodeParser(object):
         The `Node` object that this method returns also needs
         to have the property `pos`. This is a list of two integers
         stating the line and column number where the node was
-        encounted in the text that is being parsed. This property
+        encountered in the text that is being parsed. This property
         will be removed by the parser once the parser finishes all
         processing with the node.
 
@@ -65,8 +63,8 @@ class NodeParser(object):
         """This method needs to be overloaded if the node parser
         returns a `Node` with the `make_node` method.
 
-        This method will not get called if `make_node` returned a `Node`
-        inside a `list`. The close function takes as input the
+        This method will not get called if `make_node` returned a
+        `Node` inside a `list`. The close function takes as input the
         `Node` object that `make_node` returned and it should decide
         if the node can be closed or not. If it is indeed time to
         close the `Node` then return a list with the position where
@@ -89,7 +87,27 @@ class NodeParser(object):
         self.parser.msg(self.__module__, code, pos, arg, uri)
 
 
-# The default of 7 attributes for class is too restrictive.
+def _map_explanations(mod, exp):
+    """This is a helper function to create a map of msg codes to
+    explanations in the lexor language modules. """
+    if not mod:
+        return
+    for mod_name, module in mod.iteritems():
+        exp[mod_name] = dict()
+        codes = module.MSG.keys()
+        for index in xrange(len(module.MSG_EXPLANATION)):
+            sub = len(codes) - 1
+            while sub > -1:
+                code = codes[sub]
+                if code in module.MSG_EXPLANATION[index]:
+                    del codes[sub]
+                    exp[mod_name][code] = index
+                sub -= 1
+            if not codes:
+                break
+
+
+# The default of 7 attributes max in a class is too restrictive.
 # pylint: disable=R0902
 class Parser(object):
     """To see the languages that it is able to parse see the
@@ -125,22 +143,6 @@ class Parser(object):
             self._next_check[key] = re.compile('.*?[%s]' % val[0])
             self._np[key] = [p(self) for p in val[1]]
 
-    def _map_explanations(self, mod, exp):
-        """Create a map of msg codes to explanations. """
-        for mod_name, module in mod.iteritems():
-            exp[mod_name] = dict()
-            codes = module.MSG.keys()
-            for index in xrange(len(module.MSG_EXPLANATION)):
-                sub = len(codes) - 1
-                while sub > -1:
-                    code = codes[sub]
-                    if code in module.MSG_EXPLANATION[index]:
-                        del codes[sub]
-                        exp[mod_name][code] = index
-                    sub -= 1
-                if not codes:
-                    break
-
     def parse(self, text, uri=None):
         """parses the given `text`. To see the results of this method see
         the `document` and `log` property. If no `uri` is given then
@@ -165,8 +167,7 @@ class Parser(object):
         if hasattr(self.style_module, 'pre_process'):
             self.style_module.pre_process(self)
         self._parse()
-        if self.log.modules:
-            self._map_explanations(self.log.modules, self.log.explanation)
+        _map_explanations(self.log.modules, self.log.explanation)
         if hasattr(self.style_module, 'post_process'):
             self.style_module.post_process(self)
 
@@ -399,11 +400,11 @@ class Parser(object):
             # changing.
             for i in xrange(len(self._in_progress)-1, num, -1):
                 name = self._in_progress[i][0].name
-                line = autoclose[0]
-                column = autoclose[1]
-                msg = "Auto closing Element '%s' at " \
-                      "line %d, column %d. " % (name, line, column)
-                self.warn(self._in_progress[i][0].pos, msg)
+                self.msg(
+                    self.__module__, 'W100',
+                    self._in_progress[i][0].pos,
+                    (name, autoclose[0], autoclose[1])
+                )
                 del self._in_progress[i][0].pos
                 del self._in_progress[i]
             del self._in_progress[num]
@@ -437,8 +438,46 @@ class Parser(object):
             elif self._process_node(crt, node, processor) is node:
                 crt = node
         for node, processor in self._in_progress:
-            msg = "Parser did not find closing string for " \
-                  "the Node of name '%s'. " \
-                  "Closing Node at end of file." % node.name
-            self.warn(node.pos, msg)
+            self.msg(self.__module__, 'E100', node.pos, [node.name])
             del node.pos
+
+
+MSG = {
+    'E100': 'closing string for `Node` of name "{0}" not found',
+    'W100': 'auto-closing `Node` of name "{0}" at {1}:{2:2}',
+}
+MSG_EXPLANATION = [
+    """
+    - The parser did not find a closing string for the given node.
+
+    - This is a general error which is language dependent. Make sure
+      to provide the required closing string for the node.
+
+    The following are examples for HTML, LaTeX and Lexor:
+
+    Okay: <node></node>
+    Okay: \\begin{node}\\end{node}
+    Okay: %%{node}%%
+
+    E100: <node>
+    E100: \\begin{node}
+    E100: %%{node}
+""",
+    """
+    - The parser was forced to automatically close the current node
+      in progress due to the encounter of the closing sequence of a
+      parent node.
+
+    - This is a general warning which is language dependent. To get
+      rid of this warning provide the closing sequence for the node
+      before the closing sequence of the parent node.
+
+    The following is an example in HTML:
+
+    Okay: <a><p>stuff</p><p>stuff</p></a>
+    Okay: <a><p>stuff<p>stuff</p></a>
+
+    W100: <a><p>stuff</p><p>stuff</a>
+    W100: <a><p>stuff<p>stuff</a>
+""",
+]
