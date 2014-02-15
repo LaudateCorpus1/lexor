@@ -151,13 +151,12 @@ class Parser(object):
         self.end = len(text)
         self.pos = [1, 1]
         self.caret = 0
+        self.doc = elements.Document(self._lang)
         if uri:
             self._uri = uri
-            self.doc = elements.Document(self._lang)
-            self.doc.uri_ = uri
         else:
             self._uri = 'string@0x%x' % id(text)
-            self.doc = elements.DocumentFragment(self._lang)
+        self.doc.uri_ = self._uri
         self.log = elements.Document("lexor", "log")
         self.log.modules = dict()
         self.log.explanation = dict()

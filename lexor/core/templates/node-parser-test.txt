@@ -1,4 +1,4 @@
-"""{LANG}: Parse {NP} test
+"""{LANG}: {STYLE} parser {NP} test
 
 Testing suite to parse {lang} {np} in the {style} style.
 

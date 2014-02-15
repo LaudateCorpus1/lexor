@@ -144,8 +144,8 @@ class Writer(object):
         self._nw = None    # Array of NodeWriters
         self.root = None   # The node to be written
         # May be useful to write in a certain style
-        self._reload = True  # Create new NodeWriters
         self.caret = 0
+        self._reload = True  # Create new NodeWriters
 
     @property
     def filename(self):

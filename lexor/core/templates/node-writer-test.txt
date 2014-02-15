@@ -1,14 +1,20 @@
 """{LANG}: {STYLE} writer {NP} test
 
-Testing suite for writing {LANG} in the {STYLE} style.
+Testing suite to write {LANG} in the {STYLE} style.
 
 """
 
-import lexor.core.elements as core
+import lexor
 from lexor.command.test import compare_with
 
+DOCUMENT = """
+"""
+
+EXPECTED = """
+"""
 
 def test_{style}():
-    """{lang}.writer.{style}.{np}: """
-    doc = core.Document('{lang}', '{style}')
-    #compare_with(str(doc), EXPECTED)
+    """{lang}.writer.{style}.{np} """
+    doc, _ = lexor.parse(DOCUMENT, '{lang}')
+    doc.style = '{style}'
+    compare_with(str(doc), EXPECTED)

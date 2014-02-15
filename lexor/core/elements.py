@@ -807,15 +807,22 @@ class Document(Element):
 
 
 class DocumentFragment(Document):
-    """Takes in an element and "steals" its children. """
+    """Takes in an element and "steals" its children. This element
+    should only be used as a temporary container. Note that the
+    __str__ function may not yield the expected results since all the
+    function will do is use the __str__ function in each of its
+    children. First assign this object to an actual Document. """
+
     def __init__(self, lang='xml', style='default'):
         Document.__init__(self, lang, style)
         self.name = '#document-fragment'
 
     def append_child(self, new_child):
         """Adds the node new_child to the end of the list of children
-        of this node. The children contained in a `DocumentFragment` only
-        have a parent (the `DocumentFragment`). """
+        of this node. The children contained in a `DocumentFragment`
+        only have a parent (the `DocumentFragment`). As opposed as
+        the `Node` append_child which also takes care of the `prev`
+        and `next` attributes. """
         if isinstance(new_child, str):
             new_child = Text(new_child)
         elif not isinstance(new_child, Node):
@@ -824,8 +831,13 @@ class DocumentFragment(Document):
             del new_child.parent[new_child.index]
         self.child.append(new_child)
         new_child.parent = self
+        new_child.owner = self
         return new_child
 
     def __repr__(self):
         """x.__repr__() <==> repr(x)"""
         return ''.join([repr(node) for node in self.child])
+
+    def __str__(self):
+        """x.__str__() <==> str(x)"""
+        return ''.join([str(node) for node in self.child])
