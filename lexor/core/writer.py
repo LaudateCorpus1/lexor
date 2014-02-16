@@ -247,7 +247,8 @@ class Writer(object):
             self._file.close()
 
     def _set_node_writers(self, lang, style, defaults=None):
-        """Imports the correct module based on the language and style. """
+        """Imports the correct module based on the language and
+        style. """
         self.style_module = get_style_module('writer', lang, style)
         name = '%s-writer-%s' % (lang, style)
         config.set_style_cfg(self, name, defaults)
@@ -258,6 +259,11 @@ class Writer(object):
         self._nw['#text'] = NodeWriter(self)
         for key, val in self.style_module.MAPPING.iteritems():
             self._nw[key] = val(self)
+
+    def get_node_writer(self, name):
+        """Return one of the NodeWriter objects available to the
+        Writer."""
+        return self._nw.get(name, self._nw['__default__'])
 
     def _set_node_writers_writer(self):
         """To be called before writing since the file will change. """

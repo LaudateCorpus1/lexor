@@ -5,11 +5,15 @@ Routine to install a parser/writer/converter style.
 """
 
 import os
+import re
 import sys
 import site
 import shutil
+import urllib2
+import zipfile
 import textwrap
 import distutils.dir_util
+import distutils.errors
 from glob import iglob
 from imp import load_source
 from lexor.command import error
@@ -75,7 +79,10 @@ def install_style(style, install_dir):
     old = '%s/%s' % (base, name)
     new = '%s/%s-%s' % (typedir, name, info['ver'])
     sys.stdout.write('writing %s/* ... ' % new)
-    distutils.dir_util.copy_tree(old, new)
+    try:
+        distutils.dir_util.copy_tree(old, new)
+    except distutils.errors.DistutilsFileError:
+        pass
     sys.stdout.write('done\n')
 
     # Compile the style
@@ -103,6 +110,34 @@ def install_style(style, install_dir):
     config.write_config(cfg_file)
 
 
+def download_file(url, base='.'):
+    """Download a file. """
+    try:
+        print '-> Retrieving %s' % url
+        response = urllib2.urlopen(url)
+        local_name = '%s/tmp_%s' % (base, os.path.basename(url))
+        with open(local_name, "wb") as local_file:
+            local_file.write(response.read())
+    except HTTPError, e:
+        print "HTTP Error:", e.code, url
+    except URLError, e:
+        print "URL Error:", e.reason, url
+    return local_name
+
+
+def unzip_file(local_name):
+    """Extract the contents of a zip file. """
+    zfile = zipfile.ZipFile(local_name)
+    for name in zfile.namelist():
+        (dirname, filename) = os.path.split(name)
+        if filename == '':
+            continue
+        print "    -> Decompressing " + filename + " on " + dirname
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+        zfile.extract(name, dirname+'/..')
+    return dirname
+
 def run():
     """Run the command. """
     arg = config.CONFIG['arg']
@@ -113,10 +148,36 @@ def run():
     else:
         install_dir = '%s/lib/lexor' % sys.prefix
 
-    style = arg.style
-    if '.py' not in style:
-        style = '%s.py' % style
-    if not os.path.exists(style):
-        error("ERROR: No such file or directory\n")
+    style_file = arg.style
+    if '.py' not in style_file:
+        style_file = '%s.py' % style_file
+    if os.path.exists(style_file):
+        install_style(style_file, install_dir)
+        return
 
-    install_style(style, install_dir)
+    matches = []
+    url = 'http://jmlopez-rod.github.io/lexor-lang/lexor-lang.url'
+    print '-> Searching in %s' % url
+    response = urllib2.urlopen(url)
+    for line in response.readlines():
+        name, url = line.split(':', 1)
+        if arg.style in name:
+            matches.append([name.strip(), url.strip()])
+
+    for match in matches:
+        doc = urllib2.urlopen(match[1]).read()
+        links = re.finditer(r' href="?([^\s^"]+)', doc)
+        links = [link.group(1) for link in links if '.zip' in link.group(1)]
+        for link in links:
+            if 'master' in link:
+                path = urllib2.urlparse.urlsplit(match[1])
+                style_url = '%s://%s%s' % (path[0], path[1], link)
+                local_name = download_file(style_url, '.')
+                dirname = unzip_file(local_name)
+                # Assuming there is only one python file
+                os.chdir(dirname)
+                for path in iglob('*.py'):
+                    install_style(path, install_dir)
+                os.chdir('..')
+                os.remove(local_name)
+                shutil.rmtree(dirname)
