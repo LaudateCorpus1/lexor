@@ -128,14 +128,8 @@ def download_file(url, base='.'):
 def unzip_file(local_name):
     """Extract the contents of a zip file. """
     zfile = zipfile.ZipFile(local_name)
-    for name in zfile.namelist():
-        (dirname, filename) = os.path.split(name)
-        if filename == '':
-            continue
-        print "    -> Decompressing " + filename + " on " + dirname
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
-        zfile.extract(name, dirname+'/..')
+    dirname = zfile.namelist()[0].split('/')[0]
+    zfile.extractall()
     return dirname
 
 def run():
