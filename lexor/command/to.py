@@ -237,6 +237,12 @@ def run():
     log = cfg['to']['log']
     if isinstance(log, str):
         log = language_style(log)
+    else:
+        default_log = DEFAULTS['log'].split(':')
+        if log[0] == '_':
+            log = (default_log[0], log[1])
+        if log[1]['name'] == '_':
+            log[1]['name'] = default_log[1]
 
     try:
         parser = Parser(in_lang, in_style['name'], in_style['params'])
@@ -254,7 +260,12 @@ def run():
         msg = "ERROR: log writing style not found: [%s:%s]\n"
         error(msg % (log[0], log[1]['name']))
     parser.parse(text, t_name)
-    write_log(log_writer, parser.log, arg.quiet)
+    try:
+        write_log(log_writer, parser.log, arg.quiet)
+    except IOError:
+        msg = "ERROR: log writing style not found: " \
+              "[%s:%s]\n" % (parser.log.lang, parser.log.style)
+        error(msg)
     if not arg.tolang:
         arg.tolang.append(input_language(cfg['to']['lang']))
     convert_and_write(f_name, parser, in_lang, log, arg)
@@ -262,18 +273,9 @@ def run():
 
 def convert_and_write(f_name, parser, in_lang, log, arg):
     """Auxilary function to reduce the number of branches in run. """
-    try:
-        log_writer = Writer(log[0], log[1]['name'], log[1]['params'])
-    except IOError:
-        error("ERROR: log writing style not found: [%s:%s]\n" % log)
-    try:
-        writer = Writer()
-    except IOError:
-        error("ERROR: Writing style not found: [xml:default]\n")
-    try:
-        converter = Converter()
-    except IOError:
-        error("ERROR: Converting style not found: [xml ==> xml:default]\n")
+    log_writer = Writer(log[0], log[1]['name'], log[1]['params'])
+    writer = Writer()
+    converter = Converter()
     param = {
         'parser': parser,
         'converter': converter,

@@ -33,7 +33,6 @@ class NodeConverter(object):
         copy_children = False
 
     """
-
     copy = True
     copy_children = True
 
@@ -76,7 +75,7 @@ class Converter(object):
         self._init_converter = None
         self._nc = None
         self._convert_func = None
-        self._set_node_converters(fromlang, tolang, style)
+        self._reload = True
 
     @property
     def convert_from(self):
@@ -87,7 +86,7 @@ class Converter(object):
     def convert_from(self, value):
         """Setter function for convert_from. """
         self._fromlang = value
-        self._set_node_converters(self._fromlang, self._tolang, self._style)
+        self._reload = True
 
     @property
     def convert_to(self):
@@ -98,7 +97,7 @@ class Converter(object):
     def convert_to(self, value):
         """Setter function for convert_to. """
         self._tolang = value
-        self._set_node_converters(self._fromlang, self._tolang, self._style)
+        self._reload = True
 
     @property
     def converting_style(self):
@@ -109,15 +108,14 @@ class Converter(object):
     def converting_style(self, value):
         """Setter function for converting_style. """
         self._style = value
-        self._set_node_converters(self._fromlang, self._tolang, self._style)
+        self._reload = True
 
     def set(self, fromlang, tolang, style, defaults=None):
         """Sets the languages and styles in one call. """
         self._style = style
         self._tolang = tolang
         self._fromlang = fromlang
-        self._set_node_converters(self._fromlang, self._tolang, 
-                                  self._style, defaults)
+        self._reload = True
 
     @property
     def lexorlog(self):
@@ -136,6 +134,11 @@ class Converter(object):
         """Convert the `Document` doc. """
         if not isinstance(doc, (Document, DocumentFragment)):
             raise TypeError("The node is not a Document or DocumentFragment")
+        if self._reload:
+            self._set_node_converters(
+                self._fromlang, self._tolang, self._style
+            )
+            self._reload = False
         self.log = Document("lexor", "log")
         self._init_converter(self)
         self._convert(doc)
