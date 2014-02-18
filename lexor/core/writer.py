@@ -119,7 +119,11 @@ class DefaultWriter(NodeWriter):
 
     def start(self, node):
         """Write the start of the node as a xml tag. """
-        self.write('<%s>' % node.name)
+        att = ' '.join(['%s="%s"' % (k, v) for k, v in node.items()])
+        if att != '':
+            self.write('<%s %s>' % (node.name, att))
+        else:
+            self.write('<%s>' % node.name)
 
     def end(self, node):
         """Write the end of the node as an xml end tag. """
@@ -135,6 +139,8 @@ class Writer(object):
     def __init__(self, lang='xml', style='default', defaults=None):
         """Create a new `Writer` by specifying the language and the
         style in which `Node` objects will be written. """
+        if defaults is None:
+            defaults = dict()
         self.defaults = defaults
         self.style_module = None
         self._lang = lang
@@ -146,6 +152,7 @@ class Writer(object):
         # May be useful to write in a certain style
         self.caret = 0
         self._reload = True  # Create new NodeWriters
+        self.prev_str = None  # Reference to the last string printed
 
     @property
     def filename(self):
@@ -197,6 +204,7 @@ class Writer(object):
         """The write function is meant to be used with Node objects.
         Use this function to write simple strings while the file
         descriptor is open. """
+        self.prev_str = string
         self._file.write(string)
 
     def write(self, node, filename=None, mode='w'):
@@ -254,11 +262,16 @@ class Writer(object):
         config.set_style_cfg(self, name, defaults)
         self._nw = dict()
         self._nw['__default__'] = DefaultWriter(self)
-        self._nw['#document'] = NodeWriter(self)
-        self._nw['#document-fragment'] = NodeWriter(self)
-        self._nw['#text'] = NodeWriter(self)
+        nw_obj = NodeWriter(self)
+        self._nw['#document'] = nw_obj
+        self._nw['#document-fragment'] = nw_obj
+        self._nw['#text'] = nw_obj
+        self._nw['#entity'] = nw_obj
         for key, val in self.style_module.MAPPING.iteritems():
-            self._nw[key] = val(self)
+            if isinstance(val, str):
+                self._nw[key] = self._nw[val]
+            else:
+                self._nw[key] = val(self)
 
     def get_node_writer(self, name):
         """Return one of the NodeWriter objects available to the

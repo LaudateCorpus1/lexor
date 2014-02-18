@@ -327,6 +327,8 @@ class Node(object):
             x.__len__() <==> len(x)
 
         """
+        if self.child is None:
+            return 0
         return len(self.child)
 
     def __getitem__(self, i):
