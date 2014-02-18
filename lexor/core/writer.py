@@ -267,11 +267,14 @@ class Writer(object):
         self._nw['#document-fragment'] = nw_obj
         self._nw['#text'] = nw_obj
         self._nw['#entity'] = nw_obj
+        str_key = list()
         for key, val in self.style_module.MAPPING.iteritems():
             if isinstance(val, str):
-                self._nw[key] = self._nw[val]
+                str_key.append((key, val))
             else:
                 self._nw[key] = val(self)
+        for key, val in str_key:
+            self._nw[key] = self._nw[val]
 
     def get_node_writer(self, name):
         """Return one of the NodeWriter objects available to the

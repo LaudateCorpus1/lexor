@@ -325,25 +325,27 @@ def run_converter(param):
         cstyle = style[0]['name']
         try:
             converter.set(in_lang, lang, cstyle, style[0]['params'])
-            wstyle = style[1]['name']
-            try:
-                if '.' in wstyle:
-                    (lang, wstyle) = wstyle.split('.')
-                    if wstyle == '_':
-                        wstyle = 'default'
-                writer.set(lang, wstyle, style[0]['params'])
-                converter.convert(parser.doc)
-                write_log(log_writer, converter.log, arg.quiet)
-                fname = '%s.%s.%s' % (f_name, wstyle, lang)
-                write_document(writer, converter.doc, fname, arg)
-            except IOError:
-                msg = "ERROR: Writing style not found: " \
-                      "[%s:%s]\n" % (lang, wstyle)
-                warn(msg)
+            converter.convert(parser.doc)
         except IOError:
             msg = "ERROR: Converting style not found: " \
                   "[%s ==> %s:%s]\n" % (in_lang, lang, cstyle)
             warn(msg)
+            continue
+        wstyle = style[1]['name']
+        try:
+            if '.' in wstyle:
+                (lang, wstyle) = wstyle.split('.')
+            if wstyle == '_':
+                wstyle = 'default'
+            writer.set(lang, wstyle, style[0]['params'])
+        except IOError:
+            msg = "ERROR: Writing style not found: " \
+                  "[%s:%s]\n" % (lang, wstyle)
+            warn(msg)
+            continue
+        fname = '%s.%s.%s' % (f_name, wstyle, lang)
+        write_log(log_writer, converter.log, arg.quiet)
+        write_document(writer, converter.doc, fname, arg)
 
 
 def run_writer(param):
@@ -362,4 +364,3 @@ def run_writer(param):
             msg = "ERROR: Writing style not found: " \
                   "[%s:%s]\n" % (lang, style['name'])
             warn(msg)
-
