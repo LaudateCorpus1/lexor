@@ -32,6 +32,8 @@ examples:
     lexor file.html to html~min,plain,_~
     lexor file.html to html~plain,_~ mk[cstyle:wstyle,cstyle1,cstyle2]
 
+    lexor file.xml to xml~_@tab="****"~
+
     lexor Makefile to xml --from makefile
     lexor Makefile to xml --from makefile:otherstyle
 
@@ -156,7 +158,8 @@ def input_language(tolang):
         styles = split_at(',', styles)
         for style in styles:
             if ':' in style:
-                raise argparse.ArgumentTypeError(msg)
+                pass
+                #raise argparse.ArgumentTypeError(msg)
         styles = [style_parameters(ele) for ele in styles]
     else:
         styles = [parse_styles(ele) for ele in split_at(',', styles)]
@@ -359,3 +362,4 @@ def run_writer(param):
             msg = "ERROR: Writing style not found: " \
                   "[%s:%s]\n" % (lang, style['name'])
             warn(msg)
+
