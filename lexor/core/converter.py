@@ -168,7 +168,8 @@ class Converter(object):
         node = Void('msg')
         node['module'] = mod_name
         node['code'] = code
-        node['node'] = node
+        node['node_id'] = id(node)
+        node.node = node
         node['uri'] = uri
         node['arg'] = arg
         if mod_name not in self.log.modules:
