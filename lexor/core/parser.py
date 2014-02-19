@@ -18,7 +18,6 @@ import lexor.core.elements as elements
 class NodeParser(object):
     """An object that has two methods: `makeNode` and `close`. The
     first method is required to be overloaded in derived objects."""
-    name = None
 
     def __init__(self, parser):
         """A `NodeParser` needs to be initialized with a `Parser`
@@ -77,11 +76,6 @@ class NodeParser(object):
         msg = '%s did not implement `close`' % self.__class__
         raise NotImplementedError(msg)
 
-    # @deprecated
-    def error(self, pos, code, args=()):
-        """Issue an error/warning code. """
-        self.parser.error_code(self.name, pos, code, args)
-
     def msg(self, code, pos, arg=None, uri=None):
         """Send a message to the parser. """
         self.parser.msg(self.__module__, code, pos, arg, uri)
@@ -116,21 +110,23 @@ class Parser(object):
     def __init__(self, lang='xml', style='default', defaults=None):
         """Create a new parser by specifying the language and the
         style in which text will be parsed. """
-        self.defaults = None
+        if defaults is None:
+            defaults = dict()
         self._lang = lang
         self._style = style
-        self.style_module = None
         self._np = None
         self._next_check = None
-        self._set_node_parsers(lang, style, defaults)
+        self._in_progress = None
+        self._uri = None
+        self._reload = True
+        self.style_module = None
         self.text = None
         self.end = None
         self.pos = None
         self.caret = None
-        self._uri = None
         self.doc = None
         self.log = None
-        self._in_progress = None
+        self.defaults = defaults
 
     def _set_node_parsers(self, lang, style, defaults=None):
         """Imports the correct module based on the language and style. """
@@ -147,6 +143,11 @@ class Parser(object):
         """parses the given `text`. To see the results of this method see
         the `document` and `log` property. If no `uri` is given then
         `document` will return a `DocumentFragment` node. """
+        if self._reload:
+            self._set_node_parsers(
+                self._lang, self._style, self.defaults
+            )
+            self._reload = False
         self.text = text
         self.end = len(text)
         self.pos = [1, 1]
@@ -160,15 +161,12 @@ class Parser(object):
         self.log = elements.Document("lexor", "log")
         self.log.modules = dict()
         self.log.explanation = dict()
-        # @to-be-removed
-        if hasattr(self.style_module, 'ERR_CODE'):
-            self.log.error_code = self.style_module.ERR_CODE
         if hasattr(self.style_module, 'pre_process'):
             self.style_module.pre_process(self)
         self._parse()
-        _map_explanations(self.log.modules, self.log.explanation)
         if hasattr(self.style_module, 'post_process'):
             self.style_module.post_process(self)
+        _map_explanations(self.log.modules, self.log.explanation)
 
     @property
     def cdata(self):
@@ -197,8 +195,8 @@ class Parser(object):
         return self.caret
 
     @property
-    def lexorlog(self):
-        """The `lexorlog` document. See this document after each
+    def lexor_log(self):
+        """The `lexor_log` document. See this document after each
         call to `parse` to see warnings and errors in the text that
         was parsed. """
         return self.log
@@ -219,7 +217,7 @@ class Parser(object):
     def language(self, value):
         """Setter function for style. """
         self._lang = value
-        self._set_node_parsers(self._lang, self._style)
+        self._reload = True
 
     @property
     def parsing_style(self):
@@ -231,7 +229,15 @@ class Parser(object):
     def parsing_style(self, value):
         """Setter function for style. """
         self._style = value
-        self._set_node_parsers(self._lang, self._style)
+        self._reload = True
+
+    def set(self, lang, style, defaults=None):
+        """Set the language and style in one call. """
+        if defaults is not None:
+            self.defaults = defaults
+        self._lang = lang
+        self._style = style
+        self._reload = True
 
     def copy_pos(self):
         """Returns a copy of the current position. """
@@ -285,53 +291,6 @@ class Parser(object):
         if mod_name not in self.log.modules:
             self.log.modules[mod_name] = sys.modules[mod_name]
         self.log.append_child(node)
-
-    # @deprecated
-    def error_code(self, name, pos, code, arg=(), uri=None):
-        """Provide name of the calling node processor, the position
-        of the caret where the error occurred and the error code.
-        Some error code requires to format its message. For that you
-        may provide a tuple with the arguments (all strings) to the
-        parameter `arg`. The defult value of uri is set to None to
-        let the parser know that you wish to use the parser's uri as
-        the name of the document where the error occurred. """
-        if uri is None:
-            uri = self._uri
-        node = elements.Void('error_code')
-        node['reporter'] = name
-        node['position'] = list(pos)
-        node['code'] = code
-        node['file'] = uri
-        node['fmt_arg'] = arg
-        self.log.append_child(node)
-
-    # @deprecated
-    def warn(self, pos, msg, uri=None):
-        """Provide the position of the caret and a message to store a
-        warning. The defult value of uri is set to None to let the
-        parser know that you wish to use the parser's uri as the
-        name of the document where the warning occurred. """
-        if uri is None:
-            uri = self._uri
-        warning = elements.Element('warning')
-        warning['position'] = list(pos)
-        warning['message'] = msg
-        warning['file'] = uri
-        self.log.append_child(warning)
-
-    # @deprecated
-    def error(self, pos, msg, uri=None):
-        """Provide the position of the caret and a message to store a
-        warning. The defult value of uri is set to None to let the
-        parser know that you wish to use the parser's uri as the
-        name of the document where the warning occurred. """
-        if uri is None:
-            uri = self._uri
-        warning = elements.Element('error')
-        warning['position'] = list(pos)
-        warning['message'] = msg
-        warning['file'] = uri
-        self.log.append_child(warning)
 
     def _get_np(self, node):
         """Get a node parser based on the name of the node. """

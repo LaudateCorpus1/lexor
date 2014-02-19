@@ -9,12 +9,12 @@ desire.
 
 """
 
+import sys
 import lexor.command.config as config
 from lexor.command.lang import get_style_module
 from lexor.core.elements import Document, DocumentFragment
-from lexor.core.elements import CharacterData, Element
-
-__all__ = ['NodeConverter', 'Converter']
+from lexor.core.elements import CharacterData, Element, Void
+from lexor.core.parser import _map_explanations
 
 
 # The default of at least 2 methods is too restrictive.
@@ -55,6 +55,10 @@ class NodeConverter(object):
         it can be modified. """
         pass
 
+    def msg(self, code, node, arg=None, uri=None):
+        """Send a message to the converter. """
+        self.converter.msg(self.__module__, code, node, arg, uri)
+
 
 # The default of 7 attributes for class is too restrictive.
 # pylint: disable=R0902
@@ -62,20 +66,23 @@ class Converter(object):
     """To see the languages available to the `Converter` see the
     `lexor.lang` module. """
 
-    def __init__(self, fromlang='xml', tolang='xml', style='default'):
+    def __init__(self, fromlang='xml', tolang='xml',
+                 style='default', defaults=None):
         """Create a new `Converter` by specifying the language and the
         style in which `Node` objects will be written. """
-        self.defaults = None
-        self.style_module = None
+        if defaults is None:
+            defaults = dict()
         self._fromlang = fromlang
         self._tolang = tolang
         self._style = style
-        self.doc = None
-        self.log = None
         self._init_converter = None
         self._nc = None
         self._convert_func = None
         self._reload = True
+        self.style_module = None
+        self.doc = None
+        self.log = None
+        self.defaults = defaults
 
     @property
     def convert_from(self):
@@ -112,13 +119,15 @@ class Converter(object):
 
     def set(self, fromlang, tolang, style, defaults=None):
         """Sets the languages and styles in one call. """
+        if defaults is not None:
+            self.defaults = defaults
         self._style = style
         self._tolang = tolang
         self._fromlang = fromlang
         self._reload = True
 
     @property
-    def lexorlog(self):
+    def lexor_log(self):
         """The `lexorlog` document. See this document after each
         call to `parse` to see warnings and errors in the text that
         was parsed. """
@@ -140,16 +149,31 @@ class Converter(object):
             )
             self._reload = False
         self.log = Document("lexor", "log")
+        self.log.modules = dict()
+        self.log.explanation = dict()
         self._init_converter(self)
         self._convert(doc)
         self._convert_func(self, self.doc)
+        _map_explanations(self.log.modules, self.log.explanation)
 
-    def warn(self, node, msg):
-        """Provide the node in which the warning occurr and a message. """
-        warning = Element('c_warning')
-        warning['node'] = id(node)
-        warning['message'] = msg
-        self.log.append_child(warning)
+    # pylint: disable=R0913
+    def msg(self, mod_name, code, node, arg=None, uri=None):
+        """Provide the name of module issuing the message, the code
+        number, the node with the error, optional arguments and uri.
+        This information gets stored in the log. """
+        if uri is None:
+            uri = self.doc.uri_
+        if arg is None:
+            arg = ()
+        node = Void('msg')
+        node['module'] = mod_name
+        node['code'] = code
+        node['node'] = node
+        node['uri'] = uri
+        node['arg'] = arg
+        if mod_name not in self.log.modules:
+            self.log.modules[mod_name] = sys.modules[mod_name]
+        self.log.append_child(node)
 
     def _set_node_converters(self, fromlang, tolang, style, defaults=None):
         """Imports the correct module based on the languages and style. """

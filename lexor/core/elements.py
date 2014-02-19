@@ -11,12 +11,6 @@ import os
 from cStringIO import StringIO
 import lexor.core.writer
 
-__all__ = [
-    'Node', 'CharacterData', 'Text', 'ProcessingInstruction', 'Comment',
-    'DocumentType',
-    'Element', 'RawText', 'Void', 'Document', 'DocumentFragment'
-]
-
 
 def _set_node_owner_level(node, owner, level):
     """`Node` helper function to write the HELPER-METHOD
@@ -37,24 +31,26 @@ def _write_node_info(node, strf):
     """`Node` helper function to write the node information in
     __repr__. """
     strf.write('%s%s' % ('    '*node.level, node.name))
-    strf.write('@[0x%x]' % id(node))
+    if not isinstance(node, Element):
+        strf.write('[0x%x]' % id(node))
+    else:
+        att = ' '.join(['%s="%s"' % (k, v) for k, v in node.items()])
+        strf.write('[0x%x' % id(node))
+        if att != '':
+            strf.write(' %s]' % att)
+        else:
+            strf.write(']')
     if node.name == '#document':
-        strf.write(':(%s:%s)' % (node.lang, node.style))
-    elif node.name == 'msg':
-        pos = node['position']
-        strf.write(':(%d, %d)' % (pos[0], pos[1]))
+        strf.write(': (%s:%s:%s)' % (node.uri, node.lang, node.style))
     else:
         strf.write(':')
+    direction = 'r'
     if isinstance(node, CharacterData):
-        strf.write(repr(node.data))
-        strf.write('\n')
-        return 'r'
+        strf.write(' %r' % node.data)
     elif node.child:
-        strf.write('\n')
-        return 'd'
-    else:
-        strf.write('\n')
-        return 'r'
+        direction = 'd'
+    strf.write('\n')
+    return direction
 
 
 # There might be a thing as too many properties and methods.
@@ -318,8 +314,8 @@ class Node(object):
                     pass
             return self
         else:
-            for i in xrange(len(new_children)):
-                self.append_child(new_children[i])
+            while new_children:
+                self.append_child(new_children[0])
 
     def __len__(self):
         """Return the number of child nodes.
