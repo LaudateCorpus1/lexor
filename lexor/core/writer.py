@@ -204,8 +204,9 @@ class Writer(object):
         """The write function is meant to be used with Node objects.
         Use this function to write simple strings while the file
         descriptor is open. """
-        self.prev_str = string
-        self._file.write(string)
+        if string != '':
+            self.prev_str = string
+            self._file.write(string)
 
     def write(self, node, filename=None, mode='w'):
         """Write node to a file or string. To write to a string use
@@ -331,7 +332,6 @@ class Writer(object):
             return
         if crt.child:
             if self._write_child(crt) is None:
-                self._write_end(crt)
                 return
             else:
                 direction = 'd'

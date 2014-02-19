@@ -10,11 +10,13 @@ desire.
 """
 
 import sys
-import lexor.command.config as config
+import os.path as pth
+from cStringIO import StringIO
 from lexor.command.lang import get_style_module
-from lexor.core.elements import Document, DocumentFragment
-from lexor.core.elements import CharacterData, Element, Void
-from lexor.core.parser import _map_explanations
+from lexor.core.parser import _map_explanations, Parser
+import lexor.core.elements as core
+import lexor.command.config as config
+import traceback
 
 
 # The default of at least 2 methods is too restrictive.
@@ -141,14 +143,14 @@ class Converter(object):
 
     def convert(self, doc):
         """Convert the `Document` doc. """
-        if not isinstance(doc, (Document, DocumentFragment)):
+        if not isinstance(doc, (core.Document, core.DocumentFragment)):
             raise TypeError("The node is not a Document or DocumentFragment")
         if self._reload:
             self._set_node_converters(
-                self._fromlang, self._tolang, self._style
+                self._fromlang, self._tolang, self._style, self.defaults
             )
             self._reload = False
-        self.log = Document("lexor", "log")
+        self.log = core.Document("lexor", "log")
         self.log.modules = dict()
         self.log.explanation = dict()
         self._init_converter(self)
@@ -165,7 +167,7 @@ class Converter(object):
             uri = self.doc.uri_
         if arg is None:
             arg = ()
-        node = Void('msg')
+        node = core.Void('msg')
         node['module'] = mod_name
         node['code'] = code
         node['node_id'] = id(node)
@@ -204,7 +206,7 @@ class Converter(object):
 
     def _get_direction(self, crt):
         """Returns the direction in which the traversal should go. """
-        if isinstance(crt, CharacterData):
+        if isinstance(crt, core.CharacterData):
             return 'r'
         elif crt.child:
             if self._copy_children(crt):
@@ -218,7 +220,7 @@ class Converter(object):
         # A doc needs to be copied by default. You may prohibit
         # to copy the children, but there must be a document.
         crt = doc
-        self.doc = Document(doc.lang, doc.style)
+        self.doc = core.Document(doc.lang, doc.style)
         self.doc.uri_ = doc.uri_
         crtcopy = self.doc
         self._process(crtcopy)
@@ -256,3 +258,175 @@ class Converter(object):
                 crtcopy = clone
                 self._process(crtcopy)
             direction = self._get_direction(crt)
+
+    def update_log(self, log):
+        """Append the messages from a log document to the converters
+        log. Note that this removes the children from log. """
+        modules = log.modules
+        for mname in modules:
+            if mname not in self.log.modules:
+                self.log.modules[mname] = modules[mname]
+        self.log.extend_children(log)
+
+    #pylint: disable=W0122,E1103
+    def exec_python(self, node, id_num, parser, error=True):
+        """Executes the contents of the processing instruction. You
+        must provide an id number identifying the processing
+        instruction, the namespace where the execution takes place
+        and a parser that will parse the output provided by the
+        execution. If `error` is True then any errors generated
+        during the execution will be appended to the output of the
+        document."""
+        original_stdout = sys.stdout
+        sys.stdout = StringIO()
+        if not hasattr(get_lexor_namespace, 'namespace'):
+            get_lexor_namespace.namespace = dict()
+        if not hasattr(get_current_node, 'current'):
+            get_current_node.current = list()
+        if not hasattr(include, 'converter'):
+            include.converter = list()
+        get_current_node.current.append(node)
+        include.converter.append(self)
+        namespace = get_lexor_namespace()
+        if 'get_current_node' not in namespace:
+            namespace['get_current_node'] = get_current_node
+        if 'echo' not in namespace:
+            namespace['echo'] = echo
+        if 'include' not in namespace:
+            namespace['include'] = include
+        try:
+            exec(node.data, namespace)
+        except BaseException:
+            self.msg(self.__module__, 'E100', node, [id_num])
+            if error:
+                err_node = core.Element('python_pi_error')
+                err_node['section'] = str(id_num)
+                err_node.append_child(
+                    core.CData(traceback.format_exc())
+                )
+                node.parent.insert_before(node.index, err_node)
+        text = sys.stdout.getvalue()
+        parser.parse(text)
+        node.parent.extend_before(node.index, parser.doc)
+        del node.parent[node.index]
+        if parser.log:
+            self.msg(self.__module__, 'W101', node, [id_num])
+            self.update_log(parser.log)
+            self.msg(self.__module__, 'W102', node, [id_num])
+        sys.stdout.close()
+        sys.stdout = original_stdout
+
+
+def get_lexor_namespace():
+    """The execution of python instructions take place in the
+    namespace provided by this function."""
+    return get_lexor_namespace.namespace
+
+
+def get_current_node():
+    """Return the `Document` node containing the python embeddings
+    currently being executed. """
+    return get_current_node.current[-1]
+
+
+def echo(node):
+    """Allows the insertion of Nodes generated within python
+    embeddings.
+
+        <?python
+        comment = PI('!--', 'This is a comment')
+        echo(comment)
+        ?>
+
+    """
+    crt = get_current_node()
+    if isinstance(node, str):
+        crt.parent.insert_before(crt.index, core.Text(node))
+    elif isinstance(node, core.Node):
+        crt.parent.insert_before(crt.index, node)
+    elif isinstance(node, list):
+        for item in node:
+            echo(item)
+    else:
+        while node:
+            echo(node[0])
+
+
+def include(input_file, **keywords):
+    """Inserts a file into the current node. """
+    parent_converter = include.converter[-1]
+    if input_file[0] != '/':
+        input_file = pth.join(pth.dirname(parent_converter.doc.uri),
+                              input_file)
+    info = {
+        'parser_style': 'default',
+        'parser_lang': None,
+        'parser_defaults': None,
+        'convert_style': 'default',
+        'convert_from': None,
+        'convert_to': None,
+        'convert_defaults': None,
+        'adopt': True,
+    }
+    for key in keywords:
+        info[key] = keywords[key]
+    if info['parser_lang'] is None:
+        path = pth.realpath(input_file)
+        name = pth.basename(path)
+        name = pth.splitext(name)
+        info['parser_lang'] = name[1][1:]
+    with open(input_file, 'r') as tmpf:
+        text = tmpf.read()
+    parser = Parser(info['parser_lang'],
+                    info['parser_style'],
+                    info['parser_defaults'])
+    parser.parse(text, input_file)
+    if parser.log:
+        parent_converter.update_log(parser.log)
+    crt = get_current_node()
+    if info['convert_to'] is not None:
+        if info['convert_from'] is None:
+            info['convert_from'] = info['parser_lang']
+        converter = Converter(info['convert_from'],
+                              info['convert_to'],
+                              info['convert_style'],
+                              info['convert_defaults'])
+        converter.convert(parser.doc)
+        if converter.log:
+            parent_converter.update_log(converter.log)
+        doc = converter.document
+    else:
+        doc = parser.doc
+    if info['adopt']:
+        crt.parent.extend_before(crt.index, doc)
+    else:
+        crt.parent.insert_before(crt.index, doc)
+
+
+MSG = {
+    'E100': 'errors in python processing instruction section `{0}`',
+    'W101': '--> begin ?python section `{0}` messages',
+    'W102': '--> end ?python section `{0}` messages',
+}
+MSG_EXPLANATION = [
+    """
+    - This message is being shown because of E100.
+
+    - The python processing instructions has mistakes. See the
+      traceback generated to fix the errors.
+
+    - If the traceback is not shown in the document it may be
+      due to the option `error` being off.
+
+""",
+    """
+    - Python embeddings may generate output to be adapted to the
+      document. Such output also needs to be processed. When the
+      ouput generates errors these errors get apended to the
+      converter log document.
+
+    - All messages between W101 and W102 are are simply errors of the
+      parsed output.
+
+""",
+]

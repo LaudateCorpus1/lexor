@@ -281,6 +281,63 @@ class Node(object):
         writer.close()
         return val
 
+    def insert_before(self, index, new_child):
+        """Inserts `new_child` to the list of children just before
+        the child specified by `index`. """
+        if not isinstance(new_child, Node):
+            new_child = Text(str(new_child))
+        elif isinstance(new_child, DocumentFragment):
+            msg = "Use extend_before for DocumentFragment Nodes."
+            raise TypeError(msg)
+        if new_child.parent is not None:
+            del new_child.parent[new_child.index]
+        self.child.insert(index, new_child)
+        new_child.set_parent(self, index)
+        if index > 0:
+            new_child.set_prev(self.child[index-1])
+        try:
+            new_child.set_next(self.child[index+1])
+        except IndexError:
+            pass
+        while index < len(self.child):
+            self[index].index = index
+            index += 1
+        return self
+
+    def extend_before(self, index, new_children):
+        """Inserts the contents of an iterable containing nodes just
+        before the child specified by `index`. The following are
+        equivalent:
+
+            while doc:
+                node.parent.insert_before(index, doc[0])
+
+            node.extend_before(index, doc)
+
+        The second form, however, has a more efficient reindexing
+        method."""
+        if isinstance(new_children, DocumentFragment):
+            msg = "Not yet implement for DocumentFragment Nodes."
+            raise TypeError(msg)
+        else:
+            while new_children:
+                child = new_children[0]
+                del child.parent[child.index]
+                self.child.insert(index, child)
+                child.set_parent(self, index)
+                if index > 0:
+                    child.set_prev(self.child[index-1])
+                try:
+                    child.set_next(self.child[index+1])
+                except IndexError:
+                    pass
+                self[index].index = index
+                index += 1
+            while index < len(self.child):
+                self[index].index = index
+                index += 1
+        return self
+
     def append_child(self, new_child):
         """Adds the node new_child to the end of the list of children
         of this node. If the node is a `DocumentFragment` then it
@@ -312,10 +369,10 @@ class Node(object):
                     node.set_prev(self.child[-2])
                 except IndexError:
                     pass
-            return self
         else:
             while new_children:
                 self.append_child(new_children[0])
+        return self
 
     def __len__(self):
         """Return the number of child nodes.

@@ -98,7 +98,7 @@ def language_style(lang_str):
 def parse_styles(lang_str):
     """Parses a language string. In particular, the options --from
     and --log. """
-    tmp = split_at(':', lang_str.lower())
+    tmp = split_at(':', lang_str)
     if len(tmp) == 2:
         cstyle = style_parameters(tmp[0])
         wstyle = style_parameters(tmp[1])
@@ -337,7 +337,7 @@ def run_converter(param):
                 (lang, wstyle) = wstyle.split('.')
             if wstyle == '_':
                 wstyle = 'default'
-            writer.set(lang, wstyle, style[0]['params'])
+            writer.set(lang, wstyle, style[1]['params'])
         except IOError:
             msg = "ERROR: Writing style not found: " \
                   "[%s:%s]\n" % (lang, wstyle)
