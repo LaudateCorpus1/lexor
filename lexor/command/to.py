@@ -357,8 +357,9 @@ def run_writer(param):
     writer = param['writer']
     for style in param['styles']:
         try:
+            sname = 'default' if style['name'] == '_' else style['name']
             writer.set(lang, style['name'], style['params'])
-            fname = '%s.%s.%s' % (f_name, style['name'], lang)
+            fname = '%s.%s.%s' % (f_name, sname, lang)
             write_document(writer, parser.doc, fname, arg)
         except IOError:
             msg = "ERROR: Writing style not found: " \

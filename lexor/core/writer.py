@@ -14,6 +14,7 @@ from cStringIO import StringIO
 from lexor.command.lang import get_style_module
 import lexor.command.config as config
 import lexor.core.elements
+RE = re.compile(" ")
 
 
 def _replacer(*key_val):
@@ -39,6 +40,18 @@ def replace(string, *key_val):
     return _replacer(*key_val)(string)
 
 
+def find_whitespace(line, start, lim):
+    """Attempts to find the index of the first whitespace before
+    lim, if its not found, then it looks ahead. """
+    index = line.rfind(' ', start, lim+1)
+    if index != -1:
+        return index
+    index = line.find(' ', lim)
+    if index != -1:
+        return index
+    return len(line)
+
+
 class NodeWriter(object):
     """A node writer is an object which writes a node in three steps:
     `start`, `data/child`, `end`.
@@ -59,6 +72,12 @@ class NodeWriter(object):
         determined by the `Writer` object that initialized this
         object (`self`). """
         self.writer.strwrite(string)
+
+    def wrap(self, string, **keywords):
+        """Writes the string to a file object by wrapping the text at
+        `width`. The file object is determined by the `Writer` object
+        that initialized this object (`self`). """
+        self.writer.wrap(string, **keywords)
 
     def start(self, node):
         """Overload this method to write part of the `Node` object in
@@ -85,30 +104,6 @@ class NodeWriter(object):
         """Overload this method to write part of the `Node` object in
         the last encounter with the `Node`. """
         pass
-
-    @property
-    def caret(self):
-        """READ-ONLY: The number of characters written by the
-        `Writer` since the last call to `update`. """
-        return self.writer.caret
-
-    @caret.setter
-    def caret(self, value):
-        """Caret setter. """
-        self.writer.caret = value
-
-    def wrap(self, string, lim, space=True):
-        """Writes a string if its length is less than lim. """
-        if len(string) < lim - self.caret:
-            self.caret += len(string)
-            self.write(string)
-        else:
-            self.caret = 0
-            self.write('\n')
-            self.write(string)
-        if space is True:
-            self.caret += 1
-            self.write(' ')
 
 
 class DefaultWriter(NodeWriter):
@@ -148,11 +143,13 @@ class Writer(object):
         self._filename = None
         self._file = None  # Points to a file object
         self._nw = None    # Array of NodeWriters
-        self.root = None   # The node to be written
-        # May be useful to write in a certain style
-        self.caret = 0
+        self._break_hint = []
         self._reload = True  # Create new NodeWriters
-        self.prev_str = None  # Reference to the last string printed
+        self.buffer = ''
+        self.pos = None
+        self.width = 70
+        self.root = None   # The node to be written
+        self.prev_str = '\n'  # Reference to the last string printed
 
     @property
     def filename(self):
@@ -207,6 +204,65 @@ class Writer(object):
         if string != '':
             self.prev_str = string
             self._file.write(string)
+            nlines = string.count('\n')
+            self.pos[0] += nlines
+            if nlines > 0:
+                self.pos[1] = len(string) - string.rfind('\n')
+            else:
+                self.pos[1] += len(string)
+
+    def flush_buffer(self, width):
+        """If the `buffer` length plus the `caret` has exceed for
+        more than `width` characters then it writes at most `width`
+        characters from the buffer and a new line. It continues doing
+        so until the buffer is less than `width` characters. """
+        line = self.buffer
+        while len(line) > width:
+            start = 0
+            skip = 1
+            if line[start] == ' ':
+                start += 1
+            end = find_whitespace(line, start, width)
+            if end > width:
+                while self._break_hint:
+                    index = line.find(self._break_hint[0], start)
+                    del self._break_hint[0]
+                    if index != -1:
+                        end = index
+                        skip -= 1
+                        break
+            self.strwrite(line[start:end])
+            self.strwrite('\n')
+            line = line[end+skip:]
+        self.buffer = line
+
+    def wrap(self, string, **keywords):
+        """Writes a string by wrapping it at width. """
+        width = keywords.get('width', self.width)
+        if keywords.get('split', False):
+            self._break_hint.append(string)
+        if keywords.get('raw', False):
+            self.strwrite(self.buffer)
+            index = string.rfind('\n')
+            if index == -1:
+                self.buffer = string
+            else:
+                self.strwrite(string[:index+1])
+                self.buffer = string[index+1:]
+            return
+        lines = string.split('\n')
+        line_num = 0
+        while line_num < len(lines) - 1:
+            self.buffer += lines[line_num]
+            self.flush_buffer(width)
+            if self.buffer.startswith(' '):
+                self.strwrite('%s\n' % self.buffer[1:])
+            else:
+                self.strwrite('%s\n' % self.buffer)
+            self.buffer = ''
+            line_num += 1
+        self.buffer += lines[line_num]
+        self.flush_buffer(width)
 
     def write(self, node, filename=None, mode='w'):
         """Write node to a file or string. To write to a string use
@@ -234,7 +290,6 @@ class Writer(object):
         else:
             self._filename = filename
             self._file = open(filename, mode)
-        self.caret = 0
         self.root = node
         if self._reload:
             self._set_node_writers(self._lang, self._style, self.defaults)
@@ -242,7 +297,10 @@ class Writer(object):
         self._set_node_writers_writer()
         if hasattr(self.style_module, 'pre_process'):
             self.style_module.pre_process(self, node)
+        self.pos = [1, 1]
         self._write(node)
+        self.strwrite(self.buffer)
+        self.buffer = ''
         if hasattr(self.style_module, 'post_process'):
             self.style_module.post_process(self, node)
         if isinstance(filename, file):

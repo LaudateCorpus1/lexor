@@ -7,7 +7,7 @@ Converter description.
 from lexor import init, load_aux
 
 INFO = init(
-    version=(0, 0, 1, 'beta', 0),
+    version=(0, 0, 1, 'final', 0),
     lang='{lang}',
     to_lang='{tolang}',
     type='converter',
