@@ -11,6 +11,7 @@ desire.
 
 import sys
 import os.path as pth
+from imp import load_source
 from cStringIO import StringIO
 from lexor.command.lang import get_style_module
 from lexor.core.parser import _map_explanations, Parser
@@ -277,23 +278,19 @@ class Converter(object):
         execution. If `error` is True then any errors generated
         during the execution will be appended to the output of the
         document."""
-        original_stdout = sys.stdout
-        sys.stdout = StringIO()
-        if not hasattr(get_lexor_namespace, 'namespace'):
-            get_lexor_namespace.namespace = dict()
-        if not hasattr(get_current_node, 'current'):
-            get_current_node.current = list()
-        if not hasattr(include, 'converter'):
-            include.converter = list()
         get_current_node.current.append(node)
         include.converter.append(self)
         namespace = get_lexor_namespace()
-        if 'get_current_node' not in namespace:
-            namespace['get_current_node'] = get_current_node
-        if 'echo' not in namespace:
-            namespace['echo'] = echo
-        if 'include' not in namespace:
+        if '__NAMESPACE__' not in namespace:
+            namespace['__NAMESPACE__'] = namespace
+            namespace['import_module'] = import_module
             namespace['include'] = include
+            namespace['echo'] = echo
+        namespace['__FILE__'] = pth.realpath(include.converter[-1].doc.uri)
+        namespace['__DIR__'] = pth.dirname(namespace['__FILE__'])
+        namespace['__NODE__'] = get_current_node()
+        original_stdout = sys.stdout
+        sys.stdout = StringIO()
         try:
             exec(node.data, namespace)
         except BaseException:
@@ -306,6 +303,8 @@ class Converter(object):
                 )
                 node.parent.insert_before(node.index, err_node)
         text = sys.stdout.getvalue()
+        sys.stdout.close()
+        sys.stdout = original_stdout
         parser.parse(text)
         node.parent.extend_before(node.index, parser.doc)
         del node.parent[node.index]
@@ -313,20 +312,32 @@ class Converter(object):
             self.msg(self.__module__, 'W101', node, [id_num])
             self.update_log(parser.log)
             self.msg(self.__module__, 'W102', node, [id_num])
-        sys.stdout.close()
-        sys.stdout = original_stdout
+        get_current_node.current.pop()
+        include.converter.pop()
+        if include.converter:
+            namespace['__FILE__'] = pth.realpath(include.converter[-1].doc.uri)
+            namespace['__DIR__'] = pth.dirname(namespace['__FILE__'])
+            namespace['__NODE__'] = get_current_node()
+        else:
+            namespace['__FILE__'] = None
+            namespace['__DIR__'] = None
+            namespace['__NODE__'] = None
 
 
 def get_lexor_namespace():
     """The execution of python instructions take place in the
     namespace provided by this function."""
     return get_lexor_namespace.namespace
+if not hasattr(get_lexor_namespace, 'namespace'):
+    get_lexor_namespace.namespace = dict()
 
 
 def get_current_node():
     """Return the `Document` node containing the python embeddings
     currently being executed. """
     return get_current_node.current[-1]
+if not hasattr(get_current_node, 'current'):
+    get_current_node.current = list()
 
 
 def echo(node):
@@ -401,6 +412,25 @@ def include(input_file, **keywords):
         crt.parent.extend_before(crt.index, doc)
     else:
         crt.parent.insert_before(crt.index, doc)
+if not hasattr(include, 'converter'):
+    include.converter = list()
+
+
+def import_module(mod_path, mod_name=None):
+    """Return a module from a path. If no name is provided then the
+    name of the file loaded will be assigned to the name. When using
+    relative paths, it will find the module relative to the file
+    executing the python embedding. """
+    converter = include.converter[-1]
+    if not mod_path.endswith('.py'):
+        mod_path += '.py'
+    if mod_path[0] != '/':
+        mod_path = pth.join(pth.dirname(converter.doc.uri), mod_path)
+    if mod_name is None:
+        mod_name = pth.basename(mod_path)
+    if mod_name.endswith('.py'):
+        mod_name = mod_name[:-3]
+    return load_source(mod_name, mod_path)
 
 
 MSG = {

@@ -18,7 +18,7 @@ import lexor.command.config as config
 DEFAULTS = {
     'parse_lang': 'lexor:_',
     'log': 'lexor:log',
-    'lang': 'html[_:min]'
+    'lang': 'html[_:_]'
 }
 
 DESC = """
@@ -330,15 +330,15 @@ def run_converter(param):
             (lang, wstyle) = wstyle.split('.')
         if wstyle == '_':
             wstyle = 'default'
+        writer.set(lang, wstyle, style[1]['params'])
+        fname = '%s.%s.%s' % (f_name, wstyle, lang)
+        write_log(log_writer, converter.log, arg.quiet)
         try:
-            writer.set(lang, wstyle, style[1]['params'])
+            write_document(writer, converter.doc, fname, arg)
         except IOError:
             msg = "ERROR: Writing style not found: [%s:%s]\n"
             warn(msg % (lang, wstyle))
             continue
-        fname = '%s.%s.%s' % (f_name, wstyle, lang)
-        write_log(log_writer, converter.log, arg.quiet)
-        write_document(writer, converter.doc, fname, arg)
 
 
 def run_writer(param):
