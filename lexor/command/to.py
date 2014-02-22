@@ -247,28 +247,23 @@ def run():
         if log[1]['name'] == '_':
             log[1]['name'] = default_log[1]
 
+    parser = Parser(in_lang, in_style['name'], in_style['params'])
+    log_writer = Writer(log[0], log[1]['name'], log[1]['params'])
+    if hasattr(parser.style_module, 'VERSIONS'):
+        versions = parser.style_module.VERSIONS
+        msg = 'WARNING: No version specified in configuration.\n' \
+              'Using the first module in this list:\n\n  %s\n\n'
+        warn(msg % '\n  '.join(versions))
     try:
-        parser = Parser(in_lang, in_style['name'], in_style['params'])
-        if hasattr(parser.style_module, 'VERSIONS'):
-            versions = parser.style_module.VERSIONS
-            msg = 'WARNING: No version specified in configuration.\n' \
-                  'Using the first module in this list:\n\n  %s\n\n'
-            warn(msg % '\n  '.join(versions))
+        parser.parse(text, t_name)
     except IOError:
         msg = "ERROR: Parsing style not found: [%s:%s]\n"
         error(msg % (in_lang, in_style['name']))
     try:
-        log_writer = Writer(log[0], log[1]['name'], log[1]['params'])
-    except IOError:
-        msg = "ERROR: log writing style not found: [%s:%s]\n"
-        error(msg % (log[0], log[1]['name']))
-    parser.parse(text, t_name)
-    try:
         write_log(log_writer, parser.log, arg.quiet)
     except IOError:
-        msg = "ERROR: log writing style not found: " \
-              "[%s:%s]\n" % (parser.log.lang, parser.log.style)
-        error(msg)
+        msg = "ERROR: Writing log style not found: [%s:%s]\n"
+        error(msg % (parser.log.lang, parser.log.style))
     if not arg.tolang:
         arg.tolang.append(input_language(cfg['to']['lang']))
     convert_and_write(f_name, parser, in_lang, log, arg)
@@ -323,25 +318,23 @@ def run_converter(param):
     log_writer = param['log_writer']
     for style in param['styles']:
         cstyle = style[0]['name']
+        converter.set(in_lang, lang, cstyle, style[0]['params'])
         try:
-            converter.set(in_lang, lang, cstyle, style[0]['params'])
             converter.convert(parser.doc)
         except IOError:
-            msg = "ERROR: Converting style not found: " \
-                  "[%s ==> %s:%s]\n" % (in_lang, lang, cstyle)
-            warn(msg)
+            msg = "ERROR: Converting style not found: [%s ==> %s:%s]\n"
+            warn(msg % (in_lang, lang, cstyle))
             continue
         wstyle = style[1]['name']
+        if '.' in wstyle:
+            (lang, wstyle) = wstyle.split('.')
+        if wstyle == '_':
+            wstyle = 'default'
         try:
-            if '.' in wstyle:
-                (lang, wstyle) = wstyle.split('.')
-            if wstyle == '_':
-                wstyle = 'default'
             writer.set(lang, wstyle, style[1]['params'])
         except IOError:
-            msg = "ERROR: Writing style not found: " \
-                  "[%s:%s]\n" % (lang, wstyle)
-            warn(msg)
+            msg = "ERROR: Writing style not found: [%s:%s]\n"
+            warn(msg % (lang, wstyle))
             continue
         fname = '%s.%s.%s' % (f_name, wstyle, lang)
         write_log(log_writer, converter.log, arg.quiet)
@@ -356,12 +349,11 @@ def run_writer(param):
     parser = param['parser']
     writer = param['writer']
     for style in param['styles']:
+        sname = 'default' if style['name'] == '_' else style['name']
+        writer.set(lang, style['name'], style['params'])
+        fname = '%s.%s.%s' % (f_name, sname, lang)
         try:
-            sname = 'default' if style['name'] == '_' else style['name']
-            writer.set(lang, style['name'], style['params'])
-            fname = '%s.%s.%s' % (f_name, sname, lang)
             write_document(writer, parser.doc, fname, arg)
         except IOError:
-            msg = "ERROR: Writing style not found: " \
-                  "[%s:%s]\n" % (lang, style['name'])
-            warn(msg)
+            msg = "ERROR: Writing style not found: [%s:%s]\n"
+            warn(msg % (lang, style['name']))

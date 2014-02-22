@@ -31,7 +31,9 @@ DEFAULTS = {
     'mdtxt': 'markdown',
     'mdtext': 'markdown',
     'text': 'markdown',
-    'lex': 'lexor'
+    'lex': 'lexor',
+    'pyhtml': 'html',
+    'pyxml': 'xml',
 }
 DESC = """
 Show the styles available to lexor through the current configuration
