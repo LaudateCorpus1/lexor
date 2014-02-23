@@ -264,6 +264,16 @@ class Writer(object):
         self.buffer += lines[line_num]
         self.flush_buffer(width)
 
+    def endl(self, force=True):
+        """Insert a new line character. By setting `force` to False
+        you may ommit inserting a new line character if the last
+        character printed was already the new line character."""
+        if self.buffer:
+            self.strwrite(self.buffer)
+            self.buffer = ''
+        if force or not self.prev_str.endswith('\n'):
+            self.strwrite('\n')
+
     def write(self, node, filename=None, mode='w'):
         """Write node to a file or string. To write to a string use
         the default parameters, otherwise provide a file name. If
