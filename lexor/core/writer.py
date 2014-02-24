@@ -146,6 +146,8 @@ class Writer(object):
         self._break_hint = []
         self._reload = True  # Create new NodeWriters
         self.buffer = ''
+        self._wrap = True
+        self._raw = False
         self.pos = None
         self.width = 70
         self.root = None   # The node to be written
@@ -219,29 +221,32 @@ class Writer(object):
         line = self.buffer
         while len(line) > width:
             start = 0
-            skip = 1
             if line[start] == ' ':
                 start += 1
-            end = find_whitespace(line, start, width)
-            if end > width:
-                while self._break_hint:
-                    index = line.find(self._break_hint[0], start)
-                    del self._break_hint[0]
-                    if index != -1:
+            end = find_whitespace(line, start, width) + 1
+            while self._break_hint:
+                index = line.find(self._break_hint[0], start)
+                del self._break_hint[0]
+                if index not in [-1, start] and index <= width:
+                    if end > width or index > end:
                         end = index
-                        skip -= 1
-                        break
-            self.strwrite(line[start:end])
+            offset = 0
+            if line[end-1:end] == ' ':
+                offset = -1
+            self.strwrite(line[start:end+offset])
+            offset = 0
+            if line[end:end+1] == ' ':
+                offset = 1
+            line = line[end+offset:]
             self.strwrite('\n')
-            line = line[end+skip:]
         self.buffer = line
 
     def wrap(self, string, **keywords):
         """Writes a string by wrapping it at width. """
-        width = keywords.get('width', self.width)
-        if keywords.get('split', False):
-            self._break_hint.append(string)
-        if keywords.get('raw', False):
+        if not self._wrap:
+            self.strwrite(string)
+            return
+        if self._raw or keywords.get('raw', False):
             self.strwrite(self.buffer)
             index = string.rfind('\n')
             if index == -1:
@@ -250,19 +255,38 @@ class Writer(object):
                 self.strwrite(string[:index+1])
                 self.buffer = string[index+1:]
             return
+        width = keywords.get('width', self.width)
+        if keywords.get('split', False):
+            self._break_hint.append(string)
         lines = string.split('\n')
         line_num = 0
         while line_num < len(lines) - 1:
             self.buffer += lines[line_num]
             self.flush_buffer(width)
-            if self.buffer.startswith(' '):
-                self.strwrite('%s\n' % self.buffer[1:])
-            else:
-                self.strwrite('%s\n' % self.buffer)
+            self.strwrite('%s\n' % self.buffer)
             self.buffer = ''
             line_num += 1
         self.buffer += lines[line_num]
         self.flush_buffer(width)
+
+    def enable_wrap(self):
+        """Use this to set the writing in wrapping mode. """
+        self._wrap = True
+
+    def disable_wrap(self):
+        """Turn off wrapping. """
+        self._wrap = False
+        if self.buffer != '':
+            self.strwrite(self.buffer)
+            self.buffer = ''
+
+    def enable_raw(self):
+        """Use this to set the writing in raw mode. """
+        self._raw = True
+
+    def disable_raw(self):
+        """Turn off raw mode. """
+        self._raw = False
 
     def endl(self, force=True):
         """Insert a new line character. By setting `force` to False
