@@ -268,21 +268,20 @@ class Writer(object):
             start = 0
             if line[start] == ' ':
                 start += 1
-            end = find_whitespace(line, start, limit) + 1
+            end = find_whitespace(line, start, limit)
             while self._break_hint:
                 index = line.find(self._break_hint[0], start)
                 del self._break_hint[0]
                 if index > -1 and index <= limit:
                     if end > limit or index > end:
                         end = index
-            offset = 0
-            if line[end-1:end] == ' ':
-                offset = -1
-            self._write_str(indent + line[start:end+offset] + '\n')
-            offset = 0
+            if end == len(line):
+                break
+            self._write_str(indent + line[start:end] + '\n')
             if line[end:end+1] == ' ':
-                offset = 1
-            line = line[end+offset:]
+                line = line[end+1:]
+            else:
+                line = line[end:]
             indent = self._indent
             limit = self.width - self.pos[1] - len(indent) + 1
         self._buffer = line
@@ -318,9 +317,9 @@ class Writer(object):
         else:
             prev_str = self.prev_str + self._buffer
         self.flush_buffer()
-        if force or not prev_str.endswith('\n'):
-            if prev_str != self._indent:
-                self._write_str('\n')
+        if force or (not prev_str.endswith('\n') and
+                     prev_str != self._indent):
+            self._write_str('\n')
 
     def write(self, node, filename=None, mode='w'):
         """Write node to a file or string. To write to a string use
