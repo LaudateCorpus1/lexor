@@ -806,9 +806,16 @@ class RawText(Element, CharacterData):
 
 class Void(Element):
     """Docstring for raw Void"""
+
     def __init__(self, name, data=None):
         Element.__init__(self, name, data)
         self.child = None
+
+    def clone_node(self, _=True):
+        """Returns a new Void element. """
+        node = Void(self.name)
+        node.update_attributes(self)
+        return node
 
 
 class Document(Element):

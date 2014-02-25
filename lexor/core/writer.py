@@ -67,17 +67,11 @@ class NodeWriter(object):
         """
         self.writer = writer
 
-    def write(self, string):
+    def write(self, string, split=False):
         """Writes the string to a file object. The file object is
         determined by the `Writer` object that initialized this
         object (`self`). """
-        self.writer.strwrite(string)
-
-    def wrap(self, string, **keywords):
-        """Writes the string to a file object by wrapping the text at
-        `width`. The file object is determined by the `Writer` object
-        that initialized this object (`self`). """
-        self.writer.wrap(string, **keywords)
+        self.writer.write_str(string, split)
 
     def start(self, node):
         """Overload this method to write part of the `Node` object in
@@ -88,7 +82,7 @@ class NodeWriter(object):
         """This method gets called only by `CharacterData` nodes.
         This method should be overloaded to write their attribute
         `data`, otherwise it will write the node's data as it is. """
-        self.writer.strwrite(node.data)
+        self.writer.write_str(node.data)
 
     @classmethod
     def child(cls, _):
@@ -143,15 +137,19 @@ class Writer(object):
         self._filename = None
         self._file = None  # Points to a file object
         self._nw = None    # Array of NodeWriters
-        self._break_hint = []
         self._reload = True  # Create new NodeWriters
-        self.buffer = ''
-        self._wrap = True
-        self._raw = False
+
+        self._raw = None
+        self._wrap = None
+        self._buffer = None
+        self._break_hint = None
+        self._indent = None
+        self._indent_empty = None
         self.pos = None
-        self.width = 70
+        self.width = None
+
         self.root = None   # The node to be written
-        self.prev_str = '\n'  # Reference to the last string printed
+        self.prev_str = None  # Reference to the last string printed
 
     @property
     def filename(self):
@@ -199,10 +197,8 @@ class Writer(object):
             return val
         return None
 
-    def strwrite(self, string):
-        """The write function is meant to be used with Node objects.
-        Use this function to write simple strings while the file
-        descriptor is open. """
+    def _write_str(self, string):
+        """Helper function for write_str. """
         if string != '':
             self.prev_str = string
             self._file.write(string)
@@ -213,61 +209,83 @@ class Writer(object):
             else:
                 self.pos[1] += len(string)
 
-    def flush_buffer(self, width):
-        """If the `buffer` length plus the `caret` has exceed for
-        more than `width` characters then it writes at most `width`
-        characters from the buffer and a new line. It continues doing
-        so until the buffer is less than `width` characters. """
-        line = self.buffer
-        while len(line) > width:
+    def write_str(self, string, split=False):
+        """The write function is meant to be used with Node objects.
+        Use this function to write simple strings while the file
+        descriptor is open. """
+        if self._raw:
+            self._write_str(string)
+            return
+        if not self._wrap:
+            if self._indent != '':
+                lines = string.split('\n')
+                if self.pos[1] == 1:
+                    if lines[0] != '' or self._indent_empty:
+                        lines[0] = self._indent + lines[0]
+                for num in range(1, len(lines)):
+                    if lines[num] != '' or self._indent_empty:
+                        lines[num] = self._indent + lines[num]
+                self._write_str('\n'.join(lines))
+            else:
+                self._write_str(string)
+            return
+        if split:
+            self._break_hint.append(string)
+        lines = string.split('\n')
+        num = 0
+        while num < len(lines) - 1:
+            self._buffer += lines[num]
+            self.normalize_buffer()
+            self.flush_buffer()
+            self._write_str('\n')
+            num += 1
+        self._buffer += lines[num]
+        self.normalize_buffer()
+
+    def flush_buffer(self):
+        """Empty the contents of the buffer. """
+        if self.pos[1] == 1:
+            if self._buffer.startswith(' '):
+                self._buffer = self._buffer[1:]
+            if self._buffer != '':
+                self._write_str(self._indent + self._buffer)
+            elif self._indent_empty:
+                self._write_str(self._indent)
+        else:
+            self._write_str(self._buffer)
+        self._buffer = ''
+
+    def normalize_buffer(self):
+        """The term normalize means that the length of the buffer
+        will be less than or equal to the wrapping width. Anything
+        that exceeds the limit will be flushed. """
+        line = self._buffer
+        indent = self._indent
+        if self.pos[1] > 1:
+            indent = ''
+        limit = self.width - self.pos[1] - len(indent) + 1
+        while len(line) > limit:
             start = 0
             if line[start] == ' ':
                 start += 1
-            end = find_whitespace(line, start, width) + 1
+            end = find_whitespace(line, start, limit) + 1
             while self._break_hint:
                 index = line.find(self._break_hint[0], start)
                 del self._break_hint[0]
-                if index not in [-1, start] and index <= width:
-                    if end > width or index > end:
+                if index > -1 and index <= limit:
+                    if end > limit or index > end:
                         end = index
             offset = 0
             if line[end-1:end] == ' ':
                 offset = -1
-            self.strwrite(line[start:end+offset])
+            self._write_str(indent + line[start:end+offset] + '\n')
             offset = 0
             if line[end:end+1] == ' ':
                 offset = 1
             line = line[end+offset:]
-            self.strwrite('\n')
-        self.buffer = line
-
-    def wrap(self, string, **keywords):
-        """Writes a string by wrapping it at width. """
-        if not self._wrap:
-            self.strwrite(string)
-            return
-        if self._raw or keywords.get('raw', False):
-            self.strwrite(self.buffer)
-            index = string.rfind('\n')
-            if index == -1:
-                self.buffer = string
-            else:
-                self.strwrite(string[:index+1])
-                self.buffer = string[index+1:]
-            return
-        width = keywords.get('width', self.width)
-        if keywords.get('split', False):
-            self._break_hint.append(string)
-        lines = string.split('\n')
-        line_num = 0
-        while line_num < len(lines) - 1:
-            self.buffer += lines[line_num]
-            self.flush_buffer(width)
-            self.strwrite('%s\n' % self.buffer)
-            self.buffer = ''
-            line_num += 1
-        self.buffer += lines[line_num]
-        self.flush_buffer(width)
+            indent = self._indent
+            limit = self.width - self.pos[1] - len(indent) + 1
+        self._buffer = line
 
     def enable_wrap(self):
         """Use this to set the writing in wrapping mode. """
@@ -275,28 +293,34 @@ class Writer(object):
 
     def disable_wrap(self):
         """Turn off wrapping. """
+        self.flush_buffer()
         self._wrap = False
-        if self.buffer != '':
-            self.strwrite(self.buffer)
-            self.buffer = ''
 
     def enable_raw(self):
         """Use this to set the writing in raw mode. """
+        self.flush_buffer()
         self._raw = True
 
     def disable_raw(self):
         """Turn off raw mode. """
         self._raw = False
 
+    def raw_enabled(self):
+        """Determine if raw mode is enabled or not. """
+        return self._raw
+
     def endl(self, force=True):
         """Insert a new line character. By setting `force` to False
         you may ommit inserting a new line character if the last
         character printed was already the new line character."""
-        if self.buffer:
-            self.strwrite(self.buffer)
-            self.buffer = ''
-        if force or not self.prev_str.endswith('\n'):
-            self.strwrite('\n')
+        if self.pos[1] == 1 and self._buffer.startswith(' '):
+            prev_str = self.prev_str + self._buffer[1:]
+        else:
+            prev_str = self.prev_str + self._buffer
+        self.flush_buffer()
+        if force or not prev_str.endswith('\n'):
+            if prev_str != self._indent:
+                self._write_str('\n')
 
     def write(self, node, filename=None, mode='w'):
         """Write node to a file or string. To write to a string use
@@ -325,16 +349,24 @@ class Writer(object):
             self._filename = filename
             self._file = open(filename, mode)
         self.root = node
+        self._raw = True
+        self._wrap = False
+        self._buffer = ''
+        self._break_hint = []
+        self._indent = ''
+        self._indent_empty = False
+        self.pos = [1, 1]
+        self.width = 70
+        self.prev_str = '\n'
         if self._reload:
             self._set_node_writers(self._lang, self._style, self.defaults)
             self._reload = False
         self._set_node_writers_writer()
         if hasattr(self.style_module, 'pre_process'):
             self.style_module.pre_process(self, node)
-        self.pos = [1, 1]
         self._write(node)
-        self.strwrite(self.buffer)
-        self.buffer = ''
+        self.write_str(self._buffer)
+        self._buffer = ''
         if hasattr(self.style_module, 'post_process'):
             self.style_module.post_process(self, node)
         if isinstance(filename, file):
