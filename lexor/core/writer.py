@@ -169,6 +169,17 @@ class Writer(object):
         self._reload = True
 
     @property
+    def indent(self):
+        """The indentation at the beginning of each line. """
+        return self._indent
+
+    @indent.setter
+    def indent(self, value):
+        """_indent setter method. """
+        self.flush_buffer(tail=False)
+        self._indent = value
+
+    @property
     def writing_style(self):
         """The style in which the `Writer` writes a `Node` object. """
         return self._style
@@ -187,7 +198,7 @@ class Writer(object):
         self._reload = True
 
     def __str__(self):
-        """Attempts to retrive the last written string. """
+        """Attempts to retrieve the last written string. """
         if self._filename is None and self._file is not None:
             return self._file.getvalue()
         if self._filename is not None:
@@ -242,8 +253,10 @@ class Writer(object):
         self._buffer += lines[num]
         self.normalize_buffer()
 
-    def flush_buffer(self):
+    def flush_buffer(self, tail=True):
         """Empty the contents of the buffer. """
+        if not tail and self._buffer.endswith(' '):
+            self._buffer = self._buffer[:-1]
         if self.pos[1] == 1:
             if self._buffer.startswith(' '):
                 self._buffer = self._buffer[1:]
@@ -308,23 +321,31 @@ class Writer(object):
         """Determine if raw mode is enabled or not. """
         return self._raw
 
-    def endl(self, force=True):
+    def wrap_enabled(self):
+        """Determine if wrap mode is enabled or not. """
+        return self._wrap
+
+    def endl(self, force=True, tot=1, tail=False):
         """Insert a new line character. By setting `force` to False
-        you may ommit inserting a new line character if the last
+        you may omit inserting a new line character if the last
         character printed was already the new line character."""
-        if self.pos[1] == 1 and self._buffer.startswith(' '):
-            prev_str = self.prev_str + self._buffer[1:]
-        else:
-            prev_str = self.prev_str + self._buffer
-        self.flush_buffer()
+        prev_str = self.last()
+        self.flush_buffer(tail)
         if force or (not prev_str.endswith('\n') and
                      prev_str != self._indent):
-            self._write_str('\n')
+            self._write_str('\n'*tot)
+
+    def last(self):
+        """Returns the last written string with the contents of the
+        buffer. """
+        if self.pos[1] == 1 and self._buffer.startswith(' '):
+            return self.prev_str + self._buffer[1:]
+        return self.prev_str + self._buffer
 
     def write(self, node, filename=None, mode='w'):
         """Write node to a file or string. To write to a string use
         the default parameters, otherwise provide a file name. If
-        filename is provided you have the option of especifying the
+        filename is provided you have the option of specifying the
         mode: 'w' or 'a'.
 
         You may also provide a file you may have opened yourself in

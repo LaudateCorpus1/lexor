@@ -159,8 +159,8 @@ class Node(object):
         while crt.prev is not None:
             crt = crt.prev
             if isinstance(crt, Element):
-                break
-        return crt
+                return crt
+        return None
 
     def set_prev(self, node):
         """HELPER-METHOD: Use this function to set the `prev`
@@ -179,6 +179,16 @@ class Node(object):
         by accessing the attribute `next` in case of performance
         issues. """
         return self.next
+
+    @property
+    def next_element(self):
+        """READ-ONLY: The sibling Element after this node. """
+        crt = self
+        while crt.next is not None:
+            crt = crt.next
+            if isinstance(crt, Element):
+                return crt
+        return None
 
     def set_next(self, node):
         """HELPER-METHOD: Use this function to set the `next`
