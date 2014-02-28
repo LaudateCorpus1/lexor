@@ -219,6 +219,8 @@ def nose_msg_explanations(lang, type_, style, name):
     contains."""
     mod = get_style_module(type_, lang, style)
     mod = sys.modules['%s_%s' % (mod.__name__, name)]
+    if not hasattr(mod, 'MSG_EXPLANATION'):
+        return
     errors = False
     warn('\n')
     for num, msg in enumerate(mod.MSG_EXPLANATION):

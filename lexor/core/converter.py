@@ -78,7 +78,6 @@ class Converter(object):
         self._fromlang = fromlang
         self._tolang = tolang
         self._style = style
-        self._init_converter = None
         self._nc = None
         self._convert_func = None
         self._reload = True
@@ -154,7 +153,8 @@ class Converter(object):
         self.log = core.Document("lexor", "log")
         self.log.modules = dict()
         self.log.explanation = dict()
-        self._init_converter(self)
+        if hasattr(self.style_module, 'init_converter'):
+            self.style_module.init_converter(self)
         self._convert(doc)
         self._convert_func(self, self.doc)
         _map_explanations(self.log.modules, self.log.explanation)
@@ -180,17 +180,28 @@ class Converter(object):
         self.log.append_child(node)
 
     def _set_node_converters(self, fromlang, tolang, style, defaults=None):
-        """Imports the correct module based on the languages and style. """
-        self.style_module = get_style_module('converter', fromlang,
-                                             style, tolang)
+        """Imports the correct module based on the languages and
+        style. """
+        self.style_module = get_style_module(
+            'converter', fromlang, style, tolang
+        )
         name = '%s-converter-%s-%s' % (fromlang, tolang, style)
         config.set_style_cfg(self, name, defaults)
         self._nc = dict()
         self._nc['__default__'] = NodeConverter(self)
+        str_key = list()
         for key, val in self.style_module.MAPPING.iteritems():
-            self._nc[key] = val(self)
+            if isinstance(val, str):
+                str_key.append((key, val))
+            else:
+                self._nc[key] = val(self)
+        for key, val in str_key:
+            self._nc[key] = self._nc[val]
         self._convert_func = self.style_module.convert
-        self._init_converter = self.style_module.init_converter
+
+    def __getitem__(self, name):
+        """Return a Node converter. """
+        return self._nc[name]
 
     def _process(self, node):
         """Evaluate the process function of the node converter based

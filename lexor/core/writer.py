@@ -421,9 +421,14 @@ class Writer(object):
         for key, val in str_key:
             self._nw[key] = self._nw[val]
 
+    #@deprecated
     def get_node_writer(self, name):
         """Return one of the NodeWriter objects available to the
         Writer."""
+        return self._nw.get(name, self._nw['__default__'])
+
+    def __getitem__(self, name):
+        """Return a Node parser. """
         return self._nw.get(name, self._nw['__default__'])
 
     def _set_node_writers_writer(self):

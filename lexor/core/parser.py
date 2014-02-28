@@ -127,6 +127,20 @@ class Parser(object):
         self.doc = None
         self.log = None
         self.defaults = defaults
+        self._node_parser = None
+
+    def _set_node_parser(self, val):
+        """Helper function to create a node parser and store it
+        in dictionary. """
+        if isinstance(val, str):
+            return self._node_parser[val]
+        name = val.__name__
+        self._node_parser[name] = val(self)
+        return self._node_parser[name]
+
+    def __getitem__(self, name):
+        """Return a Node parser. """
+        return self._node_parser[name]
 
     def _set_node_parsers(self, lang, style, defaults=None):
         """Imports the correct module based on the language and style. """
@@ -135,19 +149,35 @@ class Parser(object):
         config.set_style_cfg(self, name, defaults)
         self._next_check = dict()
         self._np = dict()
+        self._node_parser = dict()
+        if hasattr(self.style_module, 'REPOSITORY'):
+            for val in self.style_module.REPOSITORY:
+                self._set_node_parser(val)
+        str_key = list()
         for key, val in self.style_module.MAPPING.iteritems():
             self._next_check[key] = re.compile('.*?[%s]' % val[0])
-            self._np[key] = [p(self) for p in val[1]]
+            if isinstance(val, str):
+                str_key.append((key, val))
+            else:
+                self._np[key] = [self._set_node_parser(p) for p in val[1]]
+        for key, val in str_key:
+            self._np[key] = self._np[val]
+
+    def load_node_parsers(self):
+        """Loads the node parsers. This function is called
+        automatically when `parse` is called only if there was a
+        change in the settings. """
+        self._set_node_parsers(
+            self._lang, self._style, self.defaults
+        )
+        self._reload = False
 
     def parse(self, text, uri=None):
         """parses the given `text`. To see the results of this method see
         the `document` and `log` property. If no `uri` is given then
         `document` will return a `DocumentFragment` node. """
         if self._reload:
-            self._set_node_parsers(
-                self._lang, self._style, self.defaults
-            )
-            self._reload = False
+            self.load_node_parsers()
         self.text = text
         self.end = len(text)
         self.pos = [1, 1]
