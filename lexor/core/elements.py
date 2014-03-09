@@ -758,18 +758,32 @@ class Element(Node):
             yield k
 
     @property
-    def attributes(self):
-        """Return a list of all the attributes in the Element. """
-        return list(self._order)
+    def attlen(self):
+        """The number of attributes. """
+        return len(self._order)
 
-    def items(self):
-        """return all the items. """
-        return zip(self._order, self.values)
+    @property
+    def attributes(self):
+        """Return a list of the attribute names in the Element. """
+        return list(self._order)
 
     @property
     def values(self):
         """Return a list of the attribute values in the Element. """
         return [self.__dict__[k] for k in self._order]
+
+    def attribute(self, index):
+        """Return the name of the attribute at the specified index. """
+        return self._order[index]
+
+    def attr(self, index):
+        """Return the value of the attribute at the specified index.
+        """
+        return self.__dict__[self._order[index]]
+
+    def items(self):
+        """return all the items. """
+        return zip(self._order, self.values)
 
     def update(self, dict_):
         """update with the values of dict_. useful when the element
@@ -778,14 +792,15 @@ class Element(Node):
         for key, val in dict_.items():
             self.__setitem__(key, val)
 
-    @property
-    def attlen(self):
-        """The number of attributes. """
-        return len(self._order)
-
-    def attr(self, index):
-        """obj.attr(num)"""
-        return self.__dict__[self._order[index]]
+    def rename(self, old_name, new_name):
+        """Renames an attribute. """
+        if isinstance(old_name, str):
+            index = self._order.index(old_name)
+        else:
+            index = old_name  # Assume old_name
+        self.__dict__[new_name] = self.__dict__[self._order[index]]
+        del self.__dict__[self._order[index]]
+        self._order[index] = new_name
 
     def clone_node(self, deep=False):
         """Returns a new element"""

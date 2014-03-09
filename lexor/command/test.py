@@ -166,6 +166,7 @@ def parse_msg(msg):
     lines = msg.split('\n')
     tests = []
     index = 0
+    end = len(lines)
     while index < len(lines):
         match = RE.match(lines[index].strip())
         if match is None:

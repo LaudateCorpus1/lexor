@@ -313,14 +313,13 @@ def run_converter(param):
     in_lang = param['in_lang']
     arg = param['arg']
     parser = param['parser']
-    converter = param['converter']
     writer = param['writer']
     log_writer = param['log_writer']
     for style in param['styles']:
         cstyle = style[0]['name']
-        converter.set(in_lang, lang, cstyle, style[0]['params'])
+        param['converter'].set(in_lang, lang, cstyle, style[0]['params'])
         try:
-            converter.convert(parser.doc)
+            doc, log = param['converter'].convert(parser.doc)
         except IOError:
             msg = "ERROR: Converting style not found: [%s ==> %s:%s]\n"
             warn(msg % (in_lang, lang, cstyle))
@@ -332,9 +331,9 @@ def run_converter(param):
             wstyle = 'default'
         writer.set(lang, wstyle, style[1]['params'])
         fname = '%s.%s.%s' % (f_name, wstyle, lang)
-        write_log(log_writer, converter.log, arg.quiet)
+        write_log(log_writer, log, arg.quiet)
         try:
-            write_document(writer, converter.doc, fname, arg)
+            write_document(writer, doc, fname, arg)
         except IOError:
             msg = "ERROR: Writing style not found: [%s:%s]\n"
             warn(msg % (lang, wstyle))

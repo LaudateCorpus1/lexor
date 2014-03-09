@@ -20,8 +20,16 @@ import lexor.command.config as config
 import traceback
 
 
-# The default of at least 2 methods is too restrictive.
-# pylint: disable=R0903
+def get_converter_namespace():
+    """Many converters may be defined during the convertion of a
+    document. In some cases we may need to save references to objects
+    in documents. If this is the case, then call this function to
+    obtain the namespace where you can save those references. """
+    return get_converter_namespace.namespace
+if not hasattr(get_converter_namespace, 'namespace'):
+    get_converter_namespace.namespace = dict()
+
+
 class NodeConverter(object):
     """A node converter is an object which determines if the node
     will be copied (default). To avoid copying the node simply
@@ -47,7 +55,7 @@ class NodeConverter(object):
         parameter. """
         self.converter = converter
 
-    def process(self, node):
+    def start(self, node):
         """This method gets called only if `copy` is set to True
         (default). By overloading this method you have access to the
         converter and the node. You can thus set extra variables in
@@ -56,7 +64,13 @@ class NodeConverter(object):
         parents of the node then set a variable in the converter
         to point to the node so that later on in the `convert` function
         it can be modified. """
-        pass
+        return node
+
+    def end(self, node):
+        """This method gets called after all the children have
+        been copied. Make sure to return the node or the node
+        replacement. """
+        return node
 
     def msg(self, code, node, arg=None, uri=None):
         """Send a message to the converter. """
@@ -79,11 +93,12 @@ class Converter(object):
         self._tolang = tolang
         self._style = style
         self._nc = None
+        self._node_converter = None
         self._convert_func = None
         self._reload = True
         self.style_module = None
-        self.doc = None
-        self.log = None
+        self.doc = list()
+        self.log = list()
         self.defaults = defaults
 
     @property
@@ -131,17 +146,16 @@ class Converter(object):
     @property
     def lexor_log(self):
         """The `lexorlog` document. See this document after each
-        call to `parse` to see warnings and errors in the text that
-        was parsed. """
-        return self.log
+        call to `convert` to see warnings and errors. """
+        return self.log[-1]
 
     @property
     def document(self):
         """The parsed document. This is a `Document` or
-        `FragmentedDocument` created by the `parse` method. """
-        return self.doc
+        `FragmentedDocument` created by the `convert` method. """
+        return self.doc[-1]
 
-    def convert(self, doc):
+    def convert(self, doc, namespace=False):
         """Convert the `Document` doc. """
         if not isinstance(doc, (core.Document, core.DocumentFragment)):
             raise TypeError("The node is not a Document or DocumentFragment")
@@ -150,14 +164,16 @@ class Converter(object):
                 self._fromlang, self._tolang, self._style, self.defaults
             )
             self._reload = False
-        self.log = core.Document("lexor", "log")
-        self.log.modules = dict()
-        self.log.explanation = dict()
-        if hasattr(self.style_module, 'init_converter'):
-            self.style_module.init_converter(self)
+        self.log.append(core.Document("lexor", "log"))
+        self.log[-1].modules = dict()
+        self.log[-1].explanation = dict()
         self._convert(doc)
-        self._convert_func(self, self.doc)
-        _map_explanations(self.log.modules, self.log.explanation)
+        if hasattr(self.style_module, 'convert'):
+            self.style_module.convert(self, self.doc[-1])
+        _map_explanations(self.log[-1].modules, self.log[-1].explanation)
+        if not namespace:
+            del self.doc[-1].namespace
+        return self.doc[-1], self.log[-1]
 
     # pylint: disable=R0913
     def msg(self, mod_name, code, node, arg=None, uri=None):
@@ -165,7 +181,7 @@ class Converter(object):
         number, the node with the error, optional arguments and uri.
         This information gets stored in the log. """
         if uri is None:
-            uri = self.doc.uri_
+            uri = self.doc[-1].uri_
         if arg is None:
             arg = ()
         node = core.Void('msg')
@@ -175,9 +191,22 @@ class Converter(object):
         node.node = node
         node['uri'] = uri
         node['arg'] = arg
-        if mod_name not in self.log.modules:
-            self.log.modules[mod_name] = sys.modules[mod_name]
-        self.log.append_child(node)
+        if mod_name not in self.log[-1].modules:
+            self.log[-1].modules[mod_name] = sys.modules[mod_name]
+        self.log[-1].append_child(node)
+
+    def _set_node_converter(self, val):
+        """Helper function to create a node converter and store it in
+        a dictionary. """
+        if isinstance(val, str):
+            return self._node_converter[val]
+        name = val.__name__
+        self._node_converter[name] = val(self)
+        return self._node_converter[name]
+
+    def __getitem__(self, name):
+        """Return a Node converter. """
+        return self._node_converter[name]
 
     def _set_node_converters(self, fromlang, tolang, style, defaults=None):
         """Imports the correct module based on the languages and
@@ -188,25 +217,29 @@ class Converter(object):
         name = '%s-converter-%s-%s' % (fromlang, tolang, style)
         config.set_style_cfg(self, name, defaults)
         self._nc = dict()
-        self._nc['__default__'] = NodeConverter(self)
+        self._node_converter = dict()
+        if hasattr(self.style_module, 'REPOSITORY'):
+            for val in self.style_module.REPOSITORY:
+                self._set_node_converter(val)
+        self._nc['__default__'] = self._set_node_converter(NodeConverter)
         str_key = list()
         for key, val in self.style_module.MAPPING.iteritems():
-            if isinstance(val, str):
+            if isinstance(val, str) and val not in self._node_converter:
                 str_key.append((key, val))
             else:
-                self._nc[key] = val(self)
+                self._nc[key] = self._set_node_converter(val)
         for key, val in str_key:
             self._nc[key] = self._nc[val]
-        self._convert_func = self.style_module.convert
 
-    def __getitem__(self, name):
-        """Return a Node converter. """
-        return self._nc[name]
-
-    def _process(self, node):
-        """Evaluate the process function of the node converter based
+    def _start(self, node):
+        """Evaluate the start function of the node converter based
         on the name of the node. """
-        self._nc.get(node.name, self._nc['__default__']).process(node)
+        return self._nc.get(node.name, self._nc['__default__']).start(node)
+
+    def _end(self, node):
+        """Evaluate the end function of the node converter based
+        on the name of the node. """
+        return self._nc.get(node.name, self._nc['__default__']).end(node)
 
     def _copy(self, node):
         """Return the copy attribute of the node converter. """
@@ -232,10 +265,13 @@ class Converter(object):
         # A doc needs to be copied by default. You may prohibit
         # to copy the children, but there must be a document.
         crt = doc
-        self.doc = core.Document(doc.lang, doc.style)
-        self.doc.uri_ = doc.uri_
-        crtcopy = self.doc
-        self._process(crtcopy)
+        self.doc.append(core.Document(doc.lang, doc.style))
+        self.doc[-1].uri_ = doc.uri_
+        self.doc[-1].namespace = dict()
+        if hasattr(self.style_module, 'init_conversion'):
+            self.style_module.init_conversion(self, self.doc[-1])
+        crtcopy = self.doc[-1]
+        crtcopy = self._start(crtcopy)
         if self._copy_children(crt):
             direction = 'd'
             root = doc
@@ -246,8 +282,6 @@ class Converter(object):
                 crt = crt.child[0]
                 clone = crt.clone_node()
                 crtcopy.append_child(clone)
-                crtcopy = clone
-                self._process(crtcopy)
             elif direction is 'r':
                 if crt.next is None:
                     direction = 'u'
@@ -255,20 +289,18 @@ class Converter(object):
                 crt = crt.next
                 clone = crt.clone_node()
                 crtcopy.parent.append_child(clone)
-                crtcopy = clone
-                self._process(crtcopy)
             elif direction is 'u':
+                crtcopy = self._end(crtcopy.parent)
                 if crt.parent is root:
                     break
                 if crt.parent.next is None:
                     crt = crt.parent
-                    crtcopy = crtcopy.parent
                     continue
                 crt = crt.parent.next
                 clone = crt.clone_node()
-                crtcopy.parent.parent.append_child(clone)
-                crtcopy = clone
-                self._process(crtcopy)
+                crtcopy.parent.append_child(clone)
+            crtcopy = clone
+            crtcopy = self._start(crtcopy)
             direction = self._get_direction(crt)
 
     def update_log(self, log):
@@ -276,11 +308,11 @@ class Converter(object):
         log. Note that this removes the children from log. """
         modules = log.modules
         for mname in modules:
-            if mname not in self.log.modules:
-                self.log.modules[mname] = modules[mname]
-        self.log.extend_children(log)
+            if mname not in self.log[-1].modules:
+                self.log[-1].modules[mname] = modules[mname]
+        self.log[-1].extend_children(log)
 
-    #pylint: disable=W0122,E1103
+    # pylint: disable=W0122,E1103
     def exec_python(self, node, id_num, parser, error=True):
         """Executes the contents of the processing instruction. You
         must provide an id number identifying the processing
