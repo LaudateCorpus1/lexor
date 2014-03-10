@@ -30,6 +30,23 @@ if not hasattr(get_converter_namespace, 'namespace'):
     get_converter_namespace.namespace = dict()
 
 
+def remove_node(node):
+    """Removes the node from the current document it is in. Returns
+    the previous sibling is possible, otherwise it returns an empty
+    Text node. """
+    parent = node.parent
+    index = node.index
+    del node.parent[node.index]
+    try:
+        if index - 1 > -1:
+            return parent[index-1]
+        else:
+            raise IndexError
+    except IndexError:
+        parent.append_child('')
+    return parent[0]
+
+
 class NodeConverter(object):
     """A node converter is an object which determines if the node
     will be copied (default). To avoid copying the node simply
@@ -55,7 +72,8 @@ class NodeConverter(object):
         parameter. """
         self.converter = converter
 
-    def start(self, node):
+    @classmethod
+    def start(cls, node):
         """This method gets called only if `copy` is set to True
         (default). By overloading this method you have access to the
         converter and the node. You can thus set extra variables in
@@ -66,7 +84,8 @@ class NodeConverter(object):
         it can be modified. """
         return node
 
-    def end(self, node):
+    @classmethod
+    def end(cls, node):
         """This method gets called after all the children have
         been copied. Make sure to return the node or the node
         replacement. """
@@ -143,6 +162,19 @@ class Converter(object):
         self._fromlang = fromlang
         self._reload = True
 
+    def match_info(self, fromlang, tolang, style, defaults=None):
+        """Check to see if the converter main information matches."""
+        match = True
+        if defaults is not None:
+            match = False
+        elif fromlang not in [self._fromlang]:
+            match = False
+        elif tolang not in [self._tolang]:
+            match = False
+        elif style not in [self._style]:
+            match = False
+        return match
+
     @property
     def lexor_log(self):
         """The `lexorlog` document. See this document after each
@@ -184,16 +216,20 @@ class Converter(object):
             uri = self.doc[-1].uri_
         if arg is None:
             arg = ()
-        node = core.Void('msg')
-        node['module'] = mod_name
-        node['code'] = code
-        node['node_id'] = id(node)
-        node.node = node
-        node['uri'] = uri
-        node['arg'] = arg
+        wnode = core.Void('msg')
+        wnode['module'] = mod_name
+        wnode['code'] = code
+        wnode['node_id'] = id(node)
+        wnode.node = node
+        if 'uri' in node:
+            wnode['uri'] = node['uri']
+            del node['uri']
+        else:
+            wnode['uri'] = uri
+        wnode['arg'] = arg
         if mod_name not in self.log[-1].modules:
             self.log[-1].modules[mod_name] = sys.modules[mod_name]
-        self.log[-1].append_child(node)
+        self.log[-1].append_child(wnode)
 
     def _set_node_converter(self, val):
         """Helper function to create a node converter and store it in
@@ -329,7 +365,7 @@ class Converter(object):
             namespace['import_module'] = import_module
             namespace['include'] = include
             namespace['echo'] = echo
-        namespace['__FILE__'] = pth.realpath(include.converter[-1].doc.uri)
+        namespace['__FILE__'] = pth.realpath(include.converter[-1].doc[-1].uri)
         namespace['__DIR__'] = pth.dirname(namespace['__FILE__'])
         namespace['__NODE__'] = get_current_node()
         original_stdout = sys.stdout
@@ -350,7 +386,7 @@ class Converter(object):
         sys.stdout = original_stdout
         parser.parse(text)
         node.parent.extend_before(node.index, parser.doc)
-        del node.parent[node.index]
+        newnode = remove_node(node)
         if parser.log:
             self.msg(self.__module__, 'W101', node, [id_num])
             self.update_log(parser.log)
@@ -358,13 +394,15 @@ class Converter(object):
         get_current_node.current.pop()
         include.converter.pop()
         if include.converter:
-            namespace['__FILE__'] = pth.realpath(include.converter[-1].doc.uri)
+            doc = include.converter[-1].doc[-1]
+            namespace['__FILE__'] = pth.realpath(doc.uri)
             namespace['__DIR__'] = pth.dirname(namespace['__FILE__'])
             namespace['__NODE__'] = get_current_node()
         else:
             namespace['__FILE__'] = None
             namespace['__DIR__'] = None
             namespace['__NODE__'] = None
+        return newnode
 
 
 def get_lexor_namespace():

@@ -20,9 +20,9 @@ from imp import load_source
 from glob import iglob, glob
 import lexor.command.config as config
 
-__all__ = ['LEXOR_PATH', 'get_style_module']
 
 DEFAULTS = {
+    '_': 'default',
     'md': 'markdown',
     'mdown': 'markdown',
     'mkdn': 'markdown',
