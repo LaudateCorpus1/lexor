@@ -21,30 +21,13 @@ import traceback
 
 
 def get_converter_namespace():
-    """Many converters may be defined during the convertion of a
+    """Many converters may be defined during the conversion of a
     document. In some cases we may need to save references to objects
     in documents. If this is the case, then call this function to
     obtain the namespace where you can save those references. """
     return get_converter_namespace.namespace
 if not hasattr(get_converter_namespace, 'namespace'):
     get_converter_namespace.namespace = dict()
-
-
-def remove_node(node):
-    """Removes the node from the current document it is in. Returns
-    the previous sibling is possible, otherwise it returns an empty
-    Text node. """
-    parent = node.parent
-    index = node.index
-    del node.parent[node.index]
-    try:
-        if index - 1 > -1:
-            return parent[index-1]
-        else:
-            raise IndexError
-    except IndexError:
-        parent.append_child('')
-    return parent[0]
 
 
 class NodeConverter(object):
@@ -94,6 +77,33 @@ class NodeConverter(object):
     def msg(self, code, node, arg=None, uri=None):
         """Send a message to the converter. """
         self.converter.msg(self.__module__, code, node, arg, uri)
+
+
+# pylint: disable=R0903
+class BaseLog(object):
+    """A simple class to provide messages to a converter. You must
+    derive an object from this class in the module which will be
+    issuing the messages. For instance:
+
+        class Log(BaseLog):
+            pass
+
+    After that you can create a new object and use it in a module.
+
+        log = Log(converter)
+
+    where `converter` is a `Converter` provided to the module. Make
+    sure that the module contains the objects `MSG` and
+    `MSG_EXPLANATION`.
+
+    """
+
+    def __init__(self, converter):
+        self.converter = converter
+
+    def msg(self, code, arg=None, uri=None):
+        """Send a message to the converter. """
+        self.converter.msg(self.__module__, code, None, arg, uri)
 
 
 # The default of 7 attributes for class is too restrictive.
@@ -207,6 +217,23 @@ class Converter(object):
             del self.doc[-1].namespace
         return self.doc[-1], self.log[-1]
 
+    @staticmethod
+    def remove_node(node):
+        """Removes the node from the current document it is in. Returns
+        the previous sibling is possible, otherwise it returns an empty
+        Text node. """
+        parent = node.parent
+        index = node.index
+        del node.parent[node.index]
+        try:
+            if index - 1 > -1:
+                return parent[index-1]
+            else:
+                raise IndexError
+        except IndexError:
+            parent.append_child('')
+        return parent[0]
+
     # pylint: disable=R0913
     def msg(self, mod_name, code, node, arg=None, uri=None):
         """Provide the name of module issuing the message, the code
@@ -295,6 +322,13 @@ class Converter(object):
             return 'r'
         return 'r'
 
+    def _clone_node(self, crt):
+        """Clones the node if the node converter assigned to the node
+        has the copy property set to True. """
+        if self._copy(crt):
+            return crt.clone_node()
+        return core.Text('')
+
     def _convert(self, doc):
         """Main convert function. """
         direction = None
@@ -316,14 +350,14 @@ class Converter(object):
         while True:
             if direction is 'd':
                 crt = crt.child[0]
-                clone = crt.clone_node()
+                clone = self._clone_node(crt)
                 crtcopy.append_child(clone)
             elif direction is 'r':
                 if crt.next is None:
                     direction = 'u'
                     continue
                 crt = crt.next
-                clone = crt.clone_node()
+                clone = self._clone_node(crt)
                 crtcopy.parent.append_child(clone)
             elif direction is 'u':
                 crtcopy = self._end(crtcopy.parent)
@@ -333,11 +367,14 @@ class Converter(object):
                     crt = crt.parent
                     continue
                 crt = crt.parent.next
-                clone = crt.clone_node()
+                clone = self._clone_node(crt)
                 crtcopy.parent.append_child(clone)
             crtcopy = clone
-            crtcopy = self._start(crtcopy)
-            direction = self._get_direction(crt)
+            if self._copy(crt):
+                crtcopy = self._start(crtcopy)
+                direction = self._get_direction(crt)
+            else:
+                direction = 'r'
 
     def update_log(self, log):
         """Append the messages from a log document to the converters
@@ -386,7 +423,7 @@ class Converter(object):
         sys.stdout = original_stdout
         parser.parse(text)
         node.parent.extend_before(node.index, parser.doc)
-        newnode = remove_node(node)
+        newnode = Converter.remove_node(node)
         if parser.log:
             self.msg(self.__module__, 'W101', node, [id_num])
             self.update_log(parser.log)
@@ -533,7 +570,7 @@ MSG_EXPLANATION = [
     """
     - Python embeddings may generate output to be adapted to the
       document. Such output also needs to be processed. When the
-      ouput generates errors these errors get apended to the
+      output generates errors these errors get appended to the
       converter log document.
 
     - All messages between W101 and W102 are are simply errors of the

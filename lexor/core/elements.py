@@ -895,6 +895,12 @@ class Document(Element):
         """Docstring for setter. """
         self.style = val
 
+    @staticmethod
+    def create_element(tagname, data=None):
+        """Utility function to avoid having to import lexor.core.elements
+        module. Returns an element object. """
+        return Element(tagname, data)
+
 
 class DocumentFragment(Document):
     """Takes in an element and "steals" its children. This element
