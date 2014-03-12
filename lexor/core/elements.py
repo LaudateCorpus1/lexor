@@ -379,6 +379,9 @@ class Node(object):
                     node.set_prev(self.child[-2])
                 except IndexError:
                     pass
+        elif isinstance(new_children, list):
+            for node in new_children:
+                self.append_child(node)
         else:
             while new_children:
                 self.append_child(new_children[0])

@@ -221,10 +221,10 @@ class Converter(object):
         wnode['code'] = code
         wnode['node_id'] = id(node)
         wnode.node = node
-        if 'uri' in node:
+        try:
             wnode['uri'] = node['uri']
             del node['uri']
-        else:
+        except (KeyError, TypeError):
             wnode['uri'] = uri
         wnode['arg'] = arg
         if mod_name not in self.log[-1].modules:

@@ -190,6 +190,17 @@ class Writer(object):
         self._style = value
         self._reload = True
 
+    @property
+    def string_buffer(self):
+        """The current string buffer. This is the string that will
+        be printed after its length exceeds the writer's width. """
+        return self._buffer
+
+    @string_buffer.setter
+    def string_buffer(self, value):
+        """_indent setter method. """
+        self._buffer = value
+
     def set(self, lang, style, defaults=None):
         """Set the language and style in one call. """
         self._style = style
