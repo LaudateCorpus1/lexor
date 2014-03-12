@@ -170,7 +170,7 @@ def get_style_module(type_, lang, style, to_lang=None):
         mod.VERSIONS = versions
         return mod
     except (IOError, IndexError):
-        raise IOError("lexor module not found: %s" % name)
+        raise ImportError("lexor module not found: %s" % name)
 
 
 def load_mod(modbase, dirpath):

@@ -256,12 +256,12 @@ def run():
         warn(msg % '\n  '.join(versions))
     try:
         parser.parse(text, t_name)
-    except IOError:
+    except ImportError:
         msg = "ERROR: Parsing style not found: [%s:%s]\n"
         error(msg % (in_lang, in_style['name']))
     try:
         write_log(log_writer, parser.log, arg.quiet)
-    except IOError:
+    except ImportError:
         msg = "ERROR: Writing log style not found: [%s:%s]\n"
         error(msg % (parser.log.lang, parser.log.style))
     if not arg.tolang:
@@ -320,7 +320,7 @@ def run_converter(param):
         param['converter'].set(in_lang, lang, cstyle, style[0]['params'])
         try:
             doc, log = param['converter'].convert(parser.doc)
-        except IOError:
+        except ImportError:
             msg = "ERROR: Converting style not found: [%s ==> %s:%s]\n"
             warn(msg % (in_lang, lang, cstyle))
             continue
@@ -334,7 +334,7 @@ def run_converter(param):
         write_log(log_writer, log, arg.quiet)
         try:
             write_document(writer, doc, fname, arg)
-        except IOError:
+        except ImportError:
             msg = "ERROR: Writing style not found: [%s:%s]\n"
             warn(msg % (lang, wstyle))
             continue
@@ -353,6 +353,6 @@ def run_writer(param):
         fname = '%s.%s.%s' % (f_name, sname, lang)
         try:
             write_document(writer, parser.doc, fname, arg)
-        except IOError:
+        except ImportError:
             msg = "ERROR: Writing style not found: [%s:%s]\n"
             warn(msg % (lang, style['name']))
