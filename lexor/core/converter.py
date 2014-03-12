@@ -361,6 +361,7 @@ class Converter(object):
                 crtcopy.parent.append_child(clone)
             elif direction is 'u':
                 crtcopy = self._end(crtcopy.parent)
+                crtcopy.normalize()
                 if crt.parent is root:
                     break
                 if crt.parent.next is None:

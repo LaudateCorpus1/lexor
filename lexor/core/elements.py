@@ -387,6 +387,32 @@ class Node(object):
                 self.append_child(new_children[0])
         return self
 
+    def normalize(self):
+        """Removes empty Text nodes, and joins adjacent Text nodes."""
+        if not self.child:
+            return self
+        crt = self.child[0]
+        while crt is not None:
+            if isinstance(crt, Text):
+                if crt.data == '':
+                    nextnode = crt.next
+                    del crt.parent[crt.index]
+                    crt = nextnode
+                elif isinstance(crt.next, Text):
+                    marked_node = crt.next
+                    start = marked_node.index
+                    while isinstance(marked_node, Text):
+                        crt.data += marked_node.data
+                        end = marked_node.index
+                        marked_node = marked_node.next
+                    crt = marked_node
+                    del self[start:end+1]
+                else:
+                    crt = crt.next
+            else:
+                crt = crt.next
+        return self
+
     def __len__(self):
         """Return the number of child nodes.
 
