@@ -8,7 +8,7 @@ import textwrap
 import os.path as pt
 from glob import iglob
 from lexor.command import import_mod, error
-import lexor.command.config as config
+from lexor.command import config
 
 DESC = """
 

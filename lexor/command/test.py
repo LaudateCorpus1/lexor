@@ -15,7 +15,7 @@ from lexor.command import exec_cmd, warn
 from lexor.command.lang import LEXOR_PATH, get_style_module
 from lexor.core.parser import Parser
 from os.path import dirname, exists
-import lexor.command.config as config
+from lexor.command import config
 
 RE = re.compile(r'(?P<code>[A-Z][0-9]*|Okay):')
 WRAPPER = textwrap.TextWrapper(width=70, break_long_words=False)

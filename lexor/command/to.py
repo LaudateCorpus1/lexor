@@ -9,11 +9,10 @@ import os
 import sys
 import textwrap
 import argparse
-from lexor.command import error, warn
+from lexor.command import config, error, warn
 from lexor.core.parser import Parser
 from lexor.core.writer import Writer
 from lexor.core.converter import Converter
-import lexor.command.config as config
 
 DEFAULTS = {
     'parse_lang': 'lexor:_',

@@ -18,7 +18,7 @@ from pkg_resources import parse_version
 from os.path import splitext, abspath
 from imp import load_source
 from glob import iglob, glob
-import lexor.command.config as config
+from lexor.command import config
 
 
 DEFAULTS = {

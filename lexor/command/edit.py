@@ -8,7 +8,7 @@ import textwrap
 from os import listdir, system
 from os.path import isfile, join, exists
 from lexor.command import error
-import lexor.command.config as config
+from lexor.command import config
 
 DEFAULTS = {
     'editor': '$EDITOR',

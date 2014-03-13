@@ -17,7 +17,7 @@ import distutils.errors
 from glob import iglob
 from imp import load_source
 from lexor.command import error
-import lexor.command.config as config
+from lexor.command import config
 
 DESC = """
 Install a parser/writer/converter style.

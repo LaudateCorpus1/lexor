@@ -11,10 +11,9 @@ import sys
 import textwrap
 import inspect
 import lexor
-import lexor.command.config as config
-import lexor.core.elements as core
 from imp import load_source
-from lexor.command import error, warn
+from lexor.core import elements as core
+from lexor.command import config, error, warn
 from lexor.command.to import style_parameters
 
 

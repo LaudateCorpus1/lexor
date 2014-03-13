@@ -9,7 +9,7 @@ import os
 import textwrap
 from imp import load_source
 from lexor.command import error
-import lexor.command.config as config
+from lexor.command import config
 
 DESC = """
 Append the path to the develop section in a configuration file.

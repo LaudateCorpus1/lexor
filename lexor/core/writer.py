@@ -12,8 +12,7 @@ desire.
 import re
 from cStringIO import StringIO
 from lexor.command.lang import get_style_module
-import lexor.command.config as config
-import lexor.core.elements
+from lexor.command import config
 RE = re.compile(" ")
 
 
@@ -468,7 +467,7 @@ class Writer(object):
 
     def _get_direction(self, crt):
         """Returns the direction in which the traversal should go. """
-        if isinstance(crt, lexor.core.elements.CharacterData):
+        if hasattr(crt, 'data'):
             self._write_data(crt)
             self._write_end(crt)
             return 'r'
@@ -486,7 +485,7 @@ class Writer(object):
         crt = root
         direction = None
         self._write_start(crt)
-        if isinstance(crt, lexor.core.elements.CharacterData):
+        if hasattr(crt, 'data'):
             self._write_data(crt)
             self._write_end(crt)
             return

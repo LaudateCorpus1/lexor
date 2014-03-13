@@ -11,8 +11,8 @@ able to parse character sequences in the way you desire.
 import re
 import sys
 from lexor.command.lang import get_style_module
-import lexor.command.config as config
-import lexor.core.elements as elements
+from lexor.command import config
+from lexor.core import elements
 
 
 class NodeParser(object):

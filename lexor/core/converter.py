@@ -15,8 +15,8 @@ from imp import load_source
 from cStringIO import StringIO
 from lexor.command.lang import get_style_module
 from lexor.core.parser import _map_explanations, Parser
-import lexor.core.elements as core
-import lexor.command.config as config
+from lexor.core import elements as core
+from lexor.command import config
 import traceback
 
 

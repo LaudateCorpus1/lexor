@@ -8,7 +8,7 @@ Routine to append paste templates.
 import os
 import textwrap
 from lexor.command import error
-import lexor.command.config as config
+from lexor.command import config
 
 DESC = """
 Paste a template to create a new style.
