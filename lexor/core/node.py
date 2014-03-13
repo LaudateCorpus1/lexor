@@ -14,19 +14,6 @@ from lexor.core.writer import Writer
 LCE = sys.modules['lexor.core.elements']
 
 
-def _set_node_owner_level(node, owner, level):
-    """`Node` helper function to write the HELPER-METHOD
-    increase_child_level. """
-    node.owner = owner
-    if node.name == '#document':
-        node.level = level - 1
-    else:
-        node.level = level
-    if node.child:
-        return 'd'
-    return 'r'
-
-
 def _write_node_info(node, strf):
     """`Node` helper function to write the node information in
     __repr__. """
@@ -232,7 +219,14 @@ class Node(object):
                     crt = crt.parent
                     continue
                 crt = crt.parent.next
-            direction = _set_node_owner_level(crt, owner, level)
+            crt.owner = owner
+            crt.level = level
+            if crt.name == '#document':
+                crt.level = level - 1
+            if crt.child:
+                direction = 'd'
+            else:
+                direction = 'r'
 
     def disconnect(self):
         """HELPER-METHOD: Use this function to reset the node's
