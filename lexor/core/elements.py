@@ -333,7 +333,42 @@ class Element(Node):
         if deep is False:
             return node
         # Tree traversal goes here
-        return node
+        raise NotImplementedError
+        #return node
+
+    def get_elements_by_class_name(self, classname):
+        """Return a list of all child elements which have all of the
+        given class names. """
+        nodes = []
+        if not self.child:
+            return nodes
+        patterns = set([i.strip() for i in classname.split()])
+        crt = self
+        direction = 'd'
+        while True:
+            if direction is 'd':
+                crt = crt.child[0]
+            elif direction is 'r':
+                if crt.next is None:
+                    direction = 'u'
+                    continue
+                crt = crt.next
+            elif direction is 'u':
+                if crt.parent is self:
+                    break
+                if crt.parent.next is None:
+                    crt = crt.parent
+                    continue
+                crt = crt.parent.next
+            if isinstance(crt, Element) and 'class' in crt:
+                crtclass = [i.strip() for i in crt['class'].split()]
+                if patterns.issubset(set(crtclass)):
+                    nodes.append(crt)
+            if crt.child:
+                direction = 'd'
+            else:
+                direction = 'r'
+        return nodes
 
 
 class RawText(Element, CharacterData):
