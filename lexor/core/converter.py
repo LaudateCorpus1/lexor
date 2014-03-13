@@ -314,12 +314,8 @@ class Converter(object):
 
     def _get_direction(self, crt):
         """Returns the direction in which the traversal should go. """
-        if isinstance(crt, core.CharacterData):
-            return 'r'
-        elif crt.child:
-            if self._copy_children(crt):
-                return 'd'
-            return 'r'
+        if crt.child and self._copy_children(crt):
+            return 'd'
         return 'r'
 
     def _clone_node(self, crt):

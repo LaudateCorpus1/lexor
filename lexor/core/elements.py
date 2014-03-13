@@ -115,6 +115,8 @@ class Node(object):
         else:
             self.level = parent.level + 1
         self.owner = parent.owner
+        if isinstance(self, Element) and 'id' in self:
+            self.owner.id_dict[self['id']] = self
         self.increase_child_level()
 
     @property
@@ -236,8 +238,10 @@ class Node(object):
             direction = _set_node_owner_level(crt, owner, level)
 
     def disconnect(self):
-        """HELPER-METHOD: Use this function to reset the node's attributes.
-        """
+        """HELPER-METHOD: Use this function to reset the node's
+        attributes. """
+        if isinstance(self, Element) and 'id' in self:
+            del self.owner.id_dict[self['id']]
         self.owner = None
         self.parent = None
         self.index = None
@@ -486,6 +490,7 @@ class Node(object):
         if node is self:
             raise TypeError("A node cannot have itself as a child.")
         if not isinstance(node, DocumentFragment):
+            # Better take a look at this, DocFrag needs more development
             nodes = DocumentFragment(node)
         else:
             nodes = node
@@ -614,8 +619,8 @@ class Comment(CharacterData):
 
 
 class CData(CharacterData):
-    """Although this node has been deprecated from the [DOM][1], it seems
-    that xml still uses it.
+    """Although this node has been deprecated from the [DOM][1], it
+    seems that xml still uses it.
 
     [1]: https://developer.mozilla.org/en-US/docs/Web/API/Node.nodeType
 
@@ -746,15 +751,16 @@ class Element(Node):
         x.__setitem__(slice(i, j)) = [...] <==> x[i:j] = [...]
         x.__setitem__(slice(i, j, dt)) = [...] <==> x[i:j:dt] = [...]
 
-        Note: When using slices the nodes to be assigned to the indices need
-        to be contained in a builtin list. The size of this list must be
-        the same as the slice. This function does not support insertion as
-        the regular slice for list does. To insert an object use insert.
+        Note: When using slices the nodes to be assigned to the
+        indices need to be contained in a builtin list. The size of
+        this list must be the same as the slice. This function does
+        not support insertion as the regular slice for list does. To
+        insert an object use insert.
 
         x.__setitem__(attname) = 'att' <==> x[attname] = 'att'
 
-        Note: The behaviour of Attribute still applies to a Proper Node.
-        """
+        Note: The behaviour of Attribute still applies to a Proper
+        Node. """
         if isinstance(k, str):
             self.__dict__[k] = val
             if k not in self._order:
@@ -770,9 +776,9 @@ class Element(Node):
             Node.__delitem__(self, k)
 
     def __contains__(self, obj):
-        """Return true if `obj` is a Node and it is a child of this `Element`.
-        Return true if `obj` is an attribute of this `Element`. Return false
-        otherwise.
+        """Return true if `obj` is a Node and it is a child of this
+        `Element`. Return true if `obj` is an attribute of this
+        `Element`. Return false otherwise.
 
             x.__contains__(obj) <==> obj in x
 
@@ -883,6 +889,7 @@ class Document(Element):
         self.style = style
         self.uri_ = None
         self.defaults = None
+        self.id_dict = dict()
 
     @property
     def language(self):
@@ -923,9 +930,14 @@ class Document(Element):
 
     @staticmethod
     def create_element(tagname, data=None):
-        """Utility function to avoid having to import lexor.core.elements
-        module. Returns an element object. """
+        """Utility function to avoid having to import
+        lexor.core.elements module. Returns an element object. """
         return Element(tagname, data)
+
+    def get_element_by_id(self, element_id):
+        """Return the first element, in tree order, within the
+        document whose ID is element_id, or None if there is none. """
+        return self.id_dict.get(element_id, None)
 
 
 class DocumentFragment(Document):
