@@ -18,12 +18,13 @@ class Selector(object):
         return 'r'
     
     def find(self, exp):
-        direction = 'd'
-        crt = self.root
-        direction = self._get_direction(crt)
-        while True:
-            if direction == 'd':
-                pass
+        pass
+        #direction = 'd'
+        #crt = self.root
+        #direction = self._get_direction(crt)
+        #while True:
+        #    if direction == 'd':
+        #        pass
 
     def __iter__(self):
         for node in self.data:

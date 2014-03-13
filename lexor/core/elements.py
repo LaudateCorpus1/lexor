@@ -521,6 +521,37 @@ class Node(object):
                 pass
         return node
 
+    def get_nodes_by_name(self, name):
+        """Return a list of Nodes contained in the Node with the
+        given name. """
+        nodes = []
+        if not self.child:
+            return nodes
+        crt = self
+        direction = 'd'
+        while True:
+            if direction is 'd':
+                crt = crt.child[0]
+            elif direction is 'r':
+                if crt.next is None:
+                    direction = 'u'
+                    continue
+                crt = crt.next
+            elif direction is 'u':
+                if crt.parent is self:
+                    break
+                if crt.parent.next is None:
+                    crt = crt.parent
+                    continue
+                crt = crt.parent.next
+            if crt.name == name:
+                nodes.append(crt)
+            if crt.child:
+                direction = 'd'
+            else:
+                direction = 'r'
+        return nodes
+
 
 class CharacterData(Node):
     """A simple interface to deal with strings. """
