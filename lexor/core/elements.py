@@ -8,6 +8,7 @@ This implementation follows most of the recommendations of [w3].
 """
 
 from lexor.core.node import Node
+from lexor.core.selector import Selector
 
 
 # pylint: disable=R0904,R0902
@@ -213,6 +214,10 @@ class Element(Node):
                     self._order.append(key)
         self.name = name
         self.child = list()
+        
+    def __call__(self, selector):
+        """Return a Selector object. """
+        return Selector(selector, self)
 
     def update_attributes(self, node):
         """Copies the attributes of the node into the calling node. """
