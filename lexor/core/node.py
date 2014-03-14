@@ -321,9 +321,36 @@ class Node(object):
 
         The second form, however, has a more efficient reindexing
         method."""
-        if isinstance(new_children, LCE.DocumentFragment):
-            msg = "Not yet implement for LCE.DocumentFragment Nodes."
-            raise TypeError(msg)
+        if isinstance(new_children, (list, LCE.DocumentFragment)):
+            for node in new_children:
+                if node.name == '#document' and node.temporary:
+                    while node:
+                        child = node[0]
+                        del child.parent[child.index]
+                        self.child.insert(index, child)
+                        child.set_parent(self, index)
+                        if index > 0:
+                            child.set_prev(self.child[index-1])
+                        try:
+                            child.set_next(self.child[index+1])
+                        except IndexError:
+                            pass
+                        self[index].index = index
+                        index += 1
+                else:
+                    child = node
+                    if child.parent is not None:
+                        del child.parent[child.index]
+                    self.child.insert(index, child)
+                    child.set_parent(self, index)
+                    if index > 0:
+                        child.set_prev(self.child[index-1])
+                    try:
+                        child.set_next(self.child[index+1])
+                    except IndexError:
+                        pass
+                    self[index].index = index
+                    index += 1
         else:
             while new_children:
                 child = new_children[0]
@@ -338,9 +365,9 @@ class Node(object):
                     pass
                 self[index].index = index
                 index += 1
-            while index < len(self.child):
-                self[index].index = index
-                index += 1
+        while index < len(self.child):
+            self[index].index = index
+            index += 1
         return self
 
     def append_child(self, new_child):

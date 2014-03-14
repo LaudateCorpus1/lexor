@@ -214,7 +214,7 @@ class Element(Node):
                     self._order.append(key)
         self.name = name
         self.child = list()
-        
+
     def __call__(self, selector):
         """Return a Selector object. """
         return Selector(selector, self)
@@ -282,6 +282,12 @@ class Element(Node):
         else:
             return self._order.__contains__(obj)
 
+    def contains(self, obj):
+        """Unlike __contains__ (obj in node), this method returns
+        True if obj is any of the desendents of the node. """
+        # TODO
+        pass
+
     def __iter__(self):
         for k in self._order:
             yield k
@@ -331,15 +337,45 @@ class Element(Node):
         del self.__dict__[self._order[index]]
         self._order[index] = new_name
 
-    def clone_node(self, deep=False):
+    def clone_node(self, deep=False, normalize=True):
         """Returns a new element"""
         node = Element(self.name)
         node.update_attributes(self)
-        if deep is False:
+        if deep is False or not self.child:
             return node
-        # Tree traversal goes here
-        raise NotImplementedError
-        #return node
+        crt = self
+        crtcopy = node
+        direction = 'd'
+        while True:
+            if direction is 'd':
+                crt = crt.child[0]
+                clone = crt.clone_node()
+                crtcopy.append_child(clone)
+            elif direction is 'r':
+                if crt.next is None:
+                    direction = 'u'
+                    continue
+                crt = crt.next
+                clone = crt.clone_node()
+                crtcopy.parent.append_child(clone)
+            elif direction is 'u':
+                crtcopy = crtcopy.parent
+                if normalize:
+                    crtcopy.normalize()
+                if crt.parent is self:
+                    break
+                if crt.parent.next is None:
+                    crt = crt.parent
+                    continue
+                crt = crt.parent.next
+                clone = crt.clone_node()
+                crtcopy.parent.append_child(clone)
+            crtcopy = clone
+            if crt.child:
+                direction = 'd'
+            else:
+                direction = 'r'
+        return node
 
     def get_elements_by_class_name(self, classname):
         """Return a list of all child elements which have all of the
@@ -384,7 +420,7 @@ class RawText(Element, CharacterData):
         Element.__init__(self, name)
         self.child = None
 
-    def clone_node(self, deep=True):
+    def clone_node(self, deep=True, normalize=True):
         """Returns a new element"""
         node = RawText(self.name)
         node.update_attributes(self)
@@ -400,7 +436,7 @@ class Void(Element):
         Element.__init__(self, name, data)
         self.child = None
 
-    def clone_node(self, _=True):
+    def clone_node(self, _=True, normalize=True):
         """Returns a new Void element. """
         node = Void(self.name)
         node.update_attributes(self)
@@ -419,6 +455,15 @@ class Document(Element):
         self.uri_ = None
         self.defaults = None
         self.id_dict = dict()
+        self.temporary = True
+
+    def clone_node(self, deep=True, normalize=True):
+        """Returns a new Void element. """
+        clone = Element.clone_node(self, deep, normalize)
+        node = Document(self.lang, self.style)
+        node.extend_children(clone)
+        node.temporary = True
+        return node
 
     @property
     def language(self):
