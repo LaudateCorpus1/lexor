@@ -48,7 +48,7 @@ def sizzle(selector, context, results=None):
                     results.append(elem)
             elif context.owner:
                 elem = context.owner.get_element_by_id(element_id)
-                if elem in context:
+                if elem and context.contains(elem):
                     results.append(elem)
         elif match[1]:  # sizzle('TAG')
             results.extend(context.get_nodes_by_name(selector))
@@ -140,7 +140,8 @@ class Selector(object):
                 for i in xrange(len(self.data) - 1):
                     clone = clone_obj(content, parser)
                     self._append_to(self.data[i], clone, parser)
-                self._append_to(self.data[-1], content, parser)
+                if self.data:
+                    self._append_to(self.data[-1], content, parser)
 
     @staticmethod
     def _prepend_to(node, content, parser):
@@ -192,7 +193,8 @@ class Selector(object):
                 for i in xrange(len(self.data) - 1):
                     clone = clone_obj(content, parser)
                     self._prepend_to(self.data[i], clone, parser)
-                self._prepend_to(self.data[-1], content, parser)
+                if self.data:
+                    self._prepend_to(self.data[-1], content, parser)
 
     def __iter__(self):
         for node in self.data:

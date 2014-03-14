@@ -285,8 +285,13 @@ class Element(Node):
     def contains(self, obj):
         """Unlike __contains__ (obj in node), this method returns
         True if obj is any of the desendents of the node. """
-        # TODO
-        pass
+        if obj.level < self.level + 1:
+            return False
+        while obj.level > self.level + 1:
+            obj = obj.parent
+            if obj is None:
+                return False
+        return obj in self
 
     def __iter__(self):
         for k in self._order:
@@ -339,6 +344,10 @@ class Element(Node):
 
     def clone_node(self, deep=False, normalize=True):
         """Returns a new element"""
+        # May want to provide a node to which the clone will be
+        # appended to. If this is done then we will not have to
+        # traverse through all the elements of the node to adjust
+        # the level of the child nodes when we move the node around
         node = Element(self.name)
         node.update_attributes(self)
         if deep is False or not self.child:

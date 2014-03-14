@@ -40,6 +40,20 @@ def _write_node_info(node, strf):
     return direction
 
 
+def _set_owner_and_level(node, owner, level):
+    """Helper method for increase_child_level. """
+    if node.owner is not owner:
+        if isinstance(node, LCE.Element) and 'id' in node:
+            if node.owner:
+                del node.owner.id_dict[node['id']]
+            if owner:
+                owner.id_dict[node['id']] = node
+        node.owner = owner
+    node.level = level
+    if node.name == '#document':
+        node.level = level - 1
+
+
 class Node(object):
     """Primary datatype for the entire Document Object Model. """
     __slots__ = ('name', 'owner', 'parent', 'index',
@@ -219,10 +233,7 @@ class Node(object):
                     crt = crt.parent
                     continue
                 crt = crt.parent.next
-            crt.owner = owner
-            crt.level = level
-            if crt.name == '#document':
-                crt.level = level - 1
+            _set_owner_and_level(crt, owner, level)
             if crt.child:
                 direction = 'd'
             else:
@@ -286,14 +297,10 @@ class Node(object):
         writer.close()
         return val
 
-    def insert_before(self, index, new_child):
-        """Inserts `new_child` to the list of children just before
-        the child specified by `index`. """
-        if not isinstance(new_child, Node):
-            new_child = LCE.Text(str(new_child))
-        elif isinstance(new_child, LCE.DocumentFragment):
-            msg = "Use extend_before for LCE.DocumentFragment Nodes."
-            raise TypeError(msg)
+    def insert_node_before(self, index, new_child):
+        """HELPER-FUNCTION: Use this method to insert a node at a
+        given index. See `insert_before` and `extend_before` to see
+        this method in action."""
         if new_child.parent is not None:
             del new_child.parent[new_child.index]
         self.child.insert(index, new_child)
@@ -304,6 +311,19 @@ class Node(object):
             new_child.set_next(self.child[index+1])
         except IndexError:
             pass
+        self[index].index = index
+        index += 1
+        return index
+
+    def insert_before(self, index, new_child):
+        """Inserts `new_child` to the list of children just before
+        the child specified by `index`. """
+        if not isinstance(new_child, Node):
+            new_child = LCE.Text(str(new_child))
+        elif isinstance(new_child, LCE.DocumentFragment):
+            msg = "Use extend_before for LCE.DocumentFragment Nodes."
+            raise TypeError(msg)
+        index = self.insert_node_before(index, new_child)
         while index < len(self.child):
             self[index].index = index
             index += 1
@@ -325,60 +345,21 @@ class Node(object):
             for node in new_children:
                 if node.name == '#document' and node.temporary:
                     while node:
-                        child = node[0]
-                        del child.parent[child.index]
-                        self.child.insert(index, child)
-                        child.set_parent(self, index)
-                        if index > 0:
-                            child.set_prev(self.child[index-1])
-                        try:
-                            child.set_next(self.child[index+1])
-                        except IndexError:
-                            pass
-                        self[index].index = index
-                        index += 1
+                        index = self.insert_node_before(index, node[0])
                 else:
-                    child = node
-                    if child.parent is not None:
-                        del child.parent[child.index]
-                    self.child.insert(index, child)
-                    child.set_parent(self, index)
-                    if index > 0:
-                        child.set_prev(self.child[index-1])
-                    try:
-                        child.set_next(self.child[index+1])
-                    except IndexError:
-                        pass
-                    self[index].index = index
-                    index += 1
+                    index = self.insert_node_before(index, node)
         else:
             while new_children:
-                child = new_children[0]
-                del child.parent[child.index]
-                self.child.insert(index, child)
-                child.set_parent(self, index)
-                if index > 0:
-                    child.set_prev(self.child[index-1])
-                try:
-                    child.set_next(self.child[index+1])
-                except IndexError:
-                    pass
-                self[index].index = index
-                index += 1
+                index = self.insert_node_before(index, new_children[0])
         while index < len(self.child):
             self[index].index = index
             index += 1
         return self
 
-    def append_child(self, new_child):
-        """Adds the node new_child to the end of the list of children
-        of this node. If the node is a `LCE.DocumentFragment` then it
-        appends its child nodes. Returns the calling node. """
-        if not isinstance(new_child, Node):
-            new_child = LCE.Text(str(new_child))
-        elif isinstance(new_child, LCE.DocumentFragment):
-            msg = "Use extend_children for LCE.DocumentFragment Nodes."
-            raise TypeError(msg)
+    def append_child_node(self, new_child):
+        """HELPER-FUNCTION: Use this method to insert a node at a the
+        end of the child list. See `append_child` and
+        `extend_children` to see this method in action."""
         if new_child.parent is not None:
             del new_child.parent[new_child.index]
         self.child.append(new_child)
@@ -386,27 +367,33 @@ class Node(object):
         try:
             new_child.set_prev(self.child[-2])
         except IndexError:
-            return self
+            pass
+
+    def append_child(self, new_child):
+        """Adds the node new_child to the end of the list of children
+        of this node. If the node is a `DocumentFragment` then it
+        appends its child nodes. Returns the calling node. """
+        if not isinstance(new_child, Node):
+            new_child = LCE.Text(str(new_child))
+        elif isinstance(new_child, LCE.DocumentFragment):
+            msg = "Use extend_children for `DocumentFragment` Nodes."
+            raise TypeError(msg)
+        self.append_child_node(new_child)
         return self
 
     def extend_children(self, new_children):
         """Extend the list of children by appending children from an
         iterable containing nodes. """
-        if isinstance(new_children, LCE.DocumentFragment):
-            for i in xrange(len(new_children)):
-                node = new_children[i]
-                self.child.append(node)
-                node.set_parent(self, len(self.child) - 1)
-                try:
-                    node.set_prev(self.child[-2])
-                except IndexError:
-                    pass
-        elif isinstance(new_children, list):
+        if isinstance(new_children, (list, LCE.DocumentFragment)):
             for node in new_children:
-                self.append_child(node)
+                if node.name == '#document' and node.temporary:
+                    while node:
+                        self.append_child_node(node[0])
+                else:
+                    self.append_child_node(node)
         else:
             while new_children:
-                self.append_child(new_children[0])
+                self.append_child_node(new_children[0])
         return self
 
     def normalize(self):
