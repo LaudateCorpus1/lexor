@@ -92,8 +92,8 @@ class Selector(object):
         return self
 
     @staticmethod
-    def _append_to(node, content, parser):
-        """Helper function to append to a node. """
+    def _append(node, content, parser):
+        """Helper function to `append` method. """
         if isinstance(content, Selector):
             node.extend_children(content.data)
         elif isinstance(content, CORE.Node):
@@ -126,7 +126,7 @@ class Selector(object):
         parser = PMOD.Parser(info['lang'], info['style'], info['defaults'])
         if len(arg) == 1 and isinstance(arg[0], types.FunctionType):
             for num, node in enumerate(self.data):
-                self._append_to(node, arg[0](node, num), parser)
+                self._append(node, arg[0](node, num), parser)
         else:
             for content in arg:
                 if isinstance(content, str):
@@ -139,13 +139,13 @@ class Selector(object):
                             content[num] = parser.doc
                 for i in xrange(len(self.data) - 1):
                     clone = clone_obj(content, parser)
-                    self._append_to(self.data[i], clone, parser)
+                    self._append(self.data[i], clone, parser)
                 if self.data:
-                    self._append_to(self.data[-1], content, parser)
+                    self._append(self.data[-1], content, parser)
 
     @staticmethod
-    def _prepend_to(node, content, parser):
-        """Helper function to append to a node. """
+    def _prepend(node, content, parser):
+        """Helper function to `prepend` method. """
         if isinstance(content, Selector):
             node.extend_before(0, content.data)
         elif isinstance(content, CORE.Node):
@@ -179,7 +179,7 @@ class Selector(object):
         parser = PMOD.Parser(info['lang'], info['style'], info['defaults'])
         if len(arg) == 1 and isinstance(arg[0], types.FunctionType):
             for num, node in enumerate(self.data):
-                self._prepend_to(node, arg[0](node, num), parser)
+                self._prepend(node, arg[0](node, num), parser)
         else:
             for content in arg:
                 if isinstance(content, str):
@@ -192,9 +192,169 @@ class Selector(object):
                             content[num] = parser.doc
                 for i in xrange(len(self.data) - 1):
                     clone = clone_obj(content, parser)
-                    self._prepend_to(self.data[i], clone, parser)
+                    self._prepend(self.data[i], clone, parser)
                 if self.data:
-                    self._prepend_to(self.data[-1], content, parser)
+                    self._prepend(self.data[-1], content, parser)
+
+    @staticmethod
+    def _after(node, content, parser):
+        """Helper function to `after` method. """
+        if isinstance(content, Selector):
+            node.append_nodes_after(content.data)
+        elif isinstance(content, CORE.Node):
+            if content.name in ['#document', '#document-fragment']:
+                node.append_nodes_after(content)
+            else:
+                node.append_after(content)
+        elif hasattr(content, '__iter__'):
+            node.append_nodes_after(content)
+        else:
+            parser.parse(str(content))
+            node.append_nodes_after(parser.doc)
+
+    def after(self, *arg, **keywords):
+        """Insert content, specified by the parameter, after each
+        element in the set of matched elements.
+
+        : .after(content [,content])
+
+        :: content
+        Type: htmlString or Element or Array or jQuery string, Node,
+        array of Node, or Selector object to insert after each
+        element in the set of matched elements.
+
+        :: content
+        Type: htmlString or Element or Array or jQuery One or
+        more additional DOM elements, arrays of elements, HTML
+        strings, or jQuery objects to insert after each element in
+        the set of matched elements.
+
+        : .after(function(node, index))
+
+        :: function(node, index)
+        A function that returns a string, DOM element(s), or Selector
+        object to insert after each element in the set of matched
+        elements. Receives the element in the set and its index
+        position in the set as its arguments.
+
+        : .after(..., lang='html', style='default', 'defaults'=None)
+
+        :: lang
+        The language in which strings will be parsed in.
+
+        :: style
+        The style in which strings will be parsed in.
+
+        :: defaults
+        A dictionary with string keywords and values especifying
+        options for the particular style.
+        """
+        info = {
+            'lang': 'html',
+            'style': 'default',
+            'defaults': None,
+        }
+        for key in keywords:
+            info[key] = keywords[key]
+        parser = PMOD.Parser(info['lang'], info['style'], info['defaults'])
+        if len(arg) == 1 and isinstance(arg[0], types.FunctionType):
+            for num, node in enumerate(self.data):
+                self._after(node, arg[0](node, num), parser)
+        else:
+            for content in arg:
+                if isinstance(content, str):
+                    parser.parse(content)
+                    content = parser.doc
+                elif isinstance(content, list):
+                    for num in xrange(len(content)):
+                        if isinstance(content[num], str):
+                            parser.parse(content[num])
+                            content[num] = parser.doc
+                for i in xrange(len(self.data) - 1):
+                    clone = clone_obj(content, parser)
+                    self._after(self.data[i], clone, parser)
+                if self.data:
+                    self._after(self.data[-1], content, parser)
+
+    @staticmethod
+    def _before(node, content, parser):
+        """Helper function to `after` method. """
+        if isinstance(content, Selector):
+            node.prepend_nodes_before(content.data)
+        elif isinstance(content, CORE.Node):
+            if content.name in ['#document', '#document-fragment']:
+                node.prepend_nodes_before(content)
+            else:
+                node.prepend_before(content)
+        elif hasattr(content, '__iter__'):
+            node.prepend_nodes_before(content)
+        else:
+            parser.parse(str(content))
+            node.prepend_nodes_before(parser.doc)
+
+    def before(self, *arg, **keywords):
+        """Insert content, specified by the parameter, before each
+        element in the set of matched elements.
+
+        : .before(content [,content])
+
+        :: content
+        Type: htmlString or Element or Array or jQuery string, Node,
+        array of Node, or Selector object to insert before each
+        element in the set of matched elements.
+
+        :: content
+        Type: htmlString or Element or Array or jQuery One or
+        more additional DOM elements, arrays of elements, HTML
+        strings, or jQuery objects to insert before each element in
+        the set of matched elements.
+
+        : .before(function(node, index))
+
+        :: function(node, index)
+        A function that returns a string, DOM element(s), or Selector
+        object to insert before each element in the set of matched
+        elements. Receives the element in the set and its index
+        position in the set as its arguments.
+
+        : .before(..., lang='html', style='default', 'defaults'=None)
+
+        :: lang
+        The language in which strings will be parsed in.
+
+        :: style
+        The style in which strings will be parsed in.
+
+        :: defaults
+        A dictionary with string keywords and values especifying
+        options for the particular style.
+        """
+        info = {
+            'lang': 'html',
+            'style': 'default',
+            'defaults': None,
+        }
+        for key in keywords:
+            info[key] = keywords[key]
+        parser = PMOD.Parser(info['lang'], info['style'], info['defaults'])
+        if len(arg) == 1 and isinstance(arg[0], types.FunctionType):
+            for num, node in enumerate(self.data):
+                self._before(node, arg[0](node, num), parser)
+        else:
+            for content in arg:
+                if isinstance(content, str):
+                    parser.parse(content)
+                    content = parser.doc
+                elif isinstance(content, list):
+                    for num in xrange(len(content)):
+                        if isinstance(content[num], str):
+                            parser.parse(content[num])
+                            content[num] = parser.doc
+                for i in xrange(len(self.data) - 1):
+                    clone = clone_obj(content, parser)
+                    self._before(self.data[i], clone, parser)
+                if self.data:
+                    self._before(self.data[-1], content, parser)
 
     def __iter__(self):
         for node in self.data:

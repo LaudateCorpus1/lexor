@@ -396,6 +396,28 @@ class Node(object):
                 self.append_child_node(new_children[0])
         return self
 
+    def append_after(self, new_child):
+        """Place new_child after the node. """
+        if self.index+1 == len(self.parent):
+            self.parent.append_child(new_child)
+        else:
+            self.parent.insert_before(self.index+1, new_child)
+
+    def append_nodes_after(self, new_children):
+        """Place new_children after the node. """
+        if self.index+1 == len(self.parent):
+            self.parent.extend_children(new_children)
+        else:
+            self.parent.extend_before(self.index+1, new_children)
+
+    def prepend_before(self, new_child):
+        """Place new_child before the node. """
+        self.parent.insert_before(self.index, new_child)
+
+    def prepend_nodes_before(self, new_children):
+        """Place new_children before the node. """
+        self.parent.extend_before(self.index, new_children)
+
     def normalize(self):
         """Removes empty Text nodes, and joins adjacent Text nodes."""
         if not self.child:
