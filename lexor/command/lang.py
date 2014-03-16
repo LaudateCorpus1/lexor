@@ -213,3 +213,23 @@ def load_rel(path, module):
         module = module[1:-3]
     fname = '%s/%s.py' % (path, module)
     return load_source('load-rel-%s' % module, fname)
+
+
+def map_explanations(mod, exp):
+    """Helper function to create a map of msg codes to explanations
+    in the lexor language modules. """
+    if not mod:
+        return
+    for mod_name, module in mod.iteritems():
+        exp[mod_name] = dict()
+        codes = module.MSG.keys()
+        for index in xrange(len(module.MSG_EXPLANATION)):
+            sub = len(codes) - 1
+            while sub > -1:
+                code = codes[sub]
+                if code in module.MSG_EXPLANATION[index]:
+                    del codes[sub]
+                    exp[mod_name][code] = index
+                sub -= 1
+            if not codes:
+                break

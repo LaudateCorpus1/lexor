@@ -13,8 +13,7 @@ In short, credit goes to [Sizzle][1] and CSS for the seletor idea.
 import re
 import sys
 import types
-PMOD = sys.modules['lexor.core.parser']
-CORE = sys.modules['lexor.core.elements']
+LC = sys.modules['lexor.core']
 RQUICKEXPR = re.compile(r'^(?:#([\w-]+)|(\w+)|\.([\w-]+))$')
 
 
@@ -52,7 +51,7 @@ def sizzle(selector, context, results=None):
                     results.append(elem)
         elif match[1]:  # sizzle('TAG')
             results.extend(context.get_nodes_by_name(selector))
-        elif isinstance(context, CORE.Element):  # sizzle('.CLASS')
+        elif isinstance(context, LC.Element):  # sizzle('.CLASS')
             results.extend(context.get_elements_by_class_name(match[2]))
         return results
     raise NotImplementedError
@@ -96,7 +95,7 @@ class Selector(object):
         """Helper function to `append` method. """
         if isinstance(content, Selector):
             node.extend_children(content.data)
-        elif isinstance(content, CORE.Node):
+        elif isinstance(content, LC.Node):
             if content.name in ['#document', '#document-fragment']:
                 node.extend_children(content)
             else:
@@ -123,7 +122,7 @@ class Selector(object):
         }
         for key in keywords:
             info[key] = keywords[key]
-        parser = PMOD.Parser(info['lang'], info['style'], info['defaults'])
+        parser = LC.Parser(info['lang'], info['style'], info['defaults'])
         if len(arg) == 1 and isinstance(arg[0], types.FunctionType):
             for num, node in enumerate(self.data):
                 self._append(node, arg[0](node, num), parser)
@@ -148,7 +147,7 @@ class Selector(object):
         """Helper function to `prepend` method. """
         if isinstance(content, Selector):
             node.extend_before(0, content.data)
-        elif isinstance(content, CORE.Node):
+        elif isinstance(content, LC.Node):
             if content.name in ['#document', '#document-fragment']:
                 node.extend_before(0, content)
             else:
@@ -176,7 +175,7 @@ class Selector(object):
         }
         for key in keywords:
             info[key] = keywords[key]
-        parser = PMOD.Parser(info['lang'], info['style'], info['defaults'])
+        parser = LC.Parser(info['lang'], info['style'], info['defaults'])
         if len(arg) == 1 and isinstance(arg[0], types.FunctionType):
             for num, node in enumerate(self.data):
                 self._prepend(node, arg[0](node, num), parser)
@@ -201,7 +200,7 @@ class Selector(object):
         """Helper function to `after` method. """
         if isinstance(content, Selector):
             node.append_nodes_after(content.data)
-        elif isinstance(content, CORE.Node):
+        elif isinstance(content, LC.Node):
             if content.name in ['#document', '#document-fragment']:
                 node.append_nodes_after(content)
             else:
@@ -256,7 +255,7 @@ class Selector(object):
         }
         for key in keywords:
             info[key] = keywords[key]
-        parser = PMOD.Parser(info['lang'], info['style'], info['defaults'])
+        parser = LC.Parser(info['lang'], info['style'], info['defaults'])
         if len(arg) == 1 and isinstance(arg[0], types.FunctionType):
             for num, node in enumerate(self.data):
                 self._after(node, arg[0](node, num), parser)
@@ -281,7 +280,7 @@ class Selector(object):
         """Helper function to `after` method. """
         if isinstance(content, Selector):
             node.prepend_nodes_before(content.data)
-        elif isinstance(content, CORE.Node):
+        elif isinstance(content, LC.Node):
             if content.name in ['#document', '#document-fragment']:
                 node.prepend_nodes_before(content)
             else:
@@ -336,7 +335,7 @@ class Selector(object):
         }
         for key in keywords:
             info[key] = keywords[key]
-        parser = PMOD.Parser(info['lang'], info['style'], info['defaults'])
+        parser = LC.Parser(info['lang'], info['style'], info['defaults'])
         if len(arg) == 1 and isinstance(arg[0], types.FunctionType):
             for num, node in enumerate(self.data):
                 self._before(node, arg[0](node, num), parser)

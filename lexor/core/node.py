@@ -10,15 +10,14 @@ This module defines the basic object of document object model (DOM).
 import os
 import sys
 from cStringIO import StringIO
-from lexor.core.writer import Writer
-LCE = sys.modules['lexor.core.elements']
+LC = sys.modules['lexor.core']
 
 
 def _write_node_info(node, strf):
     """`Node` helper function to write the node information in
     __repr__. """
     strf.write('%s%s' % ('    '*node.level, node.name))
-    if not isinstance(node, LCE.Element):
+    if not isinstance(node, LC.Element):
         strf.write('[0x%x]' % id(node))
     else:
         att = ' '.join(['%s="%s"' % (k, v) for k, v in node.items()])
@@ -32,7 +31,7 @@ def _write_node_info(node, strf):
     else:
         strf.write(':')
     direction = 'r'
-    if isinstance(node, LCE.CharacterData):
+    if isinstance(node, LC.CharacterData):
         strf.write(' %r' % node.data)
     elif node.child:
         direction = 'd'
@@ -43,7 +42,7 @@ def _write_node_info(node, strf):
 def _set_owner_and_level(node, owner, level):
     """Helper method for increase_child_level. """
     if node.owner is not owner:
-        if isinstance(node, LCE.Element) and 'id' in node:
+        if isinstance(node, LC.Element) and 'id' in node:
             if node.owner:
                 del node.owner.id_dict[node['id']]
             if owner:
@@ -113,7 +112,7 @@ class Node(object):
         else:
             self.level = parent.level + 1
         self.owner = parent.owner
-        if isinstance(self, LCE.Element) and 'id' in self:
+        if isinstance(self, LC.Element) and 'id' in self:
             self.owner.id_dict[self['id']] = self
         self.increase_child_level()
 
@@ -135,7 +134,7 @@ class Node(object):
         crt = self
         while crt.prev is not None:
             crt = crt.prev
-            if isinstance(crt, LCE.Element):
+            if isinstance(crt, LC.Element):
                 index += 1
         return index
 
@@ -153,12 +152,12 @@ class Node(object):
 
     @property
     def previous_element(self):
-        """READ-ONLY: The last sibling LCE.Element preceding this
+        """READ-ONLY: The last sibling LC.Element preceding this
         node. """
         crt = self
         while crt.prev is not None:
             crt = crt.prev
-            if isinstance(crt, LCE.Element):
+            if isinstance(crt, LC.Element):
                 return crt
         return None
 
@@ -182,11 +181,11 @@ class Node(object):
 
     @property
     def next_element(self):
-        """READ-ONLY: The sibling LCE.Element after this node. """
+        """READ-ONLY: The sibling LC.Element after this node. """
         crt = self
         while crt.next is not None:
             crt = crt.next
-            if isinstance(crt, LCE.Element):
+            if isinstance(crt, LC.Element):
                 return crt
         return None
 
@@ -242,7 +241,7 @@ class Node(object):
     def disconnect(self):
         """HELPER-METHOD: Use this function to reset the node's
         attributes. """
-        if isinstance(self, LCE.Element) and 'id' in self:
+        if isinstance(self, LC.Element) and 'id' in self:
             del self.owner.id_dict[self['id']]
         self.owner = None
         self.parent = None
@@ -254,6 +253,12 @@ class Node(object):
         else:
             self.level = 0
         self.increase_child_level()
+
+    def remove_children(self):
+        """Remove all the child nodes. """
+        for child in self.child:
+            child.disconnect()
+        del self.child[:]
 
     def __repr__(self):
         """x.__repr__() <==> repr(x)"""
@@ -288,7 +293,7 @@ class Node(object):
         else:
             style = self.owner.style
             lang = self.owner.lang
-        writer = Writer(lang, style)
+        writer = LC.Writer(lang, style)
         if self.owner is not None and self.owner.defaults is not None:
             for var, val in self.owner.defaults.iteritems():
                 writer.defaults[var] = os.path.expandvars(str(val))
@@ -319,9 +324,9 @@ class Node(object):
         """Inserts `new_child` to the list of children just before
         the child specified by `index`. """
         if not isinstance(new_child, Node):
-            new_child = LCE.Text(str(new_child))
-        elif isinstance(new_child, LCE.DocumentFragment):
-            msg = "Use extend_before for LCE.DocumentFragment Nodes."
+            new_child = LC.Text(str(new_child))
+        elif isinstance(new_child, LC.DocumentFragment):
+            msg = "Use extend_before for LC.DocumentFragment Nodes."
             raise TypeError(msg)
         index = self.insert_node_before(index, new_child)
         while index < len(self.child):
@@ -341,14 +346,21 @@ class Node(object):
 
         The second form, however, has a more efficient reindexing
         method."""
-        if isinstance(new_children, (list, LCE.DocumentFragment)):
+        if isinstance(new_children, (list, LC.DocumentFragment)):
             for node in new_children:
                 if node.name == '#document' and node.temporary:
+                    if self.owner:
+                        self.owner.meta.update(node.meta)
+                        node.meta = dict()
                     while node:
                         index = self.insert_node_before(index, node[0])
                 else:
                     index = self.insert_node_before(index, node)
         else:
+            if new_children.name == '#document':
+                if new_children.temporary and self.owner:
+                    self.owner.meta.update(new_children.meta)
+                    new_children.meta = dict()
             while new_children:
                 index = self.insert_node_before(index, new_children[0])
         while index < len(self.child):
@@ -374,8 +386,8 @@ class Node(object):
         of this node. If the node is a `DocumentFragment` then it
         appends its child nodes. Returns the calling node. """
         if not isinstance(new_child, Node):
-            new_child = LCE.Text(str(new_child))
-        elif isinstance(new_child, LCE.DocumentFragment):
+            new_child = LC.Text(str(new_child))
+        elif isinstance(new_child, LC.DocumentFragment):
             msg = "Use extend_children for `DocumentFragment` Nodes."
             raise TypeError(msg)
         self.append_child_node(new_child)
@@ -384,14 +396,21 @@ class Node(object):
     def extend_children(self, new_children):
         """Extend the list of children by appending children from an
         iterable containing nodes. """
-        if isinstance(new_children, (list, LCE.DocumentFragment)):
+        if isinstance(new_children, (list, LC.DocumentFragment)):
             for node in new_children:
                 if node.name == '#document' and node.temporary:
+                    if self.owner:
+                        self.owner.meta.update(node.meta)
+                        node.meta = dict()
                     while node:
                         self.append_child_node(node[0])
                 else:
                     self.append_child_node(node)
         else:
+            if new_children.name == '#document':
+                if new_children.temporary and self.owner:
+                    self.owner.meta.update(new_children.meta)
+                    new_children.meta = dict()
             while new_children:
                 self.append_child_node(new_children[0])
         return self
@@ -424,15 +443,15 @@ class Node(object):
             return self
         crt = self.child[0]
         while crt is not None:
-            if isinstance(crt, LCE.Text):
+            if isinstance(crt, LC.Text):
                 if crt.data == '':
                     nextnode = crt.next
                     del crt.parent[crt.index]
                     crt = nextnode
-                elif isinstance(crt.next, LCE.Text):
+                elif isinstance(crt.next, LC.Text):
                     marked_node = crt.next
                     start = marked_node.index
-                    while isinstance(marked_node, LCE.Text):
+                    while isinstance(marked_node, LC.Text):
                         crt.data += marked_node.data
                         end = marked_node.index
                         marked_node = marked_node.next
@@ -508,7 +527,7 @@ class Node(object):
             x.__setitem__(slice(i, j, dt)) = dfrag <==> x[i:j:dt] = dfrag
 
         When using slices the nodes to be assigned to the indices
-        need to be contained in a `LCE.DocumentFragment` node. This
+        need to be contained in a `LC.DocumentFragment` node. This
         function does not support insertion as the regular slice for
         list does. To insert use `insert_prev`."""
         indices = self._get_indices(index)
@@ -516,9 +535,9 @@ class Node(object):
             raise TypeError("items must be Nodes")
         if node is self:
             raise TypeError("A node cannot have itself as a child.")
-        if not isinstance(node, LCE.DocumentFragment):
+        if not isinstance(node, LC.DocumentFragment):
             # Better take a look at this, DocFrag needs more development
-            nodes = LCE.DocumentFragment(node)
+            nodes = LC.DocumentFragment(node)
         else:
             nodes = node
         if len(indices) != len(nodes):

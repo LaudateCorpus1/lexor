@@ -15,9 +15,8 @@ import textwrap
 import os.path as pt
 from glob import iglob
 from lexor.__version__ import VERSION
-from lexor.command import import_mod
+from lexor.command import config, import_mod
 from lexor.command.edit import valid_files
-from lexor.command import config
 try:
     import argcomplete
 except ImportError:

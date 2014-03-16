@@ -2,17 +2,15 @@
 
 Provides the `Parser` object which defines the basic mechanism for
 parsing character sequences. This involves using objects derived from
-the abstract class `NodeParser`. See `lexor.core.dev` for more
-information on how to write objects derived from `NodeParser` to be
-able to parse character sequences in the way you desire.
+the abstract class `NodeParser`.
 
 """
 
 import re
 import sys
-from lexor.command.lang import get_style_module
 from lexor.command import config
-from lexor.core import elements
+from lexor.command.lang import get_style_module, map_explanations
+LC = sys.modules['lexor.core']
 
 
 class NodeParser(object):
@@ -79,26 +77,6 @@ class NodeParser(object):
     def msg(self, code, pos, arg=None, uri=None):
         """Send a message to the parser. """
         self.parser.msg(self.__module__, code, pos, arg, uri)
-
-
-def _map_explanations(mod, exp):
-    """This is a helper function to create a map of msg codes to
-    explanations in the lexor language modules. """
-    if not mod:
-        return
-    for mod_name, module in mod.iteritems():
-        exp[mod_name] = dict()
-        codes = module.MSG.keys()
-        for index in xrange(len(module.MSG_EXPLANATION)):
-            sub = len(codes) - 1
-            while sub > -1:
-                code = codes[sub]
-                if code in module.MSG_EXPLANATION[index]:
-                    del codes[sub]
-                    exp[mod_name][code] = index
-                sub -= 1
-            if not codes:
-                break
 
 
 # The default of 7 attributes max in a class is too restrictive.
@@ -182,13 +160,13 @@ class Parser(object):
         self.end = len(text)
         self.pos = [1, 1]
         self.caret = 0
-        self.doc = elements.Document(self._lang)
+        self.doc = LC.Document(self._lang)
         if uri:
             self._uri = uri
         else:
             self._uri = 'string@0x%x' % id(text)
         self.doc.uri_ = self._uri
-        self.log = elements.Document("lexor", "log")
+        self.log = LC.Document("lexor", "log")
         self.log.modules = dict()
         self.log.explanation = dict()
         if hasattr(self.style_module, 'pre_process'):
@@ -196,7 +174,7 @@ class Parser(object):
         self._parse()
         if hasattr(self.style_module, 'post_process'):
             self.style_module.post_process(self)
-        _map_explanations(self.log.modules, self.log.explanation)
+        map_explanations(self.log.modules, self.log.explanation)
 
     @property
     def cdata(self):
@@ -312,7 +290,7 @@ class Parser(object):
             uri = self._uri
         if arg is None:
             arg = ()
-        node = elements.Void('msg')
+        node = LC.Void('msg')
         node['module'] = mod_name
         node['code'] = code
         node['position'] = list(pos)
@@ -340,8 +318,8 @@ class Parser(object):
 
     def _process_node(self, crt, node, processor):
         """Appends the node to crt. """
-        if isinstance(node, elements.Text):
-            if len(crt) > 0 and isinstance(crt[-1], elements.Text):
+        if isinstance(node, LC.Text):
+            if len(crt) > 0 and isinstance(crt[-1], LC.Text):
                 crt[-1].data += node.data
             else:
                 crt.append_child(node)
@@ -359,7 +337,7 @@ class Parser(object):
         index = self._get_next_check(crt)
         if index == -1:
             content = self.text[self.caret:self.end]
-            if len(crt) > 0 and isinstance(crt[-1], elements.Text):
+            if len(crt) > 0 and isinstance(crt[-1], LC.Text):
                 crt[-1].data += content
             else:
                 crt.append_child(content)
@@ -369,7 +347,7 @@ class Parser(object):
             index += 1
         content = self.text[self.caret:index]
         self.update(index)
-        if len(crt) > 0 and isinstance(crt[-1], elements.Text):
+        if len(crt) > 0 and isinstance(crt[-1], LC.Text):
             crt[-1].data += content
         else:
             crt.append_child(content)

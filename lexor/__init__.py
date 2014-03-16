@@ -21,21 +21,17 @@ lexor.
 import os
 from sys import stdout
 from os.path import realpath, basename, splitext
-from .core.parser import Parser
-from .core.writer import Writer
-from .core.converter import Converter
-from .command import error
-from .command.lang import load_aux
-from .__version__ import get_version
-
-__all__ = ['parse', 'read', 'convert', 'write', 'init', 'load_aux']
+from lexor.__version__ import get_version
+from lexor.command import error
+from lexor.command.lang import load_aux
+from lexor import core
 
 
 def parse(text, lang='xml', style='default'):
     """Parse the text in a given language and return the `Document`
     form and a `Document` log containing the errors encountered
     during parsing. """
-    parser = Parser(lang, style)
+    parser = core.Parser(lang, style)
     parser.parse(text)
     return (parser.document, parser.log)
 
@@ -52,7 +48,7 @@ def read(filename, style="default", lang=None):
         lang = name[1][1:]
     with open(filename, 'r') as tmpf:
         text = tmpf.read()
-    parser = Parser(lang, style)
+    parser = core.Parser(lang, style)
     parser.parse(text, filename)
     return (parser.document, parser.log)
 
@@ -66,7 +62,7 @@ def convert(doc, lang=None, style="default"):
     """
     if lang is None:
         lang = doc.owner.lang
-    converter = Converter(doc.owner.lang, lang, style)
+    converter = core.Converter(doc.owner.lang, lang, style)
     converter.convert(doc)
     return (converter.document, converter.log)
 
@@ -86,7 +82,7 @@ def write(doc, filename=None, mode='w', **options):
     else:
         style = doc.owner.style
         lang = doc.owner.lang
-    writer = Writer(lang, style)
+    writer = core.Writer(lang, style)
     if doc.owner is not None and doc.owner.defaults is not None:
         for var, val in doc.owner.defaults.iteritems():
             writer.defaults[var] = os.path.expandvars(str(val))

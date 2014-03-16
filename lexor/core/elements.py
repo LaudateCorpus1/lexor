@@ -7,8 +7,9 @@ This implementation follows most of the recommendations of [w3].
 
 """
 
-from lexor.core.node import Node
-from lexor.core.selector import Selector
+import sys
+from lexor.core import Node
+LC = sys.modules['lexor.core']
 
 
 # pylint: disable=R0904,R0902
@@ -216,8 +217,8 @@ class Element(Node):
         self.child = list()
 
     def __call__(self, selector):
-        """Return a Selector object. """
-        return Selector(selector, self)
+        """Return a LC.Selector object. """
+        return LC.Selector(selector, self)
 
     def update_attributes(self, node):
         """Copies the attributes of the node into the calling node. """
@@ -420,13 +421,50 @@ class Element(Node):
                 direction = 'r'
         return nodes
 
+    def set_children(self, children, **keywords):
+        """Set the element children by providing a list of nodes or a
+        string. If using a string then you may provide keywords to
+        dictate how to parse and convert. """
+        if isinstance(children, str):
+            info = {
+                'parser_style': '_',
+                'parser_lang': 'html',
+                'parser_defaults': None,
+                'convert_style': '_',
+                'convert_from': None,
+                'convert_to': 'html',
+                'convert_defaults': None,
+                'convert': 'false'
+            }
+            for att in keywords:
+                info[att] = keywords[att]
+            parser = LC.Parser(info['parser_lang'],
+                               info['parser_style'],
+                               info['parser_defaults'])
+            parser.parse(children)
+            if info['convert'] == 'true' and info['convert_to'] is not None:
+                if info['convert_from'] is None:
+                    info['convert_from'] = info['parser_lang']
+                converter = LC.Converter(info['convert_from'],
+                                         info['convert_to'],
+                                         info['convert_style'],
+                                         info['convert_defaults'])
+                converter.convert(parser.doc)
+                children = converter.doc.pop()
+                converter.log.pop()
+            else:
+                children = parser.doc
+            children.temporary = True
+        self.remove_children()
+        self.extend_children(children)
+
 
 class RawText(Element, CharacterData):
     """Docstring for raw text"""
 
-    def __init__(self, name, data=''):
+    def __init__(self, name, data='', att=None):
         CharacterData.__init__(self, data)
-        Element.__init__(self, name)
+        Element.__init__(self, name, att)
         self.child = None
 
     def clone_node(self, deep=True, normalize=True):
@@ -464,6 +502,7 @@ class Document(Element):
         self.uri_ = None
         self.defaults = None
         self.id_dict = dict()
+        self.meta = dict()
         self.temporary = True
 
     def clone_node(self, deep=True, normalize=True):

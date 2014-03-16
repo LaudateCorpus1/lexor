@@ -1,23 +1,20 @@
 """Converter Module
 
 Provides the `Converter` object which defines the basic mechanism for
-converting the objects defined in `lexor.core.elements`. This involves
-using objects derived from the abstract class `NodeConverter`. See
-`lexor.core.dev` for more information on how to write objects derived
-from `NodeConverter` to be able to convert `Documents` in the way you
-desire.
+converting the objects defined in `lexor.core.elements`. This
+involves using objects derived from the abstract class
+`NodeConverter`.
 
 """
 
 import sys
 import os.path as pth
+import traceback
 from imp import load_source
 from cStringIO import StringIO
-from lexor.command.lang import get_style_module
-from lexor.core.parser import _map_explanations, Parser
-from lexor.core import elements as core
 from lexor.command import config
-import traceback
+from lexor.command.lang import get_style_module, map_explanations
+LC = sys.modules['lexor.core']
 
 
 def get_converter_namespace():
@@ -199,20 +196,20 @@ class Converter(object):
 
     def convert(self, doc, namespace=False):
         """Convert the `Document` doc. """
-        if not isinstance(doc, (core.Document, core.DocumentFragment)):
+        if not isinstance(doc, (LC.Document, LC.DocumentFragment)):
             raise TypeError("The node is not a Document or DocumentFragment")
         if self._reload:
             self._set_node_converters(
                 self._fromlang, self._tolang, self._style, self.defaults
             )
             self._reload = False
-        self.log.append(core.Document("lexor", "log"))
+        self.log.append(LC.Document("lexor", "log"))
         self.log[-1].modules = dict()
         self.log[-1].explanation = dict()
         self._convert(doc)
         if hasattr(self.style_module, 'convert'):
             self.style_module.convert(self, self.doc[-1])
-        _map_explanations(self.log[-1].modules, self.log[-1].explanation)
+        map_explanations(self.log[-1].modules, self.log[-1].explanation)
         if not namespace:
             del self.doc[-1].namespace
         return self.doc[-1], self.log[-1]
@@ -243,7 +240,7 @@ class Converter(object):
             uri = self.doc[-1].uri_
         if arg is None:
             arg = ()
-        wnode = core.Void('msg')
+        wnode = LC.Void('msg')
         wnode['module'] = mod_name
         wnode['code'] = code
         wnode['node_id'] = id(node)
@@ -323,7 +320,7 @@ class Converter(object):
         has the copy property set to True. """
         if self._copy(crt):
             return crt.clone_node()
-        return core.Text('')
+        return LC.Text('')
 
     def _convert(self, doc):
         """Main convert function. """
@@ -331,7 +328,7 @@ class Converter(object):
         # A doc needs to be copied by default. You may prohibit
         # to copy the children, but there must be a document.
         crt = doc
-        self.doc.append(core.Document(doc.lang, doc.style))
+        self.doc.append(LC.Document(doc.lang, doc.style))
         self.doc[-1].uri_ = doc.uri_
         self.doc[-1].namespace = dict()
         if hasattr(self.style_module, 'init_conversion'):
@@ -409,10 +406,10 @@ class Converter(object):
         except BaseException:
             self.msg(self.__module__, 'E100', node, [id_num])
             if error:
-                err_node = core.Element('python_pi_error')
+                err_node = LC.Element('python_pi_error')
                 err_node['section'] = str(id_num)
                 err_node.append_child(
-                    core.CData(traceback.format_exc())
+                    LC.CData(traceback.format_exc())
                 )
                 node.parent.insert_before(node.index, err_node)
         text = sys.stdout.getvalue()
@@ -467,8 +464,8 @@ def echo(node):
     """
     crt = get_current_node()
     if isinstance(node, str):
-        crt.parent.insert_before(crt.index, core.Text(node))
-    elif isinstance(node, core.Node):
+        crt.parent.insert_before(crt.index, LC.Text(node))
+    elif isinstance(node, LC.Node):
         crt.parent.insert_before(crt.index, node)
     elif isinstance(node, list):
         for item in node:
@@ -503,9 +500,9 @@ def include(input_file, **keywords):
         info['parser_lang'] = name[1][1:]
     with open(input_file, 'r') as tmpf:
         text = tmpf.read()
-    parser = Parser(info['parser_lang'],
-                    info['parser_style'],
-                    info['parser_defaults'])
+    parser = LC.Parser(info['parser_lang'],
+                       info['parser_style'],
+                       info['parser_defaults'])
     parser.parse(text, input_file)
     if parser.log:
         parent_converter.update_log(parser.log)
