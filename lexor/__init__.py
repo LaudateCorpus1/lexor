@@ -19,12 +19,78 @@ lexor.
 """
 
 import os
+import os.path as pth
 from sys import stdout
 from os.path import realpath, basename, splitext
 from lexor.__version__ import get_version
 from lexor.command import error
 from lexor.command.lang import load_aux
 from lexor import core
+
+
+def _read_text(src, search=False):
+    """Attempt to read a file and return its contents. """
+    try:
+        return open(src, 'r').read()
+    except IOError:
+        if search is False:
+            return None
+    try:
+        lexorinputs = os.environ['LEXORINPUTS']
+    except KeyError:
+        return None
+    for directory in lexorinputs.split(':'):
+        path = '%s/%s' % (directory, src)
+        try:
+            return open(path, 'r').read()
+        except IOError:
+            pass
+    return None
+
+
+def lexor(src, search=False, **keywords):
+    """Utility function to parse and convert a file. """
+    info = {
+        'parser_style': '_',
+        'parser_lang': None,
+        'parser_defaults': None,
+        'convert_style': '_',
+        'convert_from': None,
+        'convert_to': 'html',
+        'convert_defaults': None,
+        'convert': 'true'
+    }
+    for key in keywords:
+        info[key] = keywords[key]
+    if info['parser_lang'] is None:
+        path = pth.realpath(src)
+        name = pth.basename(path)
+        name = pth.splitext(name)
+        info['parser_lang'] = name[1][1:]
+    text = _read_text(src, search)
+    if text is None:
+        raise IOError('file `%s` not found' % src)
+    parser = core.Parser(info['parser_lang'],
+                         info['parser_style'],
+                         info['parser_defaults'])
+    parser.parse(text, src)
+    if info['convert'] == 'true' and info['convert_to'] is not None:
+        if info['convert_from'] is None:
+            info['convert_from'] = info['parser_lang']
+        converter = core.Converter(info['convert_from'],
+                                   info['convert_to'],
+                                   info['convert_style'],
+                                   info['convert_defaults'])
+
+        converter.convert(parser.doc)
+        if parser.log:
+            converter.update_log(parser.log, False)
+        cdoc = converter.doc.pop()
+        clog = converter.log.pop()
+    else:
+        cdoc = parser.doc
+        clog = parser.log
+    return cdoc, clog
 
 
 def parse(text, lang='xml', style='default'):

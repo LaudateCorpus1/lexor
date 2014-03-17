@@ -370,14 +370,17 @@ class Converter(object):
             else:
                 direction = 'r'
 
-    def update_log(self, log):
+    def update_log(self, log, after=True):
         """Append the messages from a log document to the converters
         log. Note that this removes the children from log. """
         modules = log.modules
         for mname in modules:
             if mname not in self.log[-1].modules:
                 self.log[-1].modules[mname] = modules[mname]
-        self.log[-1].extend_children(log)
+        if after:
+            self.log[-1].extend_children(log)
+        else:
+            self.log[-1].extend_before(0, log)
 
     # pylint: disable=W0122,E1103
     def exec_python(self, node, id_num, parser, error=True):

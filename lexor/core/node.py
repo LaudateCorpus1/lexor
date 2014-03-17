@@ -112,7 +112,7 @@ class Node(object):
         else:
             self.level = parent.level + 1
         self.owner = parent.owner
-        if isinstance(self, LC.Element) and 'id' in self:
+        if self.owner and isinstance(self, LC.Element) and 'id' in self:
             self.owner.id_dict[self['id']] = self
         self.increase_child_level()
 
@@ -241,7 +241,7 @@ class Node(object):
     def disconnect(self):
         """HELPER-METHOD: Use this function to reset the node's
         attributes. """
-        if isinstance(self, LC.Element) and 'id' in self:
+        if self.owner and isinstance(self, LC.Element) and 'id' in self:
             del self.owner.id_dict[self['id']]
         self.owner = None
         self.parent = None

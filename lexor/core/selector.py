@@ -96,7 +96,8 @@ class Selector(object):
         if isinstance(content, Selector):
             node.extend_children(content.data)
         elif isinstance(content, LC.Node):
-            if content.name in ['#document', '#document-fragment']:
+            if (content.name in ['#document', '#document-fragment']
+                    and content.temporary):
                 node.extend_children(content)
             else:
                 node.append_child(content)
@@ -148,7 +149,8 @@ class Selector(object):
         if isinstance(content, Selector):
             node.extend_before(0, content.data)
         elif isinstance(content, LC.Node):
-            if content.name in ['#document', '#document-fragment']:
+            if (content.name in ['#document', '#document-fragment']
+                    and content.temporary):
                 node.extend_before(0, content)
             else:
                 node.insert_before(0, content)

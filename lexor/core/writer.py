@@ -395,8 +395,7 @@ class Writer(object):
         if hasattr(self.style_module, 'pre_process'):
             self.style_module.pre_process(self, node)
         self._write(node)
-        self.write_str(self._buffer)
-        self._buffer = ''
+        self.flush_buffer()
         if hasattr(self.style_module, 'post_process'):
             self.style_module.post_process(self, node)
         if isinstance(filename, file):

@@ -7,6 +7,7 @@ This implementation follows most of the recommendations of [w3].
 
 """
 
+import os
 import sys
 from lexor.core import Node
 LC = sys.modules['lexor.core']
@@ -421,10 +422,25 @@ class Element(Node):
                 direction = 'r'
         return nodes
 
-    def set_children(self, children, **keywords):
-        """Set the element children by providing a list of nodes or a
-        string. If using a string then you may provide keywords to
+    def children(self, children=None, **keywords):
+        """Set the elements children by providing a list of nodes or
+        a string. If using a string then you may provide keywords to
         dictate how to parse and convert. """
+        if children is None:
+            lang = keywords.get('writer_lang', 'html')
+            style = keywords.get('writer_style', 'default')
+            writer = LC.Writer(lang, style)
+            if self.owner is not None and self.owner.defaults is not None:
+                for var, val in self.owner.defaults.iteritems():
+                    writer.defaults[var] = os.path.expandvars(str(val))
+            for var, val in keywords.iteritems():
+                writer.defaults[var] = os.path.expandvars(str(val))
+            result = ''
+            for child in self.child:
+                writer.write(child)
+                result += str(writer)
+            writer.close()
+            return result
         if isinstance(children, str):
             info = {
                 'parser_style': '_',
