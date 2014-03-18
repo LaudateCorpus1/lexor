@@ -43,8 +43,10 @@ def _set_owner_and_level(node, owner, level):
     """Helper method for increase_child_level. """
     if node.owner is not owner:
         if isinstance(node, LC.Element) and 'id' in node:
-            if node.owner:
+            try:
                 del node.owner.id_dict[node['id']]
+            except (KeyError, AttributeError):
+                pass
             if owner:
                 owner.id_dict[node['id']] = node
         node.owner = owner

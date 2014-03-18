@@ -261,6 +261,8 @@ class Element(Node):
             self.__dict__[k] = val
             if k not in self._order:
                 self._order.append(k)
+            if k == 'id' and self.owner:
+                self.owner.id_dict[k] = self
         else:
             Node.__setitem__(self, k, val)
 
