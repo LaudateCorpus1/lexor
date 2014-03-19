@@ -13,9 +13,148 @@ In short, credit goes to [Sizzle][1] and CSS for the seletor idea.
 import re
 import sys
 import types
+from datetime import datetime
+from time import mktime
+from pprint import pprint
 LC = sys.modules['lexor.core']
-RQUICKEXPR = re.compile(r'^(?:#([\w-]+)|(\w+)|\.([\w-]+))$')
 
+
+def get_date():
+    """Obtain an integer representation of the date. """
+    date = datetime.utcnow()
+    return int(mktime(date.timetuple()))
+
+
+def mark_function(fnc):
+    """Mark a function for special use by Sizzle. """
+    fnc.expando = True
+    return fnc
+
+
+BOOLEANS = "checked|selected|async|autofocus|autoplay|controls|" + \
+           "defer|disabled|hidden|ismap|loop|multiple|open|" + \
+           "readonly|required|scoped"
+WHITESPACE = "[\\x20\\t\\r\\n\\f]"
+CHAR_ENCODING = "(?:\\\\.|[\\w-]|[^\\x00-\\xa0])+"
+IDENTIFIER = CHAR_ENCODING.replace("w", "w#")
+ATTRIBUTES = "\\[" + WHITESPACE + "*(" + CHAR_ENCODING + ")" + \
+             WHITESPACE + "*(?:([*^$|!~]?=)" + WHITESPACE + \
+             "*(?:(['\"])((?:\\\\.|[^\\\\])*?)\\3|(" + \
+             IDENTIFIER + ")|)|)" + WHITESPACE + "*\\]"
+PSEUDOS = ":(" + CHAR_ENCODING + \
+          ")(?:\\(((['\"])((?:\\\\.|[^\\\\])*?)\\3|((?:\\\\.|" + \
+          "[^\\\\()[\\]]|" + ATTRIBUTES.replace("3", "8") + \
+          ")*)|.*)\\)|)"
+RCOMMA = re.compile("^" + WHITESPACE + "*," + WHITESPACE + "*")
+RCOMBINATORS = re.compile("^" + WHITESPACE + "*([>+~]|" +
+                          WHITESPACE + ")" + WHITESPACE + "*")
+# Use .findall instead of search or match since this regex had the
+# global attribute
+RATTRIBUTEQUOTE = re.compile("=" + WHITESPACE + "*([^\\]'\"]*?)" +
+                             WHITESPACE + "*\\]")
+RPSEUDO = re.compile(PSEUDOS)
+RIDENTIFIER = re.compile("^" + IDENTIFIER + "$")
+MATCH_EXPR = {
+    "ID": re.compile("^#(" + CHAR_ENCODING + ")"),
+    "CLASS": re.compile("^\\.(" + CHAR_ENCODING + ")"),
+    "TAG": re.compile("^(" + CHAR_ENCODING.replace("w", "w*") + ")"),
+    "ATTR": re.compile("^" + ATTRIBUTES),
+    "PSEUDO": re.compile("^" + PSEUDOS),
+    "CHILD": re.compile("^:(only|first|last|nth|nth-last)-" +
+                        "(child|of-type)(?:\\(" + WHITESPACE +
+                        "*(even|odd|(([+-]|)(\\d*)n|)" + WHITESPACE +
+                        "*(?:([+-]|)" + WHITESPACE + "*(\\d+)|))" +
+                        WHITESPACE + "*\\)|)", re.IGNORECASE),
+    "bool": re.compile("^(?:" + BOOLEANS + ")$", re.IGNORECASE),
+    # For use in libraries implementing .is()
+    # We use this for POS matching in `select`
+    "needsContext": re.compile("^" + WHITESPACE +
+                               "*[>+~]|:(even|odd|eq|gt|lt|nth|" +
+                               "first|last)(?:\\(" + WHITESPACE +
+                               "*((?:-\\d)?\\d*)" + WHITESPACE +
+                               "*\\)|)(?=[^-]|$)", re.IGNORECASE),
+}
+RQUICKEXPR = re.compile(r'^(?:#([\w-]+)|(\w+)|\.([\w-]+))$')
+RUNESCAPE = re.compile("\\\\([\\da-f]{1,6}" + WHITESPACE + "?|(" +
+                       WHITESPACE + ")|.)", re.IGNORECASE)
+EXPANDO = 'sizzle'+str(get_date())
+
+
+def _pre_filter_attr(match):
+    """function for EXPR['pre_filter']['ATTR']"""
+    #match[0] = match[0].replace(runescape, funescape);
+    #match[0] = re.sub(runescape, funescape, match[0])
+    # Move the given value to match[3] whether quoted or unquoted
+    match[2] = match[3] or match[4] or ""
+    #match[2] = match[2].replace(runescape, funescape);
+    if match[1] == "~=":
+        match[2] = " " + match[2] + " "
+    return match[:4]
+
+
+def _pre_filter_child(match):
+    """function for EXPR['pre_filter']['CHILD']"""
+    match[0] = match[0].lower()
+    if match[0].slice[:3] == "nth":
+        # nth-* requires argument
+        if not match[2]:
+            print 'ERROR'
+            sys.exit(2)
+            # Should raise an error showing match[0]
+        # numeric x and y parameters for Expr.filter.CHILD
+        # remember that false/true cast respectively to 0/1
+        # ML: Possible +=
+        if match[4]:
+            match[4] = match[5] + (match[6] or 1)
+        else:
+            match[4] = 2*(match[3] == "even" or match[3] == "odd")
+        match[5] = ((match[7] + match[8]) or match[3] == "odd")
+    #other types prohibit arguments
+    elif match[3]:
+        print 'ERROR'
+        sys.exit(2)
+    return match
+
+
+def _filter_tag(node_name_selector):
+    name = node_name_selector
+    if node_name_selector == '*':
+        return lambda: True
+    else:
+        return lambda elem: elem and elem.name.lower() == name
+
+
+def _filter_class(class_name):
+    try:
+        pattern = _filter_class.cache[class_name]
+        return pattern
+    except KeyError:
+        pass
+    pattern = re.compile("(^|" + WHITESPACE + ")" + class_name + "(" + WHITESPACE + "|$)")
+    _filter_class.cache[class_name] = lambda elem: pattern.search(elem['class']) if 'class' in elem else None
+    return _filter_class.cache[class_name]
+_filter_class.cache = dict()
+
+EXPR = {
+    'create_pseudo': mark_function,
+    'match': MATCH_EXPR,
+    'attr_handle': {},
+    'find': {},
+    'relative': {
+        '>': {'dir': "parent_node", 'first': True},
+        ' ': {'dir': "parent_node"},
+        '+': {'dir': "previous_sibling", 'first': True},
+        '~': {'dir': "previous_sibling"}
+    },
+    'pre_filter': {
+        'ATTR': _pre_filter_attr,
+        'CHILD': _pre_filter_child,
+    },
+    'filter': {
+        'TAG': _filter_tag,
+        'CLASS': _filter_class,
+    }
+}
 
 def clone_obj(obj, parser):
     """Utility function to create deep copies of objects used for the
@@ -31,11 +170,15 @@ def clone_obj(obj, parser):
     return parser.doc
 
 
-def sizzle(selector, context, results=None):
+def sizzle(selector, context, results=None, seed=None):
     """Function shamelessly borrowed and partially translated to
     python from http://sizzlejs.com/. """
     if results is None:
         results = list()
+    if not selector or not isinstance(selector, str):
+        return results
+    if not isinstance(context, LC.Element):
+        return list()
     match = RQUICKEXPR.match(selector)
     if match is not None:  # Shortcuts
         match = match.groups()
@@ -54,7 +197,110 @@ def sizzle(selector, context, results=None):
         elif isinstance(context, LC.Element):  # sizzle('.CLASS')
             results.extend(context.get_elements_by_class_name(match[2]))
         return results
-    raise NotImplementedError
+    return select(selector.strip(), context, results, seed)
+
+
+def select(selector, context, results, seed):
+    """ A low-level selection function that works with Sizzle's
+    compiled selector functions
+
+    @param {String|Function} selector A selector or a pre-compiled
+     selector function built with Sizzle.compile
+    @param {Element} context
+    @param {Array} [results]
+    @param {Array} [seed] A set of elements to match against
+    """
+    #compiled = typeof selector === "function" && selector
+    #selector = compiled.selector or selector
+    match = not seed and tokenize(selector)
+    results = results or list()
+    if len(match) == 1:
+        # Other complicated stuff
+        pass
+    compile_selector(selector, match)(seed, context, results)
+    return results
+
+
+def matcher_from_tokens(tokens):
+    pass
+
+def matcher_from_group_matchers(element_matchers, set_matchers):
+    pass
+
+def compile_selector(selector, match=None):
+    try:
+        return compile_selector.cache[selector]
+    except KeyError:
+        pass
+    set_matchers = list()
+    element_matchers = list()
+    if match is None:
+        match = tokenize(selector)
+    i = len(match) - 1
+    while i:
+        cached = matcher_from_tokens(match[i])
+        if cached[EXPANDO]:
+            set_matchers.append(cached)
+        else:
+            element_matchers.append(cached)
+    cached = matcher_from_group_matchers(element_matchers, set_matchers)
+    compile_selector.cache[selector] = cached
+    #cached.selector = selector
+    return cached
+compile_selector.cache = dict()
+
+
+def tokenize(selector, parse_only=False):
+    """Tokenize..."""
+    try:
+        cached = tokenize.cache[selector]
+    except KeyError:
+        pass
+    else:
+        return 0 if parse_only else cached
+    so_far = selector
+    groups = list()
+    pre_filters = EXPR['pre_filter']
+    matched = False
+    while so_far:
+        match = RCOMMA.match(so_far)
+        if not matched or match:
+            if match:
+                match = match.groups()
+                so_far = so_far[len(match[0]):] or so_far
+            tokens = list()
+            groups.append(tokens)
+        matched = False
+        match = RCOMBINATORS.match(so_far)
+        if match:
+            matched = match.group(0)
+            match = list(match.groups())
+            tokens.append({
+                'value': matched,
+                'type': match[0].strip(),
+            })
+            so_far = so_far[len(matched):]
+        for ftype in EXPR['filter']:
+            match = MATCH_EXPR[ftype].match(so_far)
+            if match:
+                matched = match.group(0)
+                match = list(match.groups())
+                #match = pre_filters[ftype](match).groups()
+                tokens.append({
+                    'value': matched,
+                    'type': ftype,
+                    'matches': match,
+                })
+                so_far = so_far[len(matched):]
+        if not matched:
+            break
+    if parse_only:
+        return len(so_far)
+    else:
+        tokenize.cache[selector] = groups
+        return tokenize.cache[selector]
+if not hasattr(tokenize, 'cache'):
+    tokenize.cache = dict()
 
 
 class Selector(object):
@@ -70,6 +316,14 @@ class Selector(object):
 
         """
         return self.data[k]
+
+    def __repr__(self):
+        """repr method. """
+        result = '\n----------\n'
+        for node in self.data:
+            result += repr(node)
+            result += '\n----------\n'
+        return result
 
     def find(self, selector):
         """Get the descendants of each element in the current set of
