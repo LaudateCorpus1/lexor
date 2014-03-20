@@ -194,6 +194,9 @@ class Converter(object):
         `FragmentedDocument` created by the `convert` method. """
         return self.doc[-1]
 
+    def pop(self):
+        return self.doc.pop(), self.log.pop()
+
     def convert(self, doc, namespace=False):
         """Convert the `Document` doc. """
         if not isinstance(doc, (LC.Document, LC.DocumentFragment)):
@@ -328,8 +331,7 @@ class Converter(object):
         # A doc needs to be copied by default. You may prohibit
         # to copy the children, but there must be a document.
         crt = doc
-        self.doc.append(LC.Document(doc.lang, doc.style))
-        self.doc[-1].uri_ = doc.uri_
+        self.doc.append(doc.clone_node(True))
         self.doc[-1].namespace = dict()
         if hasattr(self.style_module, 'init_conversion'):
             self.style_module.init_conversion(self, self.doc[-1])
@@ -374,9 +376,12 @@ class Converter(object):
         """Append the messages from a log document to the converters
         log. Note that this removes the children from log. """
         modules = log.modules
+        explanation = log.explanation
         for mname in modules:
             if mname not in self.log[-1].modules:
                 self.log[-1].modules[mname] = modules[mname]
+            if mname not in self.log[-1].explanation:
+                self.log[-1].explanation[mname] = explanation[mname]
         if after:
             self.log[-1].extend_children(log)
         else:

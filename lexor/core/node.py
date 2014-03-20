@@ -243,8 +243,11 @@ class Node(object):
     def disconnect(self):
         """HELPER-METHOD: Use this function to reset the node's
         attributes. """
-        if self.owner and isinstance(self, LC.Element) and 'id' in self:
-            del self.owner.id_dict[self['id']]
+        if self.owner and isinstance(self, LC.Element):
+            try:
+                del self.owner.id_dict[self['id']]
+            except (KeyError, AttributeError):
+                pass
         self.owner = None
         self.parent = None
         self.index = None
