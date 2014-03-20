@@ -331,7 +331,7 @@ class Converter(object):
         # A doc needs to be copied by default. You may prohibit
         # to copy the children, but there must be a document.
         crt = doc
-        self.doc.append(doc.clone_node(True))
+        self.doc.append(doc.clone_node())
         self.doc[-1].namespace = dict()
         if hasattr(self.style_module, 'init_conversion'):
             self.style_module.init_conversion(self, self.doc[-1])

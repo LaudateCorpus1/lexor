@@ -523,14 +523,16 @@ class Document(Element):
         self.meta = dict()
         self.temporary = True
 
-    def clone_node(self, deep=True, normalize=True):
+    def clone_node(self, deep=False, normalize=True):
         """Returns a new Document. Note: it does not copy
         the default values. """
-        clone = Element.clone_node(self, deep, normalize)
         node = Document(self.lang, self.style)
         node.update_attributes(self)
         node.uri_ = self.uri_
         node.meta.update(self.meta)
+        if deep is False or not self.child:
+            return node
+        clone = Element.clone_node(self, deep, normalize)
         clone.name = ''  # not a document
         node.extend_children(clone)
         return node
