@@ -18,6 +18,7 @@ lexor.
 
 """
 
+import re
 import os
 import os.path as pth
 from sys import stdout
@@ -62,14 +63,21 @@ def lexor(src, search=False, **keywords):
     }
     for key in keywords:
         info[key] = keywords[key]
-    if info['parser_lang'] is None:
+    text = _read_text(src, search)
+    if text is None:
+        match = re.match('^(\.|/)(.*/)?(?:$|(.+?)(?:(\.[^.]*$)|$))', src)
+        if match:
+            raise IOError('file `%s` not found' % src)
+        else:
+            text = src
+            if info['parser_lang'] is None:
+                info['parser_lang'] = 'lexor'
+            src = 'string@0x%x' % id(text)
+    elif info['parser_lang'] is None:
         path = pth.realpath(src)
         name = pth.basename(path)
         name = pth.splitext(name)
         info['parser_lang'] = name[1][1:]
-    text = _read_text(src, search)
-    if text is None:
-        raise IOError('file `%s` not found' % src)
     parser = core.Parser(info['parser_lang'],
                          info['parser_style'],
                          info['parser_defaults'])

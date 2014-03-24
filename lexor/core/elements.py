@@ -430,7 +430,7 @@ class Element(Node):
         dictate how to parse and convert. """
         if children is None:
             lang = keywords.get('writer_lang', 'html')
-            style = keywords.get('writer_style', 'default')
+            style = keywords.get('writer_style', 'plain')
             writer = LC.Writer(lang, style)
             if self.owner is not None and self.owner.defaults is not None:
                 for var, val in self.owner.defaults.iteritems():

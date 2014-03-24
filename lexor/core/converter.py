@@ -474,6 +474,9 @@ def echo(node):
     if isinstance(node, str):
         crt.parent.insert_before(crt.index, LC.Text(node))
     elif isinstance(node, LC.Node):
+        if node.name == '#document':
+            crt.parent.extend_before(crt.index, node)
+            return
         crt.parent.insert_before(crt.index, node)
     elif isinstance(node, list):
         for item in node:
@@ -541,11 +544,11 @@ def import_module(mod_path, mod_name=None):
     name of the file loaded will be assigned to the name. When using
     relative paths, it will find the module relative to the file
     executing the python embedding. """
-    converter = include.converter[-1]
+    doc = include.converter[-1].doc[-1]
     if not mod_path.endswith('.py'):
         mod_path += '.py'
     if mod_path[0] != '/':
-        mod_path = pth.join(pth.dirname(converter.doc.uri), mod_path)
+        mod_path = pth.join(pth.dirname(doc.uri), mod_path)
     if mod_name is None:
         mod_name = pth.basename(mod_path)
     if mod_name.endswith('.py'):
