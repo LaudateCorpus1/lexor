@@ -51,6 +51,7 @@ from lexor.core.parser import (
 from lexor.core.writer import (
     NodeWriter,
     Writer,
+    replace,
 )
 from lexor.core.converter import (
     BaseLog,

@@ -147,7 +147,7 @@ Version:
 
 
 def run():
-    """Run excentury from the command line. """
+    """Run lexor from the command line. """
     mod = dict()
     rootpath = pt.split(pt.abspath(__file__))[0]
     mod_names = [name for name in iglob('%s/command/*.py' % rootpath)]
