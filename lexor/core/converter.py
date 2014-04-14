@@ -195,6 +195,8 @@ class Converter(object):
         return self.doc[-1]
 
     def pop(self):
+        """Remove the last document and last log document and return
+        them."""
         return self.doc.pop(), self.log.pop()
 
     def convert(self, doc, namespace=False):
@@ -310,7 +312,8 @@ class Converter(object):
 
     def _copy_children(self, node):
         """Return the copy_children attribute of the node converter. """
-        return self._nc.get(node.name, self._nc['__default__']).copy_children
+        tmp = self._nc.get(node.name, self._nc['__default__']).copy_children
+        return tmp and node.child
 
     def _get_direction(self, crt):
         """Returns the direction in which the traversal should go. """

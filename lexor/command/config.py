@@ -65,7 +65,7 @@ def add_parser(subp, fclass):
     tmpp.add_argument('var', type=str,
                       help='Must be in the form of sec.key'
                       ).completer = var_completer
-    tmpp.add_argument('value', type=str,  nargs='?', default=None,
+    tmpp.add_argument('value', type=str, nargs='?', default=None,
                       help='var value').completer = value_completer
     tmpp.add_argument('-v', action='store_true',
                       help='print config file location')

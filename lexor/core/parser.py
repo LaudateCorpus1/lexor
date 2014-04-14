@@ -131,6 +131,8 @@ class Parser(object):
         if hasattr(self.style_module, 'REPOSITORY'):
             for val in self.style_module.REPOSITORY:
                 self._set_node_parser(val)
+        if hasattr(self.style_module, 'parser_setup'):
+            self.style_module.parser_setup(self)
         str_key = list()
         for key, val in self.style_module.MAPPING.iteritems():
             self._next_check[key] = re.compile('.*?[%s]' % val[0])

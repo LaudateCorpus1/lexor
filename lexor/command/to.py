@@ -173,7 +173,7 @@ def add_parser(subp, fclass):
                            description=textwrap.dedent(DESC))
     tmpp.add_argument('tolang', metavar='lang', nargs='*',
                       type=input_language,
-                      help='languate to which it will be converted')
+                      help='language to which it will be converted')
     tmpp.add_argument('--from', type=language_style, metavar='FROM',
                       dest='parse_lang',
                       help='language to be parsed in')
@@ -182,9 +182,9 @@ def add_parser(subp, fclass):
     tmpp.add_argument('--write', '-w', action='store_true',
                       help='write to file')
     tmpp.add_argument('--quiet', '-q', action='store_true',
-                      help='supress warning messages')
+                      help='suppress warning messages')
     tmpp.add_argument('--nodisplay', '-n', action='store_true',
-                      help="supress output")
+                      help="suppress output")
 
 
 def get_input(input_file, cfg, default='_'):
@@ -269,7 +269,7 @@ def run():
 
 
 def convert_and_write(f_name, parser, in_lang, log, arg):
-    """Auxilary function to reduce the number of branches in run. """
+    """Auxiliary function to reduce the number of branches in run. """
     log_writer = Writer(log[0], log[1]['name'], log[1]['params'])
     writer = Writer()
     converter = Converter()
@@ -298,7 +298,7 @@ def write_log(writer, log, quiet):
 
 
 def write_document(writer, doc, fname, arg):
-    """Auxilary function for convert_and_write. """
+    """Auxiliary function for convert_and_write. """
     if arg.nodisplay is False:
         writer.write(doc, sys.stdout)
     if arg.write is True:
@@ -306,7 +306,7 @@ def write_document(writer, doc, fname, arg):
 
 
 def run_converter(param):
-    """Auxilary function for convert and write. """
+    """Auxiliary function for convert and write. """
     lang = param['lang']
     f_name = param['f_name']
     in_lang = param['in_lang']
@@ -340,7 +340,7 @@ def run_converter(param):
 
 
 def run_writer(param):
-    """Auxilary function for convert and write. """
+    """Auxiliary function for convert and write. """
     lang = param['lang']
     f_name = param['f_name']
     arg = param['arg']
