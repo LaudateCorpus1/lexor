@@ -1,0 +1,4 @@
+include bin/lexor
+include Makefile
+include MANIFEST.in
+include lexor/core/templates/*.txt

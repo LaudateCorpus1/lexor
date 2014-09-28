@@ -1,0 +1,25 @@
+"""{LANG} to {TOLANG} {NP} NodeConverter
+
+Node writer description.
+
+"""
+
+from lexor.core.converter import NodeConverter
+
+
+class NC_object(NodeConverter):
+    """Node converter short description. """
+
+    #copy = False  # True by default
+    #copy_children = False  # True by default
+
+    def process(self, node):
+        """This method gets called only if `copy` is set to True
+        (default). By overloading this method you have access to the
+        converter and the node. You can thus set extra variables in
+        the converter or modify the node. DO NOT modify any of the
+        parents of the node. If there is a need to modify any of
+        parents of the node then set a variable in the converter to
+        point to the node so that later on in the `convert` function
+        it can be modified. """
+        pass

@@ -1,0 +1,22 @@
+"""{LANG}: {NP} NodeParser
+
+Node parser description.
+
+"""
+
+from lexor.core.parser import NodeParser
+#from lexor.core.elements import Element
+
+
+class NP(NodeParser):
+    """Node parser short description. """
+
+    def make_node(self):
+        """State the type of node it returns. """
+        parser = self.parser
+        caret = parser.caret
+
+    def close(self, node):
+        """Return the position where the element was closed. """
+        # This may be deleted if there is no need for closing function
+        pass

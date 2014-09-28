@@ -1,0 +1,24 @@
+"""{LANG}: {STYLE} Parsing Style
+
+Parser description.
+
+"""
+
+from lexor import init, load_aux
+
+INFO = init(
+    version=(0, 0, 1, 'final', 0),
+    lang='{lang}',
+    type='parser',
+    description='parser description',
+    author='',
+    author_email='',
+    license='BSD License',
+    path=__file__
+)
+MOD = load_aux(INFO)
+MAPPING = {{
+    '__default__': ('\n', [
+        #MOD['NPmodule'].NPobject,
+    ])
+}}

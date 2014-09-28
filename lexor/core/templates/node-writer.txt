@@ -1,0 +1,37 @@
+"""{LANG}: {NP} NodeWriter
+
+Node writer description.
+
+"""
+
+from lexor.core.writer import NodeWriter
+#import lexor.core.elements
+
+
+class Default(NodeWriter):
+    """Node writer short description. """
+
+    def start(self, node):
+        """Overload this method to write part of the `Node` object in
+        the first encounter with the `Node`. """
+        #self.write()
+        pass
+
+    def data(self, node):
+        """This method gets called only by `CharacterData` nodes.
+        This method should be overloaded to write their attribute
+        `data`, otherwise it will write the node's data as it is. """
+        pass
+
+    def child(self, node):
+        """This method gets called for `Elements` that have children.
+        If it gets overwritten then it will not traverse through
+        child nodes unless you return something other than None.
+
+        This method by default returns `True` so that the `Writer`
+        can traverse through the child nodes. """
+        return True
+
+    def end(self, node):
+        """Overload this method to write part of the `Node` object in
+        the last encounter with the `Node`. """

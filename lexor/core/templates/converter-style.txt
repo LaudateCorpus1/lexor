@@ -1,0 +1,34 @@
+"""{LANG} to {TOLANG} {STYLE} Converter Style
+
+Converter description.
+
+"""
+
+from lexor import init, load_aux
+
+INFO = init(
+    version=(0, 0, 1, 'final', 0),
+    lang='{lang}',
+    to_lang='{tolang}',
+    type='converter',
+    description='convert from {lang} to {tolang}',
+    author='',
+    author_email='',
+    license='BSD License',
+    path=__file__
+)
+MOD = load_aux(INFO)['nc']
+MAPPING = {{
+
+}}
+
+def init_converter(converter):
+    """Set the properties that the converter will need in the
+    copy process and in the convert function. The keywords `doc`
+    and `log` are reserved. Do not overwrite them. """
+    pass
+
+
+def convert(converter, doc):
+    """Useful description goes here. """
+    pass

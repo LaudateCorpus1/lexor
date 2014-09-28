@@ -1,0 +1,14 @@
+"""{LANG}: {STYLE} parser {NP} test
+
+Testing suite to parse {lang} {np} in the {style} style.
+
+"""
+
+from lexor.command.test import nose_msg_explanations
+
+
+def test_{np}():
+    """{lang}.parser.{style}.{np}: MSG_EXPLANATION """
+    nose_msg_explanations(
+        '{lang}', 'parser', '{style}', '{np}'
+    )
