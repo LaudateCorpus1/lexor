@@ -241,6 +241,10 @@ class Element(Node):
             return self.child[k]
         return None
 
+    def get(self, k, val=''):
+        """Return the attribute of name with value of `k`."""
+        return self.__dict__.get(k, val)
+
     def __setitem__(self, k, val):
         """
         x.__setitem__(index) = node <==> x[index] = node
