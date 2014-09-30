@@ -118,10 +118,10 @@ def download_file(url, base='.'):
         local_name = '%s/tmp_%s' % (base, os.path.basename(url))
         with open(local_name, "wb") as local_file:
             local_file.write(response.read())
-    except HTTPError, e:
-        print "HTTP Error:", e.code, url
-    except URLError, e:
-        print "URL Error:", e.reason, url
+    except urllib2.HTTPError, err:
+        print "HTTP Error:", err.code, url
+    except urllib2.URLError, err:
+        print "URL Error:", err.reason, url
     return local_name
 
 
@@ -138,7 +138,10 @@ def run():
     if arg.path:
         install_dir = arg.path
     elif arg.user:
-        install_dir = '%s/lib/lexor' % site.getuserbase()
+        try:
+            install_dir = '%s/lib/lexor' % site.getuserbase()
+        except AttributeError:
+            install_dir = 'lib/lexor'
     else:
         install_dir = '%s/lib/lexor' % sys.prefix
 

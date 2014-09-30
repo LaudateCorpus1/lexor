@@ -42,10 +42,16 @@ configuration file so that lexor may select the available languages
 for you without the need to reinstall the styles.
 
 """
-LEXOR_PATH = [
-    '%s/lib/lexor' % site.getuserbase(),
-    '%s/lib/lexor' % sys.prefix
-]
+try:
+    LEXOR_PATH = [
+        '%s/lib/lexor' % site.getuserbase(),
+        '%s/lib/lexor' % sys.prefix
+    ]
+except AttributeError:
+    LEXOR_PATH = [
+        'lib/lexor',
+        '%s/lib/lexor' % sys.prefix
+    ]
 
 if 'LEXORPATH' in os.environ:
     LEXOR_PATH = os.environ['LEXORPATH'].split(':') + LEXOR_PATH
