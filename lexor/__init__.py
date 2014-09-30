@@ -1,23 +1,26 @@
-"""A Document Converter
+"""
+To use lexor as a module you should explore in detail the packages
+provided with lexor. These packages contain many other functions and
+information which can help you convert your document in the way you
+desire.
 
-To use `lexor` as a module you should explore in detail the packages
-provided with `lexor`. These packages contain many other functions
-and information which can help you convert your document in the way
-you desire.
 
-## core
+:`core <lexor.core>`_: 
+    The core of lexor defines basic objects such as ``Document`` and
+    provides the main objects that define the functions provided in
+    this module.
 
-The core of lexor defines basic objects such as `Document` and
-provides the main objects that define the functions provided in this
-module.
 
-## command
+:`command <lexor.command>`_:
+    This module is in charge of providing all the available commands
+    to lexor.
 
-This module is in charge of providing all the available commands to
-lexor.
+----------------------------------------------------------------------
+
+In this module we can find useful functions to quickly parse, convert
+and write files without first creating any of the main lexor objects.
 
 """
-
 import re
 import os
 import os.path as pth
@@ -27,6 +30,14 @@ from lexor.__version__ import get_version
 from lexor.command import error
 from lexor.command.lang import load_aux
 from lexor import core
+__all__ = [
+    'lexor',
+    'parse',
+    'read',
+    'convert',
+    'write',
+    'init',
+]
 
 
 def _read_text(src, search=False):
@@ -50,7 +61,24 @@ def _read_text(src, search=False):
 
 
 def lexor(src, search=False, **keywords):
-    """Utility function to parse and convert a file. """
+    """Utility function to parse and convert a file or string
+    specified by `src`. If `search` is ``True`` then it will
+    attemp to search for `src` in the paths specified by the
+    enviromental variable ``$LEXORINPUTS``. The following are all the
+    valid keywords and its defaults that this function accepts:
+
+    - parser_style: ``'_'``
+    - parser_lang: ``None``
+    - parser_defaults: ``None``,
+    - convert_style: ``'_'``,
+    - convert_from: ``None``,
+    - convert_to: ``'html'``,
+    - convert_defaults: ``None``,
+    - convert: ``'true'``
+
+    Returns the converted ``Document`` object and the log
+    ``Document`` containing possible warning or error messages.
+    """
     info = {
         'parser_style': '_',
         'parser_lang': None,
@@ -65,7 +93,7 @@ def lexor(src, search=False, **keywords):
         info[key] = keywords[key]
     text = _read_text(src, search)
     if text is None:
-        match = re.match('^(\.|/)(.*/)?(?:$|(.+?)(?:(\.[^.]*$)|$))', src)
+        match = re.match(r'^(\.|/)(.*/)?(?:$|(.+?)(?:(\.[^.]*$)|$))', src)
         if match:
             raise IOError('file `%s` not found' % src)
         else:
@@ -102,18 +130,18 @@ def lexor(src, search=False, **keywords):
 
 
 def parse(text, lang='xml', style='default'):
-    """Parse the text in a given language and return the `Document`
-    form and a `Document` log containing the errors encountered
-    during parsing. """
+    """Parse the `text` in the language specified by `lang` and
+    return its ``Document`` form and a ``Document`` log containing
+    the errors encountered during parsing. """
     parser = core.Parser(lang, style)
     parser.parse(text)
     return (parser.document, parser.log)
 
 
 def read(filename, style="default", lang=None):
-    """Read and parse a file. If lang is not specified then the
-    language is assummed from the filename extension. Returns the
-    `Document` form and a `Document` log containing the errors
+    """Read and parse a file. If `lang` is not specified then the
+    language is assummed from the `filename` extension. Returns the
+    ``Document`` form and a ``Document`` log containing the errors
     encountered during parsing. """
     if lang is None:
         path = realpath(filename)
@@ -128,12 +156,10 @@ def read(filename, style="default", lang=None):
 
 
 def convert(doc, lang=None, style="default"):
-    """Convert the `Document` doc to another language in a given
-    style. If the lang is not specified then the document is
-    tranformed to the same language as the document using the default
-    style.
-
-    """
+    """Convert the ``Document`` `doc` to another language in a given
+    style. If the `lang` is not specified then the `doc` is
+    tranformed to the same language as the ``Document`` using the
+    default style. """
     if lang is None:
         lang = doc.owner.lang
     converter = core.Converter(doc.owner.lang, lang, style)
@@ -142,14 +168,18 @@ def convert(doc, lang=None, style="default"):
 
 
 def write(doc, filename=None, mode='w', **options):
-    """Write doc to a file. To write to the standard output use the
-    default parameters, otherwise provide a file name. If filename is
-    provided you have the option of especifying the mode: 'w' or 'a'.
+    """Write `doc` to a file. To write to the standard output use the
+    default parameters, otherwise provide `filename`. If `filename`
+    is provided you have the option of especifying the mode: ``'w'``
+    or ``'a'``.
 
-    You may also provide a file you may have opened yourself in
-    place of filename so that the writer writes to that file.
+    You may also provide a file you may have opened yourself in place
+    of filename so that the writer writes to that file, in this case
+    the `mode` is ignored.
 
-    """
+    The valid `options` depends on the language the document
+    specifies. See the ``DEFAULT`` values a particular writer style
+    has to obtain the valid options. """
     if doc.owner is None:
         style = 'default'
         lang = 'xml'
@@ -169,19 +199,19 @@ def write(doc, filename=None, mode='w', **options):
 
 
 def init(**keywords):
-    """Every lexor style needs to call the init function. These are
-    the valid keywords to initialize a style:
+    """Every lexor style needs to call the ``init`` function. These
+    are the valid keywords to initialize a style:
 
-        version: Must be in form (major, minor, micro, alpha/beta/rc/final, #)
-        lang
-        [to_lang]
-        type
-        description
-        author
-        author_email
-        [url]
-        license
-        path: Must be present and set to __file__.
+    - version: ``(major, minor, micro, alpha/beta/rc/final, #)``
+    - lang
+    - [to_lang]
+    - type
+    - description
+    - author
+    - author_email
+    - [url]
+    - license
+    - path: Must be set to ``__file__``.
 
     """
     valid_keys = ['version', 'lang', 'to_lang', 'type', 'description',

@@ -6,9 +6,6 @@ lexor: Command Line Script
 
 To see usage run "lexor -h".
 
-Author: Manuel Lopez <jmlopez.rod@gmail.com>
-License: http://creativecommons.org/licenses/by-sa/3.0/
-
 """
 
 if __name__ == '__main__':

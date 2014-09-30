@@ -1,37 +1,53 @@
-"""lexor elements
-
+"""
 This module defines the elements of the document object model (DOM).
-This implementation follows most of the recommendations of [w3].
+This implementation follows most of the recommendations of w3_.
 
-[w3]: http://www.w3.org/TR/2012/WD-dom-20121206/
+.. _w3: http://www.w3.org/TR/2012/WD-dom-20121206/
+
+Inheritance Tree
+----------------
+
+|   :class:`lexor.core.node.Node` (``__builtin__.object``)
+|        :class:`.CharacterData`
+|             :class:`.Text`
+|             :class:`.ProcessingInstruction`
+|             :class:`.Comment`
+|             :class:`.CData`
+|             :class:`.Entity`
+|             :class:`.DocumentType`
+|        :class:`.Element`
+|             :class:`.RawText` (:class:`.Element`, :class:`.CharacterData`)
+|             :class:`.Void`
+|             :class:`.Document`
+|                  :class:`.DocumentFragment`
+
+----------------------------------------------------------------------
 
 """
-
 import os
 import sys
 from lexor.core import Node
 LC = sys.modules['lexor.core']
+# pylint: disable=too-many-public-methods
+# pylint: disable=too-many-instance-attributes
 
 
-# pylint: disable=R0904,R0902
 class CharacterData(Node):
     """A simple interface to deal with strings. """
 
     __slots__ = ('data')
 
     def __init__(self, text=''):
-        """Set the data property to the value of `text`. """
+        """Set the data property to the value of `text` and set its
+        name to ``'#character-data'``. """
         Node.__init__(self)
         self.name = '#character-data'
         self.data = text
 
     @property
     def node_value(self):
-        """Return or set the value of the current node.
-
-        PERFORMANCE-TIP: Consider accessing this property directly
-        by accessing the attribute `data` in case of performance
-        issues. """
+        """Return or set the value of the node. This property is a
+        wrapper for the ``data`` attribute. """
         return self.data
 
     @node_value.setter
@@ -46,12 +62,13 @@ class Text(CharacterData):
     __slots__ = ()
 
     def __init__(self, text=''):
-        """Create a `Text` node with its data set to `text`."""
+        """Call its base constructor and set its name to ``'#text'``.
+        """
         CharacterData.__init__(self, text)
         self.name = '#text'
 
     def clone_node(self, _=True):
-        """Returns a new Text with the same data content. """
+        """Return a new ``Text`` node with the same data content. """
         return Text(self.data)
 
 
@@ -74,6 +91,7 @@ class ProcessingInstruction(CharacterData):
     @target.setter
     def target(self, new_target):
         """Setter function. """
+        self.name = new_target
         self._target = new_target
 
     def clone_node(self, _=True):
@@ -111,60 +129,63 @@ class Comment(CharacterData):
 
 
 class CData(CharacterData):
-    """Although this node has been deprecated from the [DOM][1], it
+    """Although this node has been deprecated from the DOM_, it
     seems that xml still uses it.
 
-    [1]: https://developer.mozilla.org/en-US/docs/Web/API/Node.nodeType
+    .. _DOM: https://developer.mozilla.org/en-US/docs/Web/API/Node.nodeType
 
     """
 
     __slots__ = ()
 
     def __init__(self, data=''):
-        """Create a CDATA node"""
+        """Create a CDATA node and set the node name to
+        ``'#cdata-section'``."""
         CharacterData.__init__(self, data)
         self.name = '#cdata-section'
 
     def clone_node(self, _=True):
-        """Returns a new CData with the same data content. """
+        """Returns a new ``CData`` node with the same data content.
+        """
         return CData(self.data)
 
 
 class Entity(CharacterData):
-    """From merriam-webster [definition][1]:
+    """From merriam-webster definition_:
 
-    - something that exists by itself.
-    - something that is separate from other things.
+    - *Something that exists by itself*.
+    - *Something that is separate from other things*.
 
-    This node acts in the same way as a Text node but it has one main
-    difference. The data it contains should contain no white spaces.
-    This node should be reserved for special characters or words that
-    have different meanings across different languages. For instance
-    in HTML you have the `&amp;` to represent `&`. In LaTeX you have
-    to type `\\$` to represent `$`. Using this node will help you
-    handle these Entities hopefully more efficiently than simply
-    finding and replacing them in a Text node.
+    This node acts in the same way as a :class:`.Text` node but it
+    has one main difference. The data it contains should contain no
+    white spaces. This node should be reserved for special characters
+    or words that have different meanings across different languages.
+    For instance in HTML you have the ``&amp;`` to represent ``&``.
+    In LaTeX you have to type ``\\$`` to represent ``$``. Using this
+    node will help you handle these Entities hopefully more
+    efficiently than simply finding and replacing them in a Text node.
 
-    [1]: http://www.merriam-webster.com/dictionary/entity
+    .. _definition: http://www.merriam-webster.com/dictionary/entity
 
     """
 
     __slots__ = ()
 
     def __init__(self, text=''):
-        """Create an `Entity` node with its data set to `text`."""
+        """Create an ``Entity`` node and set the node name to
+        ``#entity``."""
         CharacterData.__init__(self, text)
         self.name = '#entity'
 
     def clone_node(self, _=True):
-        """Returns a new Entiry with the same data content. """
+        """Returns a new ``Entity`` with the same data content. """
         return Entity(self.data)
 
 
 class DocumentType(CharacterData):
     """A node to store the doctype declaration. This node will not
-    follow the specifications at this point (May 30, 2013). This node
-    will simply recieve the string in between `<!doctype ` and `>`.
+    follow the specifications at this point (May 30, 2013). It will
+    simply recieve the string in between ``<!doctype`` and ``>``.
 
     Specs: http://www.w3.org/TR/2012/WD-dom-20121206/#documenttype
 
@@ -172,7 +193,8 @@ class DocumentType(CharacterData):
     __slots__ = ()
 
     def __init__(self, data=''):
-        """Create a `doctype` node with its `data` set to data. """
+        """Create a ``DocumentType`` node and set its name to
+        ``#doctype``. """
         CharacterData.__init__(self, data)
         self.name = '#doctype'
         # The next properties should be obtained from data
@@ -190,17 +212,18 @@ class Element(Node):
     """Node object configured to have child Nodes and attributes. """
 
     def __init__(self, name, data=None):
-        """The parameter `data` should be a `dict` object. The
+        """The parameter ``data`` should be a ``dict`` object. The
         element will use the keys and values to populate its
         attributes. You may modify the elements internal dictionary.
         However, this may unintentially overwrite the attributes
-        defined by the `__setitem__` method. If you wish to add
-        another attribute to the `Element` object use the convention
-        of adding an underscore at the end of the attribute. i.e
+        defined by the ``__setitem__`` method. If you wish to add
+        another attribute to the ``Element`` object use the
+        convention of adding an underscore at the end of the
+        attribute. i.e
 
-            >> strong = Element('strong')
-            >> strong.message_ = 'An internal message'
-            >> strong['message'] = 'Attribute message'
+        >>> strong = Element('strong')
+        >>> strong.message_ = 'An internal message'
+        >>> strong['message'] = 'Attribute message'
 
         """
         Node.__init__(self)
@@ -218,21 +241,23 @@ class Element(Node):
         self.child = list()
 
     def __call__(self, selector):
-        """Return a LC.Selector object. """
+        """Return a :class:`lexor.core.selector.Selector` object. """
         return LC.Selector(selector, self)
 
     def update_attributes(self, node):
-        """Copies the attributes of the node into the calling node. """
+        """Copies the attributes of the input node into the calling
+        node. """
         for k in node:
             self.__dict__[k] = node.__dict__[k]
             if k not in self._order:
                 self._order.append(k)
 
     def __getitem__(self, k):
-        """Return the k-th child of this node if `k` is an integer.
+        """Return the `k`-th child of this node if `k` is an integer.
         Otherwise return the attribute of name with value of `k`.
 
-            x.__getitem__(k) <==> x[k]
+        >>> x.__getitem__(k) is x[k]
+        True
 
         """
         if isinstance(k, str):
@@ -246,21 +271,14 @@ class Element(Node):
         return self.__dict__.get(k, val)
 
     def __setitem__(self, k, val):
+        """Overloaded array operator. Appends or modifies an
+        attribute. See its base method
+        :meth:`lexor.core.node.Node.__setitem__` for documentation on
+        when `val` is not string.
+
+        >>> x.__setitem__(attname) = 'att' <==> x[attname] = 'att'
+
         """
-        x.__setitem__(index) = node <==> x[index] = node
-        x.__setitem__(slice(i, j)) = [...] <==> x[i:j] = [...]
-        x.__setitem__(slice(i, j, dt)) = [...] <==> x[i:j:dt] = [...]
-
-        Note: When using slices the nodes to be assigned to the
-        indices need to be contained in a builtin list. The size of
-        this list must be the same as the slice. This function does
-        not support insertion as the regular slice for list does. To
-        insert an object use insert.
-
-        x.__setitem__(attname) = 'att' <==> x[attname] = 'att'
-
-        Note: The behaviour of Attribute still applies to a Proper
-        Node. """
         if isinstance(k, str):
             self.__dict__[k] = val
             if k not in self._order:
@@ -271,6 +289,11 @@ class Element(Node):
             Node.__setitem__(self, k, val)
 
     def __delitem__(self, k):
+        """Remove a child or attribute.
+
+        >>> x.__delitem__(k) <==> del x[k]
+
+        """
         if isinstance(k, str):
             self.__dict__.__delitem__(k)
             self._order.remove(k)
@@ -278,11 +301,12 @@ class Element(Node):
             Node.__delitem__(self, k)
 
     def __contains__(self, obj):
-        """Return true if `obj` is a Node and it is a child of this
-        `Element`. Return true if `obj` is an attribute of this
-        `Element`. Return false otherwise.
+        """Return ``True`` if `obj` is a node and it is a child
+        of this element or if `obj` is an attribute of this
+        element. Return ``False`` otherwise.
 
-            x.__contains__(obj) <==> obj in x
+        >>> x.__contains__(obj) == obj in x
+        True
 
         """
         if isinstance(obj, Node):
@@ -291,8 +315,8 @@ class Element(Node):
             return self._order.__contains__(obj)
 
     def contains(self, obj):
-        """Unlike __contains__ (obj in node), this method returns
-        True if obj is any of the desendents of the node. """
+        """Unlike ``__contains__``, this method returns ``True`` if
+        `obj` is any of the desendents of the node. """
         if obj.level < self.level + 1:
             return False
         while obj.level > self.level + 1:
@@ -302,6 +326,11 @@ class Element(Node):
         return obj in self
 
     def __iter__(self):
+        """Iterate over the element attributes names.
+
+        >>> for attribute_name in node: ...
+
+        """
         for k in self._order:
             yield k
 
@@ -312,7 +341,7 @@ class Element(Node):
 
     @property
     def attributes(self):
-        """Return a list of the attribute names in the Element. """
+        """Return a list of the attribute names in the element. """
         return list(self._order)
 
     @property
@@ -334,14 +363,25 @@ class Element(Node):
         return zip(self._order, self.values)
 
     def update(self, dict_):
-        """update with the values of dict_. useful when the element
+        """update with the values of `dict_`. useful when the element
         is empty and you created an Attr object. then just update the
         values."""
         for key, val in dict_.items():
             self.__setitem__(key, val)
 
     def rename(self, old_name, new_name):
-        """Renames an attribute. """
+        """Renames an attribute. 
+
+        >>> from lexor.core.elements import Element
+        >>> node = Element('div')
+        >>> node['att1'] = 'val1'
+        >>> node
+        div[0x10a090750 att1="val1"]:
+        >>> node.rename('att1', 'new-att-name')
+        >>> node
+        div[0x10a090750 new-att-name="val1"]:
+        
+        """
         if isinstance(old_name, str):
             index = self._order.index(old_name)
         else:
@@ -351,7 +391,8 @@ class Element(Node):
         self._order[index] = new_name
 
     def clone_node(self, deep=False, normalize=True):
-        """Returns a new element"""
+        """Returns a new node. When deep is True, it will clone also
+        clone all the child nodes."""
         # May want to provide a node to which the clone will be
         # appended to. If this is done then we will not have to
         # traverse through all the elements of the node to adjust
@@ -430,8 +471,30 @@ class Element(Node):
 
     def children(self, children=None, **keywords):
         """Set the elements children by providing a list of nodes or
-        a string. If using a string then you may provide keywords to
-        dictate how to parse and convert. """
+        a string. If using a string then you may provide any of the
+        following keywords to dictate how to parse and convert:
+
+        - parser_style: ``'_'``
+        - parser_lang: ``'html``
+        - parser_defaults: ``None``,
+        - convert_style: ``'_'``,
+        - convert_from: ``None``,
+        - convert_to: ``'html'``,
+        - convert_defaults: ``None``,
+        - convert: ``'false'``
+
+        If no children are provided then it returns a string of the children
+        written in plain html. To change this behavior provide the
+        following keywords:
+
+        - writer_style: ``'plain'``
+        - writer_lang: ``'html``
+
+        .. important::
+
+            This requires the installation of lexor styles.
+
+        """
         if children is None:
             lang = keywords.get('writer_lang', 'html')
             style = keywords.get('writer_style', 'plain')
@@ -482,15 +545,18 @@ class Element(Node):
 
 
 class RawText(Element, CharacterData):
-    """Docstring for raw text"""
+    """A few elements do not have children, instead they have data.
+    Such elements exist in HTML: ``script``, ``title`` among
+    others."""
 
     def __init__(self, name, data='', att=None):
+        """You may provide `att` as a ``dict`` object. """
         CharacterData.__init__(self, data)
         Element.__init__(self, name, att)
         self.child = None
 
     def clone_node(self, deep=True, normalize=True):
-        """Returns a new element"""
+        """Returns a new ``RawText`` element"""
         node = RawText(self.name)
         node.update_attributes(self)
         if deep is True:
@@ -499,14 +565,15 @@ class RawText(Element, CharacterData):
 
 
 class Void(Element):
-    """Docstring for raw Void"""
+    """An element with no children. """
 
-    def __init__(self, name, data=None):
-        Element.__init__(self, name, data)
+    def __init__(self, name, att=None):
+        """You may provide `att` as a `dict` object. """
+        Element.__init__(self, name, att)
         self.child = None
 
     def clone_node(self, _=True, normalize=True):
-        """Returns a new Void element. """
+        """Returns a new ``Void`` element. """
         node = Void(self.name)
         node.update_attributes(self)
         return node
@@ -516,6 +583,8 @@ class Document(Element):
     """Contains information about the document that it holds. """
 
     def __init__(self, lang='xml', style='default'):
+        """Creates a new document object and sets its name to
+        ``#document``."""
         Element.__init__(self, '#document')
         self.level = -1
         self.owner = self
@@ -546,9 +615,7 @@ class Document(Element):
         """The current document's language. This property is used by
         the writer to determine how to write the document.
 
-        PERFORMANCE-TIP: Consider accessing this property directly
-        by accessing the attribute `lang` in case of performance
-        issues. """
+        This property is a wrapper for the ``lang`` attribute. """
         return self.lang
 
     @language.setter
@@ -561,27 +628,28 @@ class Document(Element):
         """The current document's style. This property is used by
         the writer to determine how to write the document.
 
-        For performance simply use self.style.
+        This property is a wrapper for the ``style`` attribute.
         """
         return self.style
-
-    @property
-    def uri(self):
-        """The Uniform Resource Identifier. This property may become
-        useful if the document represents a file. This property
-        should be set by the a Parser object telling you the location
-        of the file that it parsed into the Document object. """
-        return self.uri_
 
     @writing_style.setter
     def writing_style(self, val):
         """Docstring for setter. """
         self.style = val
 
+    @property
+    def uri(self):
+        """The Uniform Resource Identifier. This property may become
+        useful if the document represents a file. This property
+        should be set by the a :class:`~lexor.core.parser.Parser`
+        object telling us the location of the file that it parsed
+        into the Document object. """
+        return self.uri_
+
     @staticmethod
     def create_element(tagname, data=None):
         """Utility function to avoid having to import
-        lexor.core.elements module. Returns an element object. """
+        ``lexor.core.elements`` module. Returns an element object. """
         return Element(tagname, data)
 
     def get_element_by_id(self, element_id):
@@ -593,8 +661,8 @@ class Document(Element):
 class DocumentFragment(Document):
     """Takes in an element and "steals" its children. This element
     should only be used as a temporary container. Note that the
-    __str__ function may not yield the expected results since all the
-    function will do is use the __str__ function in each of its
+    ``__str__`` method may not yield the expected results since all
+    the function will do is use the ``__str__`` method in each of its
     children. First assign this object to an actual Document. """
 
     def __init__(self, lang='xml', style='default'):
@@ -603,10 +671,11 @@ class DocumentFragment(Document):
 
     def append_child(self, new_child):
         """Adds the node new_child to the end of the list of children
-        of this node. The children contained in a `DocumentFragment`
-        only have a parent (the `DocumentFragment`). As opposed as
-        the `Node` append_child which also takes care of the `prev`
-        and `next` attributes. """
+        of this node. The children contained in a
+        ``DocumentFragment`` only have a parent (the
+        ``DocumentFragment``). As opposed as
+        :meth:`lexor.core.node.Node.append_child` which also takes
+        care of the ``prev`` and ``next`` attributes. """
         if isinstance(new_child, str):
             new_child = Text(new_child)
         elif not isinstance(new_child, Node):
@@ -619,9 +688,15 @@ class DocumentFragment(Document):
         return new_child
 
     def __repr__(self):
-        """x.__repr__() <==> repr(x)"""
+        """
+        >>> x.__repr__() <==> repr(x)
+
+        """
         return ''.join([repr(node) for node in self.child])
 
     def __str__(self):
-        """x.__str__() <==> str(x)"""
+        """
+        >>> x.__str__() <==> str(x)
+
+        """
         return ''.join([str(node) for node in self.child])

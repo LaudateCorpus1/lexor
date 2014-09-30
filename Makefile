@@ -20,3 +20,6 @@ export:
 clean:
 	rm -rf lexor.egg-info
 	rm -rf build
+
+pypi:
+	python setup.py sdist upload

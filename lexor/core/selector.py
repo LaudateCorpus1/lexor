@@ -209,6 +209,7 @@ def select(selector, context, results, seed):
     @param {Element} context
     @param {Array} [results]
     @param {Array} [seed] A set of elements to match against
+
     """
     #compiled = typeof selector === "function" && selector
     #selector = compiled.selector or selector

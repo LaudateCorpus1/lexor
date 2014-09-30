@@ -1,4 +1,4 @@
-""" Command line use of lexor
+"""Command line use of lexor
 
 To run lexor from the command line do the following:
 
@@ -106,11 +106,11 @@ shortcut:
 
     lexor file.ext lang <==> lexor fle.ext to lang
 
-More info:
+more info:
   http://jmlopez-rod.github.com/lexor
 
-Version:
-  This is lexor version %s
+version:
+  lexor %s
 
 """ % VERSION
     raw = argparse.RawDescriptionHelpFormatter
@@ -128,8 +128,8 @@ Version:
                                dest='parser_name',
                                help='additional help',
                                metavar="<command>")
-    names = mod.keys()
-    names.sort()
+
+    names = sorted(mod.keys())
     for name in names:
         mod[name].add_parser(subp, raw)
     try:
@@ -150,12 +150,14 @@ def run():
     """Run lexor from the command line. """
     mod = dict()
     rootpath = pt.split(pt.abspath(__file__))[0]
+
     mod_names = [name for name in iglob('%s/command/*.py' % rootpath)]
     for name in mod_names:
         tmp_name = pt.split(name)[1][:-3]
         tmp_mod = import_mod('lexor.command.%s' % tmp_name)
         if hasattr(tmp_mod, 'add_parser'):
             mod[tmp_name] = tmp_mod
+
     arg = parse_options(mod)
     config.CONFIG['cfg_path'] = arg.cfg_path
     config.CONFIG['cfg_user'] = arg.cfg_user

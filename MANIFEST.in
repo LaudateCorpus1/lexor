@@ -1,4 +1,6 @@
-include bin/lexor
-include Makefile
+recursive-include docs *
+recursive-include lexor *.py *.txt
 include MANIFEST.in
-include lexor/core/templates/*.txt
+include README.rst
+include Makefile
+include bin/lexor

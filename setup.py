@@ -14,7 +14,8 @@ def get_version():
 VERSION, VERSION_INFO = get_version()
 
 DESCRIPTION = "Document converter implemented in python."
-LONG_DESCRIPTION = "Lexor is a parser, converter and writer."
+LONG_DESCRIPTION = open(pt.join(pt.dirname(__file__), 'README.rst')).read()
+LONG_DESCRIPTION += open(pt.join(pt.dirname(__file__), 'HISTORY.rst')).read()
 
 DEV_STATUS_MAP = {
     'alpha': '3 - Alpha',
@@ -34,7 +35,7 @@ setup(name='lexor',
       keywords='lexor markdown html',
       author='Manuel Lopez',
       author_email='jmlopez.rod@gmail.com',
-      url='http://math.uh.edu/~jmlopez/lexor',
+      url='http://lexor.readthedocs.org',
       license='BSD License',
       packages=[
           'lexor',
@@ -64,4 +65,4 @@ setup(name='lexor',
           'Topic :: Text Processing :: Linguistic',
           'Topic :: Text Processing :: Markup',
           ],
-      )
+     )
