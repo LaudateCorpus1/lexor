@@ -47,6 +47,7 @@ setup(name='lexor',
           'configparser>=3.3.0r2',
           'argcomplete>=0.6.7',
           'nose>=1.3',
+          'python-dateutil>=2.2',
           ],
       package_data={
           'lexor.core': ['*.txt'],
