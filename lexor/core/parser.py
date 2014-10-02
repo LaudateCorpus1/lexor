@@ -1,8 +1,17 @@
-"""Parser Module
-
-Provides the `Parser` object which defines the basic mechanism for
+"""
+Provides the |Parser| object which defines the basic mechanism for
 parsing character sequences. This involves using objects derived from
-the abstract class `NodeParser`.
+the abstract class |NodeParser|.
+
+.. |Parser| replace:: :class:`~.Parser`
+.. |NodeParser| replace:: :class:`~.NodeParser`
+.. |Node| replace:: :class:`~lexor.core.node.Node`
+.. |Element| replace:: :class:`~lexor.core.elements.Element`
+.. |PI| replace:: :class:`~lexor.core.elements.ProcessingInstruction`
+.. |RawText| replace:: :class:`~lexor.core.elements.RawText`
+.. |Void| replace:: :class:`~lexor.core.elements.Void`
+.. |Document| replace:: :class:`~lexor.core.elements.Document`
+.. |DocFrag| replace:: :class:`~lexor.core.elements.DocumentFragment`
 
 """
 
@@ -14,76 +23,84 @@ LC = sys.modules['lexor.core']
 
 
 class NodeParser(object):
-    """An object that has two methods: `makeNode` and `close`. The
-    first method is required to be overloaded in derived objects."""
+    """An object that has two methods: ``make_node`` and ``close``.
+    Both method is required to be overloaded in derived objects."""
 
     def __init__(self, parser):
-        """A `NodeParser` needs to be initialized with a `Parser`
+        """A |NodeParser| needs to be initialized with a |Parser|
         object. If this method is to be overloaded then make sure
-        that it only accepts one parameter: `parser`. This method is
-        used by `Parser` and it calls it with itself as the parameter.
-
-        """
+        that it only accepts one parameter: ``parser``. This method
+        is used by |Parser| and it calls it with itself as the
+        parameter."""
         self.parser = parser
 
     def make_node(self):
         """This method is required to be overloaded by the derived
-        node parser. It returns `None` if the node parser will not be
-        able to create a node from the current information in the
-        parser. Otherwise it creates a `Node` object and returns it.
+        node parser. It returns ``None`` if the node parser will not
+        be able to create a node from the current information in the
+        parser. Otherwise it creates a |Node| object and returns it.
 
         When returning a node you have the option of informing the
         parser if the node is complete or not. For instance, if your
-        node parser creates an Element and it does not have any
-        children to be parsed then return a list containing only the
-        single node. This will tell the parser that the node has been
-        closed and it will not call the `close` method of the node
-        parser. If the `Node` does not have a child, say
-        `ProcessingInstruction`, `RawText`, or `Void` then there is
-        no need to wrap the node in a list.
+        node parser creates an |Element| and it does not have any
+        children to be parsed then return a ``list`` containing only
+        the single node. This will tell the parser that the node has
+        been closed and it will not call the :meth:`close` method of
+        the node parser. If the |Node| does not have a child, say
+        |PI|, |RawText|, or |Void| then there is no need to wrap the
+        node in a ``list``.
 
-        The `Node` object that this method returns also needs
-        to have the property `pos`. This is a list of two integers
+        The |Node| object that this method returns also needs to have
+        the property ``pos``. This is a ``list`` of two integers
         stating the line and column number where the node was
         encountered in the text that is being parsed. This property
         will be removed by the parser once the parser finishes all
         processing with the node.
 
-        If this method is not overloaded as previously stated then
-        a `NotImplementedError` exception will be raised.
-
+        If this method is not overloaded as previously stated then a
+        ``NotImplementedError`` exception will be raised.
         """
         msg = '%s did not implement `make_node`' % self.__class__
         raise NotImplementedError(msg)
 
     def close(self, _):
         """This method needs to be overloaded if the node parser
-        returns a `Node` with the `make_node` method.
+        returns a |Node| with the :meth:`make_node` method.
 
-        This method will not get called if `make_node` returned a
-        `Node` inside a `list`. The close function takes as input the
-        `Node` object that `make_node` returned and it should decide
-        if the node can be closed or not. If it is indeed time to
-        close the `Node` then return a list with the position where
-        the `Node` is being closed, otherwise return `None`.
+        This method will not get called if :meth:`make_node` returned
+        a |Node| inside a ``list``. The close function takes as input
+        the node object that :meth:`make_node` returned and it should
+        decide if the node can be closed or not. If it is indeed time
+        to close the node then return a ``list`` with the position
+        where the node is being closed, otherwise return ``None``.
 
-        If this method is not overloaded then a `NotImplementedError`
-        exception will be raised.
-
+        If this method is not overloaded then a
+        ``NotImplementedError`` exception will be raised.
         """
         msg = '%s did not implement `close`' % self.__class__
         raise NotImplementedError(msg)
 
     def msg(self, code, pos, arg=None, uri=None):
-        """Send a message to the parser. """
+        """Send a message to the parser by providing one of the error
+        codes defined in the style as well as the position where the
+        error took place. The position has the form of a list
+        containing the line and column number. Some error codes may
+        provide arguments, this can be passed to `arg`. In case the
+        error occurred somewhere not in the current document, perhaps
+        in a string, then you may provide a new `uri` to denote the
+        location.
+
+        .. todo:: Provide link to parse style creation.
+
+        See :ref:`` for more information on how to properly use this
+        method. """
         self.parser.msg(self.__module__, code, pos, arg, uri)
 
 
-# The default of 7 attributes max in a class is too restrictive.
-# pylint: disable=R0902
+# pylint: disable=too-many-instance-attributes
 class Parser(object):
     """To see the languages that it is able to parse see the
-    `lexor.lang` module. """
+    :mod:`lexor.command.lang` module. """
 
     def __init__(self, lang='xml', style='default', defaults=None):
         """Create a new parser by specifying the language and the
@@ -117,7 +134,7 @@ class Parser(object):
         return self._node_parser[name]
 
     def __getitem__(self, name):
-        """Return a Node parser. """
+        """Return the specified |NodeParser|. """
         return self._node_parser[name]
 
     def _set_node_parsers(self, lang, style, defaults=None):
@@ -144,18 +161,19 @@ class Parser(object):
             self._np[key] = self._np[val]
 
     def load_node_parsers(self):
-        """Loads the node parsers. This function is called
-        automatically when `parse` is called only if there was a
-        change in the settings. """
+        """Loads the |NodeParser| objects defined in a parser style.
+        This function is called automatically when :meth:`parse` is
+        called only if there was a change in the settings. """
         self._set_node_parsers(
             self._lang, self._style, self.defaults
         )
         self._reload = False
 
     def parse(self, text, uri=None):
-        """parses the given `text`. To see the results of this method see
-        the `document` and `log` property. If no `uri` is given then
-        `document` will return a `DocumentFragment` node. """
+        """Parses the given `text`. To see the results of this method
+        see the :meth:`document` and :meth:`lexor_log` property. If
+        no `uri` is given then :meth:`document` will return a
+        |DocFrag| node. """
         if self._reload:
             self.load_node_parsers()
         self.text = text
@@ -180,9 +198,8 @@ class Parser(object):
 
     @property
     def cdata(self):
-        """The character sequence data that was last processed by the
-        `parse` method. You may use the attribute access `text` if
-        performance is an issue. """
+        """The character sequence data that was last processed by
+        :meth:`parse`. """
         return self.text
 
     @property

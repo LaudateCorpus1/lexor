@@ -4,16 +4,17 @@ provided with lexor. These packages contain many other functions and
 information which can help you convert your document in the way you
 desire.
 
-
-:`core <lexor.core>`_: 
+:|core|:
     The core of lexor defines basic objects such as ``Document`` and
     provides the main objects that define the functions provided in
     this module.
 
-
-:`command <lexor.command>`_:
+:|command|:
     This module is in charge of providing all the available commands
     to lexor.
+
+.. |core| replace:: :mod:`~lexor.core`
+.. |command| replace:: :mod:`~lexor.command`
 
 ----------------------------------------------------------------------
 

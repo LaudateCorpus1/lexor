@@ -10,4 +10,8 @@ code.
     lexor.core <lexor.core>
     lexor.core.node <lexor.core.node>
     lexor.core.elements <lexor.core.elements>
+    lexor.core.parser <lexor.core.parser>
+    lexor.core.converter <lexor.core.converter>
+    lexor.core.writer <lexor.core.writer>
+    lexor.core.selector <lexor.core.selector>
     lexor.command <lexor.command>

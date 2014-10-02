@@ -1,30 +1,45 @@
 """
 The core of lexor is divided among the modules in this package.
 
-:`node <lexor.core.node>`_:
+:|node|:
     Provides the most basic structure to create the document object
     model (DOM).
 
-:`elements <lexor.core.elements>`_:
+:|elements|:
     Here we define the basic structures to handle the information
     provided in files. Make sure to familiarize yourself with all the
     objects in this module to be able to write extensions for the
-    ``Parser``, ``Converter`` and ``Writer``.
+    |Parser|, |Converter| and |Writer|.
 
-:parser:
-    The parser module provides the ``Parser`` and the abstract class
-    ``NodeParser`` which helps us write derived objects for future
+:|parser|:
+    The parser module provides the |Parser| and the abstract class
+    |NodeParser| which helps us write derived objects for future
     languages to parse.
 
-:converter:
-    The converter module provides the ``Converter`` and the abstract
-    class ``NodeConverter`` which helps us copy a ``Document`` we
+:|converter|:
+    The converter module provides the |Converter| and the abstract
+    class |NodeConverter| which helps us copy a |Document| we
     want to convert to another language.
 
-:writer:
-    The writer module provides the ``Writer`` and the abstract class
-    ``NodeWriter`` which once subclassed help us tell the ``Writer``
-    how to write a ``Node`` to a file object.
+:|writer|:
+    The writer module provides the |Writer| and the abstract class
+    |NodeWriter| which once subclassed help us tell the |Writer|
+    how to write a |Node| to a file object.
+
+
+.. |node| replace:: :mod:`~lexor.core.node`
+.. |Node| replace:: :mod:`~lexor.core.node.Node`
+.. |elements| replace:: :mod:`~lexor.core.elements`
+.. |Document| replace:: :mod:`~lexor.core.elements.Document`
+.. |parser| replace:: :mod:`~lexor.core.parser`
+.. |Parser| replace:: :mod:`~lexor.core.parser.Parser`
+.. |NodeParser| replace:: :mod:`~lexor.core.parser.NodeParser`
+.. |converter| replace:: :mod:`~lexor.core.converter`
+.. |Converter| replace:: :mod:`~lexor.core.converter.Converter`
+.. |NodeConverter| replace:: :mod:`~lexor.core.converter.NodeConverter`
+.. |writer| replace:: :mod:`~lexor.core.writer`
+.. |Writer| replace:: :mod:`~lexor.core.writer.Writer`
+.. |NodeWriter| replace:: :mod:`~lexor.core.writer.NodeWriter`
 
 """
 
