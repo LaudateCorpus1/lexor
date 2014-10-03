@@ -11,6 +11,7 @@ import sys
 import textwrap
 import inspect
 import lexor
+import os.path as pth
 from imp import load_source
 from lexor.core import elements as core
 from lexor.command import config, error, warn
@@ -414,8 +415,8 @@ def check_filename(arg):
 
     if '.py' not in fname:
         fname = '%s.py' % fname
-    if not os.path.exists(fname):
-        error("ERROR: No such file or directory.\n")
+    if not os.path.exists(pth.join(dirpath, fname)):
+        error("ERROR: %r not found.\n" % (pth.join(dirpath, fname)))
     return dirpath, fname
 
 
