@@ -15,3 +15,4 @@ code.
     lexor.core.writer <lexor.core.writer>
     lexor.core.selector <lexor.core.selector>
     lexor.command <lexor.command>
+    lexor.command.config <lexor.command.config>

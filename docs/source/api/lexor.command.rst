@@ -1,15 +1,9 @@
 lexor.command package
 =====================
 
-Submodules
-----------
-
-lexor.command.config module
----------------------------
-
-.. automodule:: lexor.command.config
+.. automodule:: lexor.command
     :members:
-    :undoc-members:
+    :member-order: bysource
     :show-inheritance:
 
 lexor.command.defaults module
@@ -88,15 +82,6 @@ lexor.command.to module
 -----------------------
 
 .. automodule:: lexor.command.to
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-
-Module contents
----------------
-
-.. automodule:: lexor.command
     :members:
     :undoc-members:
     :show-inheritance:

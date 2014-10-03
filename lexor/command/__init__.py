@@ -1,5 +1,4 @@
-"""Command
-
+"""
 Collection of functions to create lexor's command line utility.
 
 """
@@ -17,8 +16,13 @@ def error(msg):
 
 
 def warn(msg):
-    "Print a message to the standard error "
+    "Print a message to the standard error. "
     sys.stderr.write(msg)
+
+
+def disp(msg):
+    "Print a message to the standard output. "
+    sys.stdout.write(msg)
 
 
 def import_mod(name):
@@ -30,14 +34,18 @@ def import_mod(name):
 
 
 def exec_cmd(cmd, verbose=False):
-    "Run a subprocess and return its output and errors. "
+    """Run a subprocess and return its output, errors and return code
+    when `verbose` is set to False. Otherwise execute the command
+    `cmd`. """
     if verbose:
         out = sys.stdout
         err = sys.stderr
     else:
         out = PIPE
         err = PIPE
-    process = Popen(cmd, shell=True, stdout=out, stderr=err)
+    process = Popen(cmd, shell=True,
+                    universal_newlines=True, executable="/bin/bash",
+                    stdout=out, stderr=err)
     out, err = process.communicate()
     return out, err, process.returncode
 

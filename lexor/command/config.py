@@ -1,16 +1,14 @@
-"""Config
-
+"""
 This module is in charge of providing all the necessary settings to
 the rest of the modules in lexor.
 
 """
-
 import os
 import sys
 import argparse
 import textwrap
 import configparser
-from lexor.command import error, import_mod
+from lexor.command import error, disp, import_mod
 
 
 DESC = """View and edit a configuration file for lexor.
@@ -33,45 +31,80 @@ CONFIG = {
 }
 
 
-def var_completer(**_):
+def _var_completer(**_):
     """var completer. """
     return ['SEC.KEY']
 
 
-def value_completer(**_):
+def _value_completer(**_):
     """value completer. """
     return ['VALUE']
 
 
-class ConfigDispAction(argparse.Action):  # pylint: disable=R0903
+# pylint: disable=too-few-public-methods
+class _ConfigDispAction(argparse.Action):
     """Derived argparse Action class to use when displaying the
     configuration file and location."""
     def __call__(self, parser, namespace, values, option_string=None):
-        global CONFIG
         CONFIG['cfg_user'] = namespace.cfg_user
         CONFIG['cfg_path'] = namespace.cfg_path
         cfg_file = read_config()
         fname = '%s/%s' % (CONFIG['path'], CONFIG['name'])
-        print('lexor configuration file: %s' % fname)
+        disp('lexor configuration file: %s\n' % fname)
         cfg_file.write(sys.stdout)
         exit(0)
 
 
 def add_parser(subp, fclass):
-    "Add a parser to the main subparser. "
+    """
+    .. admonition:: Command Line Utility Function
+        :class: warning
+
+        Add a parser to the main subparser.
+    """
     tmpp = subp.add_parser('config', help='configure lexor',
                            formatter_class=fclass,
                            description=textwrap.dedent(DESC))
-    tmpp.add_argument('var', type=str,
-                      help='Must be in the form of sec.key'
-                      ).completer = var_completer
+    tmpp.add_argument(
+        'var', type=str, help='Must be in the form of sec.key'
+    ).completer = _var_completer
     tmpp.add_argument('value', type=str, nargs='?', default=None,
-                      help='var value').completer = value_completer
+                      help='var value').completer = _value_completer
     tmpp.add_argument('-v', action='store_true',
                       help='print config file location')
-    tmpp.add_argument('--display', action=ConfigDispAction,
+    tmpp.add_argument('--display', action=_ConfigDispAction,
                       nargs=0,
                       help='print config file and exit')
+
+
+def run():
+    """
+    .. admonition:: Command Line Utility Function
+        :class: warning
+
+        Run the command.
+    """
+    arg = CONFIG['arg']
+    cfg_file = read_config()
+    try:
+        command, var = arg.var.split('.', 1)
+    except ValueError:
+        error("ERROR: '%s' is not of the form sec.key\n" % arg.var)
+    if arg.v:
+        fname = '%s/%s' % (CONFIG['path'], CONFIG['name'])
+        disp('lexor configuration file: %s\n' % fname)
+    if arg.value is None:
+        try:
+            print cfg_file[command][var]
+        except KeyError:
+            pass
+        return
+    try:
+        cfg_file[command][var] = arg.value
+    except KeyError:
+        cfg_file.add_section(command)
+        cfg_file[command][var] = arg.value
+    write_config(cfg_file)
 
 
 def read_config():
@@ -106,32 +139,7 @@ def write_config(cfg_file):
         cfg_file.write(tmp)
 
 
-def run():
-    "Run command. "
-    arg = CONFIG['arg']
-    cfg_file = read_config()
-    try:
-        command, var = arg.var.split('.', 1)
-    except ValueError:
-        error("ERROR: '%s' is not of the form sec.key\n" % arg.var)
-    if arg.v:
-        fname = '%s/%s' % (CONFIG['path'], CONFIG['name'])
-        print('lexor configuration file: %s' % fname)
-    if arg.value is None:
-        try:
-            print cfg_file[command][var]
-        except KeyError:
-            pass
-        return
-    try:
-        cfg_file[command][var] = arg.value
-    except KeyError:
-        cfg_file.add_section(command)
-        cfg_file[command][var] = arg.value
-    write_config(cfg_file)
-
-
-def update_single(cfg, name, defaults=None):
+def _update_single(cfg, name, defaults=None):
     "Helper function for get_cfg."
     if defaults:
         for var, val in defaults.iteritems():
@@ -175,12 +183,12 @@ def get_cfg(names, defaults=None):
     if isinstance(names, list):
         for name in names:
             cfg[name] = dict()
-            update_single(cfg, name)
+            _update_single(cfg, name)
             _update_from_file(cfg, name, cfg_file)
     else:
         if names != 'lexor':
             cfg[names] = dict()
-            update_single(cfg, names, defaults)
+            _update_single(cfg, names, defaults)
             _update_from_file(cfg, names, cfg_file)
     if CONFIG['arg']:
         argdict = vars(CONFIG['arg'])
@@ -192,10 +200,16 @@ def get_cfg(names, defaults=None):
 
 
 def set_style_cfg(obj, name, defaults):
-    """Given an obj, this can be a Parser, Converter or Writer. It
-    sets the attribute defaults to the specified defaults in the
+    """Given a |Parser|, |Converter| or |Writer| `obj`, it
+    sets the attribute ``defaults`` to the specified defaults in the
     configuration file or by the user by overwriting values in the
-    parameter defaults."""
+    parameter `defaults`.
+
+    .. |Parser| replace:: :class:`~lexor.core.parser.Parser`
+    .. |Converter| replace:: :class:`~lexor.core.converter.Converter`
+    .. |Writer| replace:: :class:`~lexor.core.writer.Writer`
+
+    """
     obj.defaults = dict()
     if hasattr(obj.style_module, 'DEFAULTS'):
         mod_defaults = obj.style_module.DEFAULTS
