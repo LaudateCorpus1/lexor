@@ -7,7 +7,7 @@ In short, credit goes to Sizzle_ and CSS for the selector idea.
 
 .. warning::
 
-    This module is far from complete. Some of the function specified
+    This module is far from complete. Some of the functions specified
     here lack functionality.
 
 .. _Sizzle: http://sizzlejs.com/
@@ -226,14 +226,29 @@ def select(selector, context, results, seed):
 
 
 def matcher_from_tokens(tokens):
+    """
+    .. warning::
+
+        Missing documentation.
+    """
     pass
 
 
 def matcher_from_group_matchers(element_matchers, set_matchers):
+    """
+    .. warning::
+
+        Missing documentation.
+    """
     pass
 
 
 def compile_selector(selector, match=None):
+    """
+    .. warning::
+
+        Missing documentation.
+    """
     try:
         return compile_selector.cache[selector]
     except KeyError:
@@ -257,7 +272,11 @@ compile_selector.cache = dict()
 
 
 def tokenize(selector, parse_only=False):
-    """Tokenize..."""
+    """
+    .. warning::
+
+        Missing documentation.
+    """
     try:
         cached = tokenize.cache[selector]
     except KeyError:
@@ -478,16 +497,18 @@ class Selector(object):
 
     def after(self, *arg, **keywords):
         """Insert content, specified by the parameter, after each
-        element in the set of matched elements ::
+        element in the set of matched elements.
+
+        .. code::
 
             .after(content [,content])
 
-        ``content``
+        :param content:
             html string or Element or Array or jQuery string, Node,
             array of Node, or Selector object to insert after each
             element in the set of matched elements.
-        
-        ``content``
+
+        :param content:
             html string or Element or Array or jQuery One or more
             additional DOM elements, arrays of elements, HTML
             strings, or jQuery objects to insert after each element
@@ -497,7 +518,7 @@ class Selector(object):
 
             .after(function(node, index))
 
-        ``function(node, index)``
+        :param function(node,index):
             A function that returns a string, DOM element(s), or
             Selector object to insert after each element in the set
             of matched elements. Receives the element in the set and
@@ -507,13 +528,13 @@ class Selector(object):
 
             .after(..., lang='html', style='default', 'defaults'=None)
 
-        ``lang``
+        :param lang:
             The language in which strings will be parsed in.
 
-        ``style``
+        :param style:
             The style in which strings will be parsed in.
 
-        ``defaults``
+        :param defaults:
             A dictionary with string keywords and values specifying
             options for the particular style.
         """
@@ -562,16 +583,18 @@ class Selector(object):
 
     def before(self, *arg, **keywords):
         """Insert content, specified by the parameter, before each
-        element in the set of matched elements ::
+        element in the set of matched elements.
+
+        .. code::
 
             .before(content [,content])
 
-        ``content``
+        :param content:
             html string or Element or Array or jQuery string, Node,
             array of Node, or Selector object to insert before each
             element in the set of matched elements.
 
-        ``content``
+        :param content:
             html string or Element or Array or jQuery One or more
             additional DOM elements, arrays of elements, HTML
             strings, or jQuery objects to insert before each element
@@ -581,7 +604,7 @@ class Selector(object):
 
             .before(function(node, index))
 
-        ``function(node, index)``
+        :param function(node,index):
             A function that returns a string, DOM element(s), or
             Selector object to insert before each element in the set
             of matched elements. Receives the element in the set and
@@ -591,13 +614,13 @@ class Selector(object):
 
             .before(..., lang='html', style='default', 'defaults'=None)
 
-        ``lang``
+        :param lang:
             The language in which strings will be parsed in.
 
-        ``style``
+        :param style:
             The style in which strings will be parsed in.
 
-        ``defaults``
+        :param defaults:
             A dictionary with string keywords and values specifying
             options for the particular style.
         """
