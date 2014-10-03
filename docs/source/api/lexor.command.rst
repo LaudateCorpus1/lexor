@@ -6,26 +6,10 @@ lexor.command package
     :member-order: bysource
     :show-inheritance:
 
-lexor.command.defaults module
------------------------------
-
-.. automodule:: lexor.command.defaults
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 lexor.command.develop module
 ----------------------------
 
 .. automodule:: lexor.command.develop
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-lexor.command.dist module
--------------------------
-
-.. automodule:: lexor.command.dist
     :members:
     :undoc-members:
     :show-inheritance:

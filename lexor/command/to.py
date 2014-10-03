@@ -158,7 +158,7 @@ def input_language(tolang):
         for style in styles:
             if ':' in style:
                 pass
-                #raise argparse.ArgumentTypeError(msg)
+                # raise argparse.ArgumentTypeError(msg)
         styles = [style_parameters(ele) for ele in styles]
     else:
         styles = [parse_styles(ele) for ele in split_at(',', styles)]

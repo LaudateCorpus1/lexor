@@ -1,5 +1,4 @@
-"""Distribute
-
+"""
 Package a style along with auxiliary and test files.
 
 """
@@ -23,7 +22,7 @@ Distribute a style along with auxiliary and test files.
 """
 
 
-def style_completer(parsed_args, **_):
+def _style_completer(parsed_args, **_):
     """Return a list of valid files to edit."""
     config.CONFIG['arg'] = parsed_args
     cfg = config.get_cfg('dist', DEFAULTS)
@@ -45,19 +44,29 @@ def style_completer(parsed_args, **_):
 
 
 def add_parser(subp, fclass):
-    """Add a parser to the main subparser. """
+    """
+    .. admonition:: Command Line Utility Function
+        :class: warning
+
+        Add a parser to the main subparser.
+    """
     tmpp = subp.add_parser('dist', help='distribute a style',
                            formatter_class=fclass,
                            description=textwrap.dedent(DESC))
-    tmpp.add_argument('style', type=str,
-                      help='name of style to distribute'
-                      ).completer = style_completer
+    tmpp.add_argument(
+        'style', type=str, help='name of style to distribute'
+    ).completer = _style_completer
     tmpp.add_argument('--path', type=str,
                       help='distribution directory')
 
 
 def run():
-    """Run the command. """
+    """
+    .. admonition:: Command Line Utility Function
+        :class: warning
+
+        Run the command.
+    """
     arg = config.CONFIG['arg']
     cfg = config.get_cfg('dist', DEFAULTS)
     root = cfg['lexor']['root']

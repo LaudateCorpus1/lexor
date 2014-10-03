@@ -1,7 +1,8 @@
 Commands
 ========
 
+This section covers each of the commands provided by lexor.
+
 .. toctree::
-   :maxdepth: 4
 
    install <install>

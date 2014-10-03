@@ -250,6 +250,8 @@ class Converter(object):
         map_explanations(self.log[-1].modules, self.log[-1].explanation)
         if not namespace:
             del self.doc[-1].namespace
+        self.doc[-1].lang = self._tolang
+        self.doc[-1].style = 'default'
         return self.doc[-1], self.log[-1]
 
     @staticmethod

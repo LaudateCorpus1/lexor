@@ -2,7 +2,7 @@
 Lexor Documentation
 ###################
 
-Lexor is a document converter implemented in Python.
+A document converter implemented in Python.
 
 Basic Usage
 ===========
@@ -18,7 +18,7 @@ Command Line
 ============
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
     Commands <commands/index>
 
@@ -27,7 +27,7 @@ Lexor API
 =========
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
     API <api/index>
 
@@ -35,7 +35,6 @@ Indices and tables
 ==================
 
 * :ref:`genindex`
-* :ref:`modindex`
 * :ref:`search`
 
 -------

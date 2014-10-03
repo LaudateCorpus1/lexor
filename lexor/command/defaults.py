@@ -1,5 +1,4 @@
-"""Defaults
-
+"""
 Print the default values for each command.
 
 """
@@ -11,13 +10,12 @@ from lexor.command import import_mod, error
 from lexor.command import config
 
 DESC = """
-
 View default values for a subcommand.
 
 """
 
 
-def name_completer(**_):
+def _name_completer(**_):
     """var completer. """
     rootpath = pt.split(pt.abspath(__file__))[0]
     mod_names = [pt.split(name)[1][:-3]
@@ -28,16 +26,26 @@ def name_completer(**_):
 
 
 def add_parser(subp, fclass):
-    "Add a parser to the main subparser. "
+    """
+    .. admonition:: Command Line Utility Function
+        :class: warning
+
+        Add a parser to the main subparser.
+    """
     tmpp = subp.add_parser('defaults', help='print default values',
                            formatter_class=fclass,
                            description=textwrap.dedent(DESC))
     tmpp.add_argument('name', type=str,
-                      help='subcommand name').completer = name_completer
+                      help='subcommand name').completer = _name_completer
 
 
 def run():
-    """Run command. """
+    """
+    .. admonition:: Command Line Utility Function
+        :class: warning
+
+        Run the command.
+    """
     arg = config.CONFIG['arg']
     name = arg.name
     try:
