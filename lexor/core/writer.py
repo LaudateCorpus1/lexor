@@ -1,14 +1,15 @@
-"""Writer Module
+"""
+Provides the |Writer| object which defines the basic mechanism for
+writing the objects defined in :mod:`lexor.core.elements`. This
+involves using objects derived from the abstract class |NodeWriter|.
 
-Provides the `Writer` object which defines the basic mechanism for
-writing the objects defined in `lexor.core.elements`. This involves
-using objects derived from the abstract class `NodeWriter`. See
-`lexor.core.dev` for more information on how to write objects derived
-from `NodeWriter` to be able to write `Documents` in the way you
-desire.
+.. |Writer| replace:: :class:`~.Writer`
+.. |NodeWriter| replace:: :class:`~.NodeWriter`
+.. |Node| replace:: :class:`~lexor.core.node.Node`
+.. |CharData| replace:: :class:`~lexor.core.elements.CharacterData`
+.. |Element| replace:: :class:`~lexor.core.elements.Element`
 
 """
-
 import re
 from cStringIO import StringIO
 from lexor.command.lang import get_style_module
@@ -33,7 +34,7 @@ def replace(string, *key_val):
         >>> replace("a < b && b < c", ('<', '&lt;'), ('&', '&amp;'))
         'a &lt; b &amp;&amp; b &lt; c'
 
-    Source: <http://stackoverflow.com/a/15221068/788553>
+    Source: http://stackoverflow.com/a/15221068/788553
 
     """
     return _replacer(*key_val)(string)
@@ -41,7 +42,7 @@ def replace(string, *key_val):
 
 def find_whitespace(line, start, lim):
     """Attempts to find the index of the first whitespace before
-    lim, if its not found, then it looks ahead. """
+    `lim`, if its not found, then it looks ahead. """
     index = line.rfind(' ', start, lim+1)
     if index != -1:
         return index
@@ -53,60 +54,62 @@ def find_whitespace(line, start, lim):
 
 class NodeWriter(object):
     """A node writer is an object which writes a node in three steps:
-    `start`, `data/child`, `end`.
+
+    - `start`
+    - `data/child`
+    - `end`
 
     """
 
     def __init__(self, writer):
-        """A `NodeWriter` needs to be initialized with a writer
+        """A |NodeWriter| needs to be initialized with a |Writer|
         object. If this method is to be overloaded then make sure
         that it only accepts one parameter: `writer`. This method is
-        used by `Writer` and it calls it with itself as the parameter.
-
-        """
+        used by the |Writer| and it calls it with itself as the
+        parameter."""
         self.writer = writer
 
     def write(self, string, split=False):
         """Writes the string to a file object. The file object is
-        determined by the `Writer` object that initialized this
+        determined by the |Writer| object that initialized this
         object (`self`). """
         self.writer.write_str(string, split)
 
     def start(self, node):
-        """Overload this method to write part of the `Node` object in
-        the first encounter with the `Node`. """
+        """Overload this method to write part of the |Node| object in
+        the first encounter with the |Node|. """
         pass
 
     def data(self, node):
-        """This method gets called only by `CharacterData` nodes.
-        This method should be overloaded to write their attribute
-        `data`, otherwise it will write the node's data as it is. """
+        """This method gets called only by |CharData| nodes and
+        should be overloaded to write their attribute ``data``,
+        otherwise it will write the node's data as it is. """
         self.writer.write_str(node.data)
 
     @classmethod
     def child(cls, _):
-        """This method gets called for `Elements` that have children.
-        If it gets overwritten then it will not traverse through
-        child nodes unless you return something other than None.
+        """This method gets called for |Element| nodes that have
+        children. If it is overwritten then it will not traverse
+        through child nodes unless you return something other than
+        ``None``.
 
-        This method by default returns `True` so that the `Writer`
+        This method by default returns ``True`` so that the |Writer|
         can traverse through the child nodes. """
         return True
 
     def end(self, node):
-        """Overload this method to write part of the `Node` object in
-        the last encounter with the `Node`. """
+        """Overload this method to write part of the |Node| object in
+        the last encounter with the |Node|. """
         pass
 
 
 class DefaultWriter(NodeWriter):
-    """If the language does not define a NodeWriter for __default__
-    then the writer will use this default writer.
-
-    """
+    """If the language does not define a |NodeWriter| for
+    ``__default__`` in the ``MAPPING`` dictionary then the writer
+    will use this |NodeWriter|."""
 
     def start(self, node):
-        """Write the start of the node as a xml tag. """
+        """Write the start of the node as a XML tag. """
         att = ' '.join(['%s="%s"' % (k, v) for k, v in node.items()])
         if att != '':
             self.write('<%s %s>' % (node.name, att))
@@ -114,18 +117,18 @@ class DefaultWriter(NodeWriter):
             self.write('<%s>' % node.name)
 
     def end(self, node):
-        """Write the end of the node as an xml end tag. """
+        """Write the end of the node as an XML end tag. """
         self.write('</%s>' % node.name)
 
 
 # The default of 7 attributes for class is too restrictive.
 # pylint: disable=R0902
 class Writer(object):
-    """To see the languages in which a `Writer` object is able to
-    write see the `lexor.lang` module. """
+    """To see the languages available to the writer see the
+    :mod:`lexor.command.lang` module. """
 
     def __init__(self, lang='xml', style='default', defaults=None):
-        """Create a new `Writer` by specifying the language and the
+        """Create a new writer by specifying the language and the
         style in which `Node` objects will be written. """
         if defaults is None:
             defaults = dict()
@@ -150,15 +153,24 @@ class Writer(object):
         self.root = None   # The node to be written
         self.prev_str = None  # Reference to the last string printed
 
+    def __getitem__(self, name):
+        """Return the specified |NodeWriter|. """
+        return self._nw.get(name, self._nw['__default__'])
+
     @property
     def filename(self):
-        """READ-ONLY: The name of the file to which a `Node` object
-        was last written to. """
+        """
+        .. admonition:: Read-Only Property
+            :class: note
+
+            The name of the file to which a |Node| object was last
+            written to."""
         return self._filename
 
     @property
     def language(self):
-        """The language in which the `Writer` writes `Node` objects. """
+        """The language in which the |Writer| writes |Node| objects.
+        """
         return self._lang
 
     @language.setter
@@ -180,7 +192,7 @@ class Writer(object):
 
     @property
     def writing_style(self):
-        """The style in which the `Writer` writes a `Node` object. """
+        """The style in which the |Writer| writes a |Node| object. """
         return self._style
 
     @writing_style.setter
@@ -231,9 +243,9 @@ class Writer(object):
                 self.pos[1] += len(string)
 
     def write_str(self, string, split=False):
-        """The write function is meant to be used with Node objects.
-        Use this function to write simple strings while the file
-        descriptor is open. """
+        """The write function is meant to be used with |Node|
+        objects. Use this function to write simple strings while the
+        file descriptor is open. """
         if self._raw:
             self._write_str(string)
             return
@@ -336,9 +348,9 @@ class Writer(object):
         return self._wrap
 
     def endl(self, force=True, tot=1, tail=False):
-        """Insert a new line character. By setting `force` to False
-        you may omit inserting a new line character if the last
-        character printed was already the new line character."""
+        """Insert a new line character. By setting `force` to
+        ``False`` you may omit inserting a new line character if the
+        last character printed was already the new line character."""
         prev_str = self.last()
         self.flush_buffer(tail)
         if force or (not prev_str.endswith('\n') and
@@ -354,17 +366,15 @@ class Writer(object):
 
     def write(self, node, filename=None, mode='w'):
         """Write node to a file or string. To write to a string use
-        the default parameters, otherwise provide a file name. If
-        filename is provided you have the option of specifying the
-        mode: 'w' or 'a'.
+        the default parameters, otherwise provide a `filename`. If
+        `filename` is provided you have the option of specifying the
+        mode: ``'w'`` or ``'a'``.
 
         You may also provide a file you may have opened yourself in
         place of filename so that the writer writes to that file.
 
-        Use the __str__ function to retrieve the contents written to
-        a string.
-
-        """
+        Use the :meth:`__str__` function to retrieve the contents
+        written to a string."""
         if isinstance(filename, file):
             # Check for stdout, stderr
             self._filename = file
@@ -429,16 +439,6 @@ class Writer(object):
                 self._nw[key] = val(self)
         for key, val in str_key:
             self._nw[key] = self._nw[val]
-
-    #@deprecated
-    def get_node_writer(self, name):
-        """Return one of the NodeWriter objects available to the
-        Writer."""
-        return self._nw.get(name, self._nw['__default__'])
-
-    def __getitem__(self, name):
-        """Return a Node parser. """
-        return self._nw.get(name, self._nw['__default__'])
 
     def _set_node_writers_writer(self):
         """To be called before writing since the file will change. """

@@ -1,12 +1,16 @@
-"""Selector
-
+"""
 This module is trying to simulate jquery selectors. If some code
 looks similar to that of the Sizzle CSS Selector engine it is because
 the ideas were taken from it.
 
-In short, credit goes to [Sizzle][1] and CSS for the seletor idea.
+In short, credit goes to Sizzle_ and CSS for the selector idea.
 
-[1]: http://sizzlejs.com/
+.. warning::
+
+    This module is far from complete. Some of the function specified
+    here lack functionality.
+
+.. _Sizzle: http://sizzlejs.com/
 
 """
 
@@ -15,7 +19,6 @@ import sys
 import types
 from datetime import datetime
 from time import mktime
-from pprint import pprint
 LC = sys.modules['lexor.core']
 
 
@@ -82,11 +85,11 @@ EXPANDO = 'sizzle'+str(get_date())
 
 def _pre_filter_attr(match):
     """function for EXPR['pre_filter']['ATTR']"""
-    #match[0] = match[0].replace(runescape, funescape);
-    #match[0] = re.sub(runescape, funescape, match[0])
+    # match[0] = match[0].replace(runescape, funescape);
+    # match[0] = re.sub(runescape, funescape, match[0])
     # Move the given value to match[3] whether quoted or unquoted
     match[2] = match[3] or match[4] or ""
-    #match[2] = match[2].replace(runescape, funescape);
+    # match[2] = match[2].replace(runescape, funescape);
     if match[1] == "~=":
         match[2] = " " + match[2] + " "
     return match[:4]
@@ -109,7 +112,7 @@ def _pre_filter_child(match):
         else:
             match[4] = 2*(match[3] == "even" or match[3] == "odd")
         match[5] = ((match[7] + match[8]) or match[3] == "odd")
-    #other types prohibit arguments
+    # other types prohibit arguments
     elif match[3]:
         print 'ERROR'
         sys.exit(2)
@@ -156,6 +159,7 @@ EXPR = {
     }
 }
 
+
 def clone_obj(obj, parser):
     """Utility function to create deep copies of objects used for the
     Selector object. A parser should be given in case the object is a
@@ -201,18 +205,17 @@ def sizzle(selector, context, results=None, seed=None):
 
 
 def select(selector, context, results, seed):
-    """ A low-level selection function that works with Sizzle's
+    """A low-level selection function that works with Sizzle's
     compiled selector functions
 
-    @param {String|Function} selector A selector or a pre-compiled
-     selector function built with Sizzle.compile
-    @param {Element} context
-    @param {Array} [results]
-    @param {Array} [seed] A set of elements to match against
-
+    :``selector``: A selector or a pre-compiled selector function
+        built with ``Sizzle.compile``
+    :``context``: An :class:`lexor.core.elements.Element` object.
+    :``results``: A ``list``.
+    :``seed``: A ``list`` of elements to match against.
     """
-    #compiled = typeof selector === "function" && selector
-    #selector = compiled.selector or selector
+    # compiled = typeof selector === "function" && selector
+    # selector = compiled.selector or selector
     match = not seed and tokenize(selector)
     results = results or list()
     if len(match) == 1:
@@ -225,8 +228,10 @@ def select(selector, context, results, seed):
 def matcher_from_tokens(tokens):
     pass
 
+
 def matcher_from_group_matchers(element_matchers, set_matchers):
     pass
+
 
 def compile_selector(selector, match=None):
     try:
@@ -246,7 +251,7 @@ def compile_selector(selector, match=None):
             element_matchers.append(cached)
     cached = matcher_from_group_matchers(element_matchers, set_matchers)
     compile_selector.cache[selector] = cached
-    #cached.selector = selector
+    # cached.selector = selector
     return cached
 compile_selector.cache = dict()
 
@@ -286,7 +291,7 @@ def tokenize(selector, parse_only=False):
             if match:
                 matched = match.group(0)
                 match = list(match.groups())
-                #match = pre_filters[ftype](match).groups()
+                # match = pre_filters[ftype](match).groups()
                 tokens.append({
                     'value': matched,
                     'type': ftype,
@@ -311,15 +316,19 @@ class Selector(object):
         self.data = sizzle(selector, node, results)
 
     def __getitem__(self, k):
-        """Return the k-th element selected.
+        """Return the `k`-th element selected.
 
-            x.__getitem__(k) <==> x[k]
+        >>> x.__getitem__(k) <==> x[k]
 
         """
         return self.data[k]
 
     def __repr__(self):
-        """repr method. """
+        """
+        >>> x.__repr__() == repr(x)
+        True
+
+        """
         result = '\n----------\n'
         for node in self.data:
             result += repr(node)
@@ -410,7 +419,6 @@ class Selector(object):
             else:
                 node.insert_before(0, content)
         elif hasattr(content, '__iter__'):
-            print 'CONTENT = %r' % content
             node.extend_before(0, content)
         else:
             parser.parse(str(content))
@@ -418,7 +426,7 @@ class Selector(object):
 
     def prepend(self, *arg, **keywords):
         """Insert content, specified by the parameter, to the
-        beginning of each element in the setof matched elements.
+        beginning of each element in the set of matched elements.
 
         Should behave similarly as https://api.jquery.com/append/.
         Major difference is in the function. When passing a function
@@ -470,40 +478,44 @@ class Selector(object):
 
     def after(self, *arg, **keywords):
         """Insert content, specified by the parameter, after each
-        element in the set of matched elements.
+        element in the set of matched elements ::
 
-        : .after(content [,content])
+            .after(content [,content])
 
-        :: content
-        Type: htmlString or Element or Array or jQuery string, Node,
-        array of Node, or Selector object to insert after each
-        element in the set of matched elements.
+        ``content``
+            html string or Element or Array or jQuery string, Node,
+            array of Node, or Selector object to insert after each
+            element in the set of matched elements.
+        
+        ``content``
+            html string or Element or Array or jQuery One or more
+            additional DOM elements, arrays of elements, HTML
+            strings, or jQuery objects to insert after each element
+            in the set of matched elements.
 
-        :: content
-        Type: htmlString or Element or Array or jQuery One or
-        more additional DOM elements, arrays of elements, HTML
-        strings, or jQuery objects to insert after each element in
-        the set of matched elements.
+        .. code::
 
-        : .after(function(node, index))
+            .after(function(node, index))
 
-        :: function(node, index)
-        A function that returns a string, DOM element(s), or Selector
-        object to insert after each element in the set of matched
-        elements. Receives the element in the set and its index
-        position in the set as its arguments.
+        ``function(node, index)``
+            A function that returns a string, DOM element(s), or
+            Selector object to insert after each element in the set
+            of matched elements. Receives the element in the set and
+            its index position in the set as its arguments.
 
-        : .after(..., lang='html', style='default', 'defaults'=None)
+        .. code::
 
-        :: lang
-        The language in which strings will be parsed in.
+            .after(..., lang='html', style='default', 'defaults'=None)
 
-        :: style
-        The style in which strings will be parsed in.
+        ``lang``
+            The language in which strings will be parsed in.
 
-        :: defaults
-        A dictionary with string keywords and values especifying
-        options for the particular style.
+        ``style``
+            The style in which strings will be parsed in.
+
+        ``defaults``
+            A dictionary with string keywords and values specifying
+            options for the particular style.
         """
         info = {
             'lang': 'html',
@@ -550,40 +562,44 @@ class Selector(object):
 
     def before(self, *arg, **keywords):
         """Insert content, specified by the parameter, before each
-        element in the set of matched elements.
+        element in the set of matched elements ::
 
-        : .before(content [,content])
+            .before(content [,content])
 
-        :: content
-        Type: htmlString or Element or Array or jQuery string, Node,
-        array of Node, or Selector object to insert before each
-        element in the set of matched elements.
+        ``content``
+            html string or Element or Array or jQuery string, Node,
+            array of Node, or Selector object to insert before each
+            element in the set of matched elements.
 
-        :: content
-        Type: htmlString or Element or Array or jQuery One or
-        more additional DOM elements, arrays of elements, HTML
-        strings, or jQuery objects to insert before each element in
-        the set of matched elements.
+        ``content``
+            html string or Element or Array or jQuery One or more
+            additional DOM elements, arrays of elements, HTML
+            strings, or jQuery objects to insert before each element
+            in the set of matched elements.
 
-        : .before(function(node, index))
+        .. code::
 
-        :: function(node, index)
-        A function that returns a string, DOM element(s), or Selector
-        object to insert before each element in the set of matched
-        elements. Receives the element in the set and its index
-        position in the set as its arguments.
+            .before(function(node, index))
 
-        : .before(..., lang='html', style='default', 'defaults'=None)
+        ``function(node, index)``
+            A function that returns a string, DOM element(s), or
+            Selector object to insert before each element in the set
+            of matched elements. Receives the element in the set and
+            its index position in the set as its arguments.
 
-        :: lang
-        The language in which strings will be parsed in.
+        .. code::
 
-        :: style
-        The style in which strings will be parsed in.
+            .before(..., lang='html', style='default', 'defaults'=None)
 
-        :: defaults
-        A dictionary with string keywords and values especifying
-        options for the particular style.
+        ``lang``
+            The language in which strings will be parsed in.
+
+        ``style``
+            The style in which strings will be parsed in.
+
+        ``defaults``
+            A dictionary with string keywords and values specifying
+            options for the particular style.
         """
         info = {
             'lang': 'html',
@@ -613,13 +629,15 @@ class Selector(object):
                     self._before(self.data[-1], content, parser)
 
     def __iter__(self):
+        """Iterate over the elements of the selector. """
         for node in self.data:
             yield node
 
     def __len__(self):
         """Return the number of elements.
 
-            x.__len__() <==> len(x)
+        >>> x.__len__() == len(x)
+        True
 
         """
         return len(self.data)

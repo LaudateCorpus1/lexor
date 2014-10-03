@@ -138,7 +138,7 @@ def _display_failed(failed):
 
 
 def compare_with(str_obj, expected):
-    """Calls nose.eq_ to compare the strings and prints a custom
+    """Calls ``nose.eq_`` to compare the strings and prints a custom
     message. """
     hline = '_'*60
     msg = "str_obj -->\n%s\n%s\n%s\n\
@@ -149,20 +149,20 @@ expected -->\n%s\n%s\n%s\n" % (hline, str_obj, hline,
 
 def parse_msg(msg):
     """Obtain the tests embedded inside the messages declared in a
-    style. The format of the messages is as follows:
+    style. The format of the messages is as follows::
 
         <tab>[A-Z][0-9]*: <msg>
 
-    or
+    or::
 
         <tab>([A-Z][0-9]*|Okay):
         <tab><tab>msg ...
         <tab><tab>msg continues
         <tab>([A-Z][0-9]*|Okay): msg
 
-    Where <tab> consists of 4 whitespaces. This function returns the
-    message without the tests and a list of tuples of the form
-    `(code, msg)` along with the message """
+    Where ``<tab>`` consists of 4 whitespaces. This function returns
+    the message without the tests and a list of tuples of the form
+    ``(code, msg)`` along with the message """
     lines = msg.split('\n')
     tests = []
     index = 0
@@ -216,7 +216,7 @@ def find_failed(tests, lang, style):
 
 
 def nose_msg_explanations(lang, type_, style, name):
-    """Gather the MSG_EXPLANATION list and run the tests it
+    """Gather the ``MSG_EXPLANATION`` list and run the tests it
     contains."""
     mod = get_style_module(type_, lang, style)
     mod = sys.modules['%s_%s' % (mod.__name__, name)]
