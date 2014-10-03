@@ -88,12 +88,7 @@ class NodeParser(object):
         provide arguments, this can be passed to `arg`. In case the
         error occurred somewhere not in the current document, perhaps
         in a string, then you may provide a new `uri` to denote the
-        location.
-
-        .. todo:: Provide link to parse style creation.
-
-        See :ref:`` for more information on how to properly use this
-        method. """
+        location."""
         self.parser.msg(self.__module__, code, pos, arg, uri)
 
 
@@ -198,45 +193,70 @@ class Parser(object):
 
     @property
     def cdata(self):
-        """The character sequence data that was last processed by
-        :meth:`parse`. """
+        """
+        .. admonition:: Read-Only Property
+            :class: note
+
+            The character sequence data that was last processed by
+            :meth:`parse`. This property is associated with the
+            attribute ``text``."""
         return self.text
 
     @property
     def uri(self):
-        """The Uniform Resource Identifier. This is the name that was
-        given to the text that was last parsed. """
+        """
+        .. admonition:: Read-Only Property
+            :class: note
+
+            The Uniform Resource Identifier. This is the name that
+            was given to the text that was last parsed."""
         return self._uri
 
     @property
     def position(self):
-        """Position of caret in the text in terms of line and column. i.e.
-        returns [line, column]. You may use the attribute access `pos` if
-        performance is an issue. """
+        """
+        .. admonition:: Read-Only Property
+            :class: note
+
+            Position of caret in the text in terms of line and
+            column. i.e. returns ``[line, column]``. This property is
+            associated with the attribute ``pos``."""
         return self.pos
 
     @property
     def caret_position(self):
-        """The index in the text the parser is processing. You may use
-        the attribute access `caret` if performance is an issue. """
+        """
+        .. admonition:: Read-Only Property
+            :class: note
+
+            The index in the text the parser is processing. This
+            property is associated with the attribute ``caret``."""
         return self.caret
 
     @property
     def lexor_log(self):
-        """The `lexor_log` document. See this document after each
-        call to `parse` to see warnings and errors in the text that
-        was parsed. """
+        """
+        .. admonition:: Read-Only Property
+            :class: note
+
+            The index in the text the parser is processing. This
+            property is associated with the attribute ``log``."""
         return self.log
 
     @property
     def document(self):
-        """The parsed document. This is a `Document` or
-        `FragmentedDocument` created by the `parse` method. """
+        """
+        .. admonition:: Read-Only Property
+            :class: note
+
+            The parsed document. This is a |Document| or |DocFrag|
+            created by the :meth:`parse` method. This property is
+            associated with the attribute ``doc``."""
         return self.doc
 
     @property
     def language(self):
-        """The language in which the `Parser` object will parse
+        """The language in which the |Parser| object will parse
         character sequences. """
         return self._lang
 
@@ -248,7 +268,7 @@ class Parser(object):
 
     @property
     def parsing_style(self):
-        """The style in which the `Parser` object will parse the
+        """The style in which the |Parser| object will parse the
         character sequences. """
         return self._style
 
@@ -267,11 +287,11 @@ class Parser(object):
         self._reload = True
 
     def copy_pos(self):
-        """Returns a copy of the current position. """
+        """Return a copy of the current position. """
         return list(self.pos)
 
     def update(self, index):
-        """Changes the position of the `caret` and updates `pos`.
+        """Changes the position of the ``caret`` and updates ``pos``.
         This function assumes that you are moving forward. Do not
         update to an index which is less than the current position of
         the caret. """
@@ -286,12 +306,11 @@ class Parser(object):
         self.caret = index
 
     def compute(self, index):
-        """Returns a position in the text `[line, column]` given an
-        index. Note: This does not modify anything in the parser. It
-        only gives you the line and column where the caret would be
-        given the index. The same applies as in update. Do not use
-        compute with an index less than the current position of the
-        caret. """
+        """Return a position ``[line, column]`` in the text given an
+        index. This does not modify anything in the parser. It only
+        gives you the line and column where the caret would be given
+        the index. The same applies as in update: do not use compute
+        with an index less than the current position of the caret. """
         nlines = self.text.count('\n', self.caret, index)
         tmpline = self.pos[0] + nlines
         if nlines > 0:

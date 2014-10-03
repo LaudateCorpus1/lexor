@@ -1,12 +1,36 @@
-"""Converter Module
-
-Provides the `Converter` object which defines the basic mechanism for
-converting the objects defined in `lexor.core.elements`. This
+"""
+Provides the |Converter| object which defines the basic mechanism for
+converting the objects defined in :mod:`lexor.core.elements`. This
 involves using objects derived from the abstract class
-`NodeConverter`.
+|NodeConverter|.
+
+There are a couple of functions that have been written to be used
+inside python embeddings. These are:
+
+- :func:`get_converter_namespace`
+- :func:`get_lexor_namespace`
+- :func:`get_current_node` equivalent to ``__NODE__``
+- :func:`echo`
+- :func:`include`
+- :func:`import_module`
+
+When writing python embeddings there are several special variables
+that can be used, one of them as mentioned above is ``__NODE__``
+which has the returned value of the function
+:func:`get_current_node`. The other two are ``__FILE__`` which takes
+in the value of the path of the document which is executing the
+python embedding and ``__DIR__`` which is equivalent to
+``os.path.dirname(__FILE__)``.
+
+.. |Converter| replace:: :class:`~.Converter`
+.. |Parser| replace:: :class:`~lexor.core.parser.Parser`
+.. |NodeConverter| replace:: :class:`~.Converter`
+.. |Document| replace:: :class:`~lexor.core.elements.Document`
+.. |DocFrag| replace:: :class:`~lexor.core.elements.DocumentFragment`
+.. |Text| replace:: :class:`~lexor.core.elements.Text`
+.. |PI| replace:: :class:`~lexor.core.elements.ProcessingInstruction`
 
 """
-
 import sys
 import os.path as pth
 import traceback
@@ -30,13 +54,13 @@ if not hasattr(get_converter_namespace, 'namespace'):
 class NodeConverter(object):
     """A node converter is an object which determines if the node
     will be copied (default). To avoid copying the node simply
-    declare
+    declare::
 
         copy = False
 
     when deriving a node converter. Note that by default, the
     children of the node (if any) will be copied and assigned to the
-    parent. To avoid copying the children then set
+    parent. To avoid copying the children then set::
 
         copy_children = False
 
@@ -45,34 +69,41 @@ class NodeConverter(object):
     copy_children = True
 
     def __init__(self, converter):
-        """A `NodeConverter` needs to be initialized with a converter
+        """A node converter needs to be initialized with a converter
         object. If this method is to be overloaded then make sure
         that it only accepts one parameter: `converter`. This method
-        is used by `Converter` and it calls it with itself as the
+        is used by |Converter| and it calls it with itself as the
         parameter. """
         self.converter = converter
 
     @classmethod
     def start(cls, node):
-        """This method gets called only if `copy` is set to True
+        """This method gets called only if ``copy`` is set to True
         (default). By overloading this method you have access to the
         converter and the node. You can thus set extra variables in
-        the converter or modify the node. DO NOT modify any of the
-        parents of the node. If there is a need to modify any of
-        parents of the node then set a variable in the converter
-        to point to the node so that later on in the `convert` function
-        it can be modified. """
+        the converter or modify the node. **DO NOT** modify any of
+        the parents of the node. If there is a need to modify any of
+        parents of the node then set a variable in the converter to
+        point to the node so that later on in the ``convert``
+        function it can be modified. """
         return node
 
     @classmethod
     def end(cls, node):
-        """This method gets called after all the children have
-        been copied. Make sure to return the node or the node
-        replacement. """
+        """This method gets called after all the children have been
+        copied. Make sure to return the node or the node replacement.
+        """
         return node
 
     def msg(self, code, node, arg=None, uri=None):
-        """Send a message to the converter. """
+        """Send a message to the converter by providing one of the
+        error codes defined in the style as well as the position
+        where the error took place. The position has the form of a
+        list containing the line and column number. Some error codes
+        may provide arguments, this can be passed to `arg`. In case
+        the error occurred somewhere not in the current document,
+        perhaps in a string, then you may provide a new `uri` to
+        denote the location."""
         self.converter.msg(self.__module__, code, node, arg, uri)
 
 
@@ -80,20 +111,18 @@ class NodeConverter(object):
 class BaseLog(object):
     """A simple class to provide messages to a converter. You must
     derive an object from this class in the module which will be
-    issuing the messages. For instance:
+    issuing the messages. For instance::
 
         class Log(BaseLog):
             pass
 
-    After that you can create a new object and use it in a module.
+    After that you can create a new object and use it in a module::
 
         log = Log(converter)
 
-    where `converter` is a `Converter` provided to the module. Make
-    sure that the module contains the objects `MSG` and
-    `MSG_EXPLANATION`.
-
-    """
+    where `converter` is a |Converter| provided to the module. Make
+    sure that the module contains the objects ``MSG`` and
+    ``MSG_EXPLANATION``."""
 
     def __init__(self, converter):
         self.converter = converter
@@ -106,13 +135,13 @@ class BaseLog(object):
 # The default of 7 attributes for class is too restrictive.
 # pylint: disable=R0902
 class Converter(object):
-    """To see the languages available to the `Converter` see the
-    `lexor.lang` module. """
+    """To see the languages available to the converter see the
+    :mod:`lexor.command.lang` module. """
 
     def __init__(self, fromlang='xml', tolang='xml',
                  style='default', defaults=None):
-        """Create a new `Converter` by specifying the language and the
-        style in which `Node` objects will be written. """
+        """Create a new converter by specifying the language and the
+        style in which node objects will be written. """
         if defaults is None:
             defaults = dict()
         self._fromlang = fromlang
@@ -126,6 +155,10 @@ class Converter(object):
         self.doc = list()
         self.log = list()
         self.defaults = defaults
+
+    def __getitem__(self, name):
+        """Return the specified |NodeConverter|. """
+        return self._node_converter[name]
 
     @property
     def convert_from(self):
@@ -185,22 +218,22 @@ class Converter(object):
     @property
     def lexor_log(self):
         """The `lexorlog` document. See this document after each
-        call to `convert` to see warnings and errors. """
+        call to :meth:`convert` to see warnings and errors. """
         return self.log[-1]
 
     @property
     def document(self):
-        """The parsed document. This is a `Document` or
-        `FragmentedDocument` created by the `convert` method. """
+        """The parsed document. This is a |Document| or |DocFrag|
+        created by the :meth:`convert` method. """
         return self.doc[-1]
 
     def pop(self):
         """Remove the last document and last log document and return
-        them."""
+        them. """
         return self.doc.pop(), self.log.pop()
 
     def convert(self, doc, namespace=False):
-        """Convert the `Document` doc. """
+        """Convert the |Document| or |DocFrag| doc. """
         if not isinstance(doc, (LC.Document, LC.DocumentFragment)):
             raise TypeError("The node is not a Document or DocumentFragment")
         if self._reload:
@@ -221,9 +254,9 @@ class Converter(object):
 
     @staticmethod
     def remove_node(node):
-        """Removes the node from the current document it is in. Returns
-        the previous sibling is possible, otherwise it returns an empty
-        Text node. """
+        """Removes the node from the current document it is in.
+        Returns the previous sibling is possible, otherwise it
+        returns an empty |Text| node. """
         parent = node.parent
         index = node.index
         del node.parent[node.index]
@@ -238,9 +271,9 @@ class Converter(object):
 
     # pylint: disable=R0913
     def msg(self, mod_name, code, node, arg=None, uri=None):
-        """Provide the name of module issuing the message, the code
-        number, the node with the error, optional arguments and uri.
-        This information gets stored in the log. """
+        """Provide the name of module issuing the message, the `code`
+        number, the node with the error, optional arguments and
+        `uri`. This information gets stored in the converters log. """
         if uri is None:
             uri = self.doc[-1].uri_
         if arg is None:
@@ -267,10 +300,6 @@ class Converter(object):
             return self._node_converter[val]
         name = val.__name__
         self._node_converter[name] = val(self)
-        return self._node_converter[name]
-
-    def __getitem__(self, name):
-        """Return a Node converter. """
         return self._node_converter[name]
 
     def _set_node_converters(self, fromlang, tolang, style, defaults=None):
@@ -376,8 +405,8 @@ class Converter(object):
                 direction = 'r'
 
     def update_log(self, log, after=True):
-        """Append the messages from a log document to the converters
-        log. Note that this removes the children from log. """
+        """Append the messages from a `log` document to the
+        converters log. This removes the children from `log`. """
         modules = log.modules
         explanation = log.explanation
         for mname in modules:
@@ -392,10 +421,9 @@ class Converter(object):
 
     # pylint: disable=W0122,E1103
     def exec_python(self, node, id_num, parser, error=True):
-        """Executes the contents of the processing instruction. You
-        must provide an id number identifying the processing
-        instruction, the namespace where the execution takes place
-        and a parser that will parse the output provided by the
+        """Executes the contents of the |PI| node. You must provide
+        an id number identifying the processing instruction and a
+        |Parser| that will parse the output provided by the
         execution. If `error` is True then any errors generated
         during the execution will be appended to the output of the
         document."""
@@ -456,7 +484,7 @@ if not hasattr(get_lexor_namespace, 'namespace'):
 
 
 def get_current_node():
-    """Return the `Document` node containing the python embeddings
+    """Return the document node containing the python embeddings
     currently being executed. """
     return get_current_node.current[-1]
 if not hasattr(get_current_node, 'current'):
@@ -465,7 +493,7 @@ if not hasattr(get_current_node, 'current'):
 
 def echo(node):
     """Allows the insertion of Nodes generated within python
-    embeddings.
+    embeddings::
 
         <?python
         comment = PI('!--', 'This is a comment')
@@ -490,7 +518,22 @@ def echo(node):
 
 
 def include(input_file, **keywords):
-    """Inserts a file into the current node. """
+    """Inserts a file into the current node. Absolute paths may be
+    provided as well as relative. When using relative paths the files
+    are found relative to the path of the calling document. You may
+    use the following keywords:
+    
+    - parser_style: ``'default'``
+    - parser_lang: ``None``
+    - parser_defaults: ``None``,
+    - convert_style: ``'default'``,
+    - convert_from: ``None``,
+    - convert_to: ``None``,
+    - convert_defaults: ``None``,
+    - adopt: ``'true'``
+    
+    If the keyword ``adopt`` is set to false then a |Document| node
+    will be inserted."""
     parent_converter = include.converter[-1]
     if input_file[0] != '/':
         input_file = pth.join(pth.dirname(parent_converter.doc.uri),
