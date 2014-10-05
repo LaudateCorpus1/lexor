@@ -1,12 +1,11 @@
-"""Language
-
+"""
 This module provides functions to load the different languages
-parsers, writers and converters.
-
-## Constants
-
-`LEXOR_PATH`: The paths where lexor looks for the parsing, writing
-and converting styles.
+parsers, writers and converters. This module defines the list
+``LEXOR_PATH`` which is an array of paths where lexor looks for the
+parsing, writing and converting styles. You may specify more paths by
+either directly append to this path while using lexor as a python
+module or by editing the enviromental variable ``LEXORPATH`` and
+appending paths to it separating them by a colon ``:``.
 
 """
 
@@ -58,7 +57,12 @@ if 'LEXORPATH' in os.environ:
 
 
 def add_parser(subp, fclass):
-    """Add a parser to the main subparser. """
+    """
+    .. admonition:: Command Line Utility Function
+        :class: warning
+
+        Add a parser to the main subparser.
+    """
     subp.add_parser('lang', help='see available styles',
                     formatter_class=fclass,
                     description=textwrap.dedent(DESC))
@@ -100,7 +104,12 @@ def _handle_lang(path, cfg):
 
 
 def run():
-    """Run the command. """
+    """
+    .. admonition:: Command Line Utility Function
+        :class: warning
+
+        Run the command.
+    """
     paths = []
     for base in LEXOR_PATH:
         paths += glob('%s/*' % base)
@@ -184,7 +193,8 @@ def load_mod(modbase, dirpath):
     `dirpath`. The name `modbase` must be provided so that each
     module may have a unique identifying name. The result will be a
     dictionary of modules. Each of the modules will have the name
-    "modbase_modname" where modname is a module in the directory."""
+    ``"modbase_modname"`` where modname is a module in the
+    directory."""
     mod = dict()
     for path in iglob('%s/*.py' % dirpath):
         if 'test' not in path:
@@ -195,10 +205,10 @@ def load_mod(modbase, dirpath):
 
 
 def load_aux(info):
-    """Wrapper around load_mod for easy use when developing styles.
-    The only parameter is the dictionary `INFO` that needs to exist
-    with every style. `INFO` is returned by the init function in
-    the lexor module."""
+    """Wrapper around :func:`load_mod` for easy use when developing
+    styles. The only parameter is the dictionary ``INFO`` that needs
+    to be defined with every style. ``INFO`` is returned by the
+    :func:`lexor.init` function."""
     dirpath = splitext(abspath(info['path']))[0]
     if info['to_lang']:
         modbase = 'lexor-lang_%s_converter_%s' % (info['lang'],
@@ -212,7 +222,7 @@ def load_aux(info):
 
 def load_rel(path, module):
     """Load relative to a path. If path is the name of a file the
-    filename will be dropped. """
+    filename will be dropped."""
     if not os.path.isdir(path):
         path = os.path.dirname(os.path.realpath(path))
     if '.py' in module:

@@ -4,7 +4,7 @@ Routine to create an xml file with the documentation of a lexor
 style.
 
 """
-#pylint: disable=W0142
+# pylint: disable=star-args
 
 import os
 import sys
@@ -68,13 +68,15 @@ def get_defaults_node(obj):
     for ele in obj:
         node = core.Element('entry')
         node['key'] = ele
-        node.append_child(core.CData(obj[ele]))
+        node.append_child(core.CData(repr(obj[ele])))
         defaults_node.append_child(node)
     return defaults_node
 
 
-def get_mapping_node(mapping):
+def get_mapping_node(mapping, repository=None):
     """Generate the mapping node. """
+    if repository is None:
+        repository = list()
     modules = dict()
     mapping_node = core.Element('mapping')
     keys = mapping.keys()
@@ -85,11 +87,16 @@ def get_mapping_node(mapping):
             entry['key'] = ele
             entry.append_child(
                 core.Element('checker').append_child(
-                    core.CData(mapping[ele][0])
+                    core.CData(repr(mapping[ele][0]))
                 )
             )
             for mod in mapping[ele][1]:
                 node = core.Element('processor')
+                if isinstance(mod, str):
+                    for val in repository:
+                        if val.__name__ == mod:
+                            mod = val
+                            break
                 mod_name = mod.__module__
                 node['module'] = mod_name
                 node['name'] = mod.__name__
@@ -101,6 +108,16 @@ def get_mapping_node(mapping):
         else:
             node = core.Element('entry')
             node['key'] = ele
+            mod = mapping[ele]
+            if isinstance(mod, str):
+                for val in repository:
+                    if val.__name__ == mod:
+                        mod = val
+                        break
+            if isinstance(mod, str):
+                node['from-entry'] = mod
+                mapping_node.append_child(node)
+                continue
             mod_name = mapping[ele].__module__
             node['module'] = mod_name
             node['name'] = mapping[ele].__name__
@@ -171,7 +188,7 @@ def get_function_node(func):
                 core.CData(doc)
             )
         )
-    #return core.Text(func.__name__)
+    # return core.Text(func.__name__)
     return node
 
 
@@ -308,7 +325,11 @@ def append_main(doc, mod):
     module.append_child(get_info_node(mod.INFO))
     if hasattr(mod, 'DEFAULTS'):
         module.append_child(get_defaults_node(mod.DEFAULTS))
-    modules, m_node = get_mapping_node(mod.MAPPING)
+    if hasattr(mod, 'REPOSITORY'):
+        repository = mod.REPOSITORY
+    else:
+        repository = None
+    modules, m_node = get_mapping_node(mod.MAPPING, repository)
     module.append_child(m_node)
     info = separate_objects(mod, ['INFO', 'DEFAULTS',
                                   'MAPPING', 'DESCRIPTION'])

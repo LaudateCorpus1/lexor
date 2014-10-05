@@ -140,7 +140,10 @@ def write_config(cfg_file):
 
 
 def update_single(cfg, name, defaults=None):
-    "Helper function for get_cfg."
+    """Update the specified section in configuration (`name`) with
+    the `defaults` provided. If none are provided then it will
+    attempt to look for a lexor command and obtain its defaults so
+    that `cfg` may be updated."""
     if defaults:
         for var, val in defaults.iteritems():
             cfg[name][var] = os.path.expandvars(str(val))
