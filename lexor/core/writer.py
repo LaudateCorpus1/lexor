@@ -431,6 +431,7 @@ class Writer(object):
         self._nw['#document-fragment'] = nw_obj
         self._nw['#text'] = nw_obj
         self._nw['#entity'] = nw_obj
+        self._nw['#cdata-section'] = nw_obj
         str_key = list()
         for key, val in self.style_module.MAPPING.iteritems():
             if isinstance(val, str):
