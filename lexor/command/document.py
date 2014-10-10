@@ -5,7 +5,7 @@ style.
 
 """
 # pylint: disable=star-args
-
+import re
 import os
 import sys
 import textwrap
@@ -118,9 +118,9 @@ def get_mapping_node(mapping, repository=None):
                 node['from-entry'] = mod
                 mapping_node.append_child(node)
                 continue
-            mod_name = mapping[ele].__module__
+            mod_name = mod.__module__
             node['module'] = mod_name
-            node['name'] = mapping[ele].__name__
+            node['name'] = mod.__name__
             if mod_name not in modules:
                 modules[mod_name] = sys.modules[mod_name]
             mapping_node.append_child(node)
@@ -344,12 +344,15 @@ def append_main(doc, mod):
         node.append_child(get_function_node(func))
     module.append_child(node)
 
-    node = core.Element('data')
+    node = core.Element('data_block')
     for ele in info['data']:
         if ele[0][0] == '_':
             continue
         tmp = core.Element('data', {'name': ele[0]})
-        tmp.append_child(core.CData(repr(ele[1])))
+        if isinstance(ele[1], type(re.compile(''))):
+            tmp.append_child(core.CData(repr(ele[1].pattern)))
+        else:
+            tmp.append_child(core.CData(repr(ele[1])))
         node.append_child(tmp)
     if len(node) > 0:
         module.append_child(node)
@@ -396,12 +399,15 @@ def make_module_node(mod, name=None):
         node.append_child(get_function_node(func))
     module.append_child(node)
 
-    node = core.Element('data')
+    node = core.Element('data_block')
     for ele in info['data']:
         if ele[0][0] == '_':
             continue
         tmp = core.Element('data', {'name': ele[0]})
-        tmp.append_child(core.CData(repr(ele[1])))
+        if isinstance(ele[1], type(re.compile(''))):
+            tmp.append_child(core.CData(repr(ele[1].pattern)))
+        else:
+            tmp.append_child(core.CData(repr(ele[1])))
         node.append_child(tmp)
     if len(node) > 0:
         module.append_child(node)

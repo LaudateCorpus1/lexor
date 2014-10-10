@@ -126,7 +126,7 @@ class Node(object):
         """
         .. admonition:: Read-Only Property
             :class: note
-        
+
             The nodes level of containtment in a
             :class:`~lexor.core.elements.Document` object.
 
@@ -532,6 +532,17 @@ class Node(object):
             else:
                 direction = 'r'
         return nodes
+
+    def iter_child_elements(self):
+        """Iterate over child nodes which are
+        :class:`~lexor.core.elements.Element` instances.
+
+        >>> for ele in node.iter_child_elements(): ...
+
+        """
+        for k in self.child:
+            if isinstance(k, LC.Element):
+                yield k
 
     def set_parent(self, parent, index):
         """
