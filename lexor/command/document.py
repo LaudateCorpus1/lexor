@@ -46,6 +46,21 @@ def add_parser(subp, fclass):
                       help='documentation directory')
 
 
+def export_object(obj):
+    """Process objects before they are exported into an xml document.
+    Objects such as modules are exported as links in the restructured
+    text format."""
+    if isinstance(obj, str):
+        return obj
+    if inspect.ismodule(obj):
+        return ':ref:`%s`' % obj.__name__
+    if isinstance(obj, list):
+        return [export_object(x) for x in obj]
+    if isinstance(obj, dict):
+        return {k: export_object(obj[k]) for k in obj}
+    return obj
+
+
 def get_info_node(info):
     """Generate the info node. """
     node_info = core.Element('info')
@@ -333,6 +348,9 @@ def append_main(doc, mod):
     module.append_child(m_node)
     info = separate_objects(mod, ['INFO', 'DEFAULTS',
                                   'MAPPING', 'DESCRIPTION'])
+    
+    #from pprint import pprint
+    #pprint(info)
 
     node = core.Element('classes')
     for cls in info['class']:
@@ -352,7 +370,7 @@ def append_main(doc, mod):
         if isinstance(ele[1], type(re.compile(''))):
             tmp.append_child(core.CData(repr(ele[1].pattern)))
         else:
-            tmp.append_child(core.CData(repr(ele[1])))
+            tmp.append_child(core.CData(repr(export_object(ele[1]))))
         node.append_child(tmp)
     if len(node) > 0:
         module.append_child(node)
@@ -442,7 +460,7 @@ def check_filename(arg):
 
     if '.py' not in fname:
         fname = '%s.py' % fname
-    if not os.path.exists(pth.join(dirpath, fname)):
+    if not pth.exists(pth.join(dirpath, fname)):
         error("ERROR: %r not found.\n" % (pth.join(dirpath, fname)))
     return dirpath, fname
 
@@ -475,10 +493,19 @@ def run():
                                    info['type'], info['style'],
                                    info['ver'])
         modules = append_main(doc, mod)
-        for mod_name in modules:
-            doc.append_child(make_module_node(modules[mod_name]))
+        #for mod_name in modules:
+        #    doc.append_child(make_module_node(modules[mod_name]))
 
-    warn('Writing %s ... ' % filename)
+    #warn('Writing %s ... ' % filename)
+    
+    # TMP
+    if arg.style:
+        doc.style = arg.style['name']
+        doc.defaults = arg.style['params']
+    lexor.write(doc)
+    return
+    
+    
     try:
         if arg.style:
             doc.style = arg.style['name']
