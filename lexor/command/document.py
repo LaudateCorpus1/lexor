@@ -1,5 +1,4 @@
-"""Document
-
+"""
 Routine to create an xml file with the documentation of a lexor
 style.
 
@@ -25,12 +24,12 @@ def xml_style(lang_str):
         input_style['name'] = '_'
     return input_style
 
+
 DEFAULTS = {
     'path': '.',
 }
 DESC = """
-Generate an xml file with the documentation of a python file. In the
-case of a lexor style, the xml generated contains a special format.
+Generate an xml file with the documentation of a lexor language style.
 
 """
 
@@ -41,9 +40,57 @@ def add_parser(subp, fclass):
                            formatter_class=fclass,
                            description=textwrap.dedent(DESC))
     tmpp.add_argument('style', type=xml_style, nargs='?',
-                      help='an xml style')
+                      help='the xml style to write the documentation')
     tmpp.add_argument('--path', type=str,
-                      help='documentation directory')
+                      help='search for styles in this directory')
+    tmpp.add_argument('--output-dir', type=str, default='', metavar="DIR",
+                      help='writes to file in the specified dir if set')
+
+
+def run():
+    """Run the command. """
+    arg = config.CONFIG['arg']
+    dirpath, fname = check_filename(arg)
+
+    moddir = os.path.splitext(fname)[0]
+    base, _ = os.path.split(moddir)
+    if base == '':
+        base = '.'
+
+    mod = load_source('tmp-module', fname)
+    doc = core.Document()
+    if not hasattr(mod, 'INFO') or 'lang' not in mod.INFO:
+        filename = fname[:-3] + '.xml'
+        doc.append_child(make_module_node(mod, "main"))
+    else:
+        info = mod.INFO
+        if info['to_lang']:
+            filename = '%s/lexor.%s.%s.%s.%s-%s.xml'
+            filename = filename % (dirpath, info['lang'],
+                                   info['type'], info['to_lang'],
+                                   info['style'], info['ver'])
+        else:
+            filename = '%s/lexor.%s.%s.%s-%s.xml'
+            filename = filename % (dirpath, info['lang'],
+                                   info['type'], info['style'],
+                                   info['ver'])
+        modules = append_main(doc, mod)
+        #for mod_name in modules:
+        #    doc.append_child(make_module_node(modules[mod_name]))
+
+    warn('Writing %s ... ' % filename)
+    if arg.output_dir == '':
+        filename = None
+    try:
+        if arg.style:
+            doc.style = arg.style['name']
+            doc.defaults = arg.style['params']
+        lexor.write(doc, filename)
+    except IOError:
+        error("\nERROR: unable to write file.\n"
+              "xml writer default style missing?\n")
+    else:
+        warn('done\n')
 
 
 def export_object(obj):
@@ -348,9 +395,6 @@ def append_main(doc, mod):
     module.append_child(m_node)
     info = separate_objects(mod, ['INFO', 'DEFAULTS',
                                   'MAPPING', 'DESCRIPTION'])
-    
-    #from pprint import pprint
-    #pprint(info)
 
     node = core.Element('classes')
     for cls in info['class']:
@@ -463,56 +507,3 @@ def check_filename(arg):
     if not pth.exists(pth.join(dirpath, fname)):
         error("ERROR: %r not found.\n" % (pth.join(dirpath, fname)))
     return dirpath, fname
-
-
-def run():
-    """Run the command. """
-    arg = config.CONFIG['arg']
-    dirpath, fname = check_filename(arg)
-
-    moddir = os.path.splitext(fname)[0]
-    base, _ = os.path.split(moddir)
-    if base == '':
-        base = '.'
-
-    mod = load_source('tmp-module', fname)
-    doc = core.Document()
-    if not hasattr(mod, 'INFO') or 'lang' not in mod.INFO:
-        filename = fname[:-3] + '.xml'
-        doc.append_child(make_module_node(mod, "main"))
-    else:
-        info = mod.INFO
-        if info['to_lang']:
-            filename = '%s/lexor.%s.%s.%s.%s-%s.xml'
-            filename = filename % (dirpath, info['lang'],
-                                   info['type'], info['to_lang'],
-                                   info['style'], info['ver'])
-        else:
-            filename = '%s/lexor.%s.%s.%s-%s.xml'
-            filename = filename % (dirpath, info['lang'],
-                                   info['type'], info['style'],
-                                   info['ver'])
-        modules = append_main(doc, mod)
-        #for mod_name in modules:
-        #    doc.append_child(make_module_node(modules[mod_name]))
-
-    #warn('Writing %s ... ' % filename)
-    
-    # TMP
-    if arg.style:
-        doc.style = arg.style['name']
-        doc.defaults = arg.style['params']
-    lexor.write(doc)
-    return
-    
-    
-    try:
-        if arg.style:
-            doc.style = arg.style['name']
-            doc.defaults = arg.style['params']
-        lexor.write(doc, filename)
-    except IOError:
-        error("\nERROR: unable to write file.\n"
-              "xml writer default style missing?\n")
-    else:
-        warn('done\n')
