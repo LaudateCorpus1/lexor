@@ -208,23 +208,28 @@ def init(**keywords):
     - [to_lang]
     - type
     - description
-    - author
-    - author_email
-    - [url]
+    - [github]: ``{'user', 'repo'}``
+    - author: ``{'name', 'email'}``
+    - [docs]
     - license
     - path: Must be set to ``__file__``.
 
     """
-    valid_keys = ['version', 'lang', 'to_lang', 'type', 'description',
-                  'author', 'author_email', 'url', 'path', 'license']
+    required_keys = [
+        'version', 'lang', 'type', 'description', 'author', 'license',
+        'path'
+    ]
+    optional_keys = [
+        'to_lang', 'github', 'docs'
+    ]
+    for key in required_keys:
+        if key not in keywords:
+            raise NameError('lexor.init requies `%s`' % key)
     info = dict()
-    for key in valid_keys:
+    for key in optional_keys:
         info[key] = None
-    for key in keywords.keys():
-        if key not in valid_keys:
-            error("ERROR: Valid keys for lexor.init are %s" % valid_keys)
-        else:
-            info[key] = keywords[key]
+    for key in keywords:
+        info[key] = keywords[key]
     info['style'] = splitext(basename(info['path']))[0]
     info['style'] = info['style'].split('-')[0]
     info['ver'] = get_version(info['version'])

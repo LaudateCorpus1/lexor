@@ -114,7 +114,7 @@ def get_info_node(info):
     for key in info:
         if info[key] is None or key == 'path':
             continue
-        node = core.Element('entry')
+        node = core.Element('info-entry')
         node['key'] = key
         if key == 'description':
             node.append_child(core.CData(str(info[key])))
@@ -141,11 +141,10 @@ def get_mapping_node(mapping, repository=None):
         repository = list()
     modules = dict()
     mapping_node = core.Element('mapping')
-    keys = mapping.keys()
-    keys.sort()
+    keys = sorted(mapping.keys())
     for ele in keys:
         if isinstance(mapping[ele], tuple):
-            entry = core.Element('entry')
+            entry = core.Element('mapping-entry')
             entry['key'] = ele
             entry.append_child(
                 core.Element('checker').append_child(
@@ -383,8 +382,8 @@ def append_main(doc, mod):
             core.CData(str(mod.__doc__))
         )
     )
-
     module.append_child(get_info_node(mod.INFO))
+    
     if hasattr(mod, 'DEFAULTS'):
         module.append_child(get_defaults_node(mod.DEFAULTS))
     if hasattr(mod, 'REPOSITORY'):
