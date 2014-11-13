@@ -33,7 +33,16 @@ style is an existing repository in Github and to provide your Github
 access code to the cloud.
 
 """, 'list': """
-list available styles.
+list available styles. This has to be a string with the following
+format:
+
+    lang.type.[to_lang].style
+
+where ``to_lang`` is only required if ``type`` is set to converter.
+If you want to display all the available options then you may use
+``_``. For instance to search all the available writers
+
+    _.writer
 
 """}
 
@@ -60,14 +69,19 @@ def add_parser(subp, fclass):
                    formatter_class=fclass,
                    description=textwrap.dedent(DESC['delete']))
 
-    sub.add_parser('list', help='list available styles',
-                   formatter_class=fclass,
-                   description=textwrap.dedent(DESC['list']))
+    tmp = sub.add_parser('list', help='list available styles',
+                         formatter_class=fclass,
+                         description=textwrap.dedent(DESC['list']))
+    tmp.add_argument('style', type=str,
+                     help="style to search: lang.type.[to_lang].style")
 
 
 def run():
     """Perform a cloud operation. """
     arg = config.CONFIG['arg']
+    if arg.subparser_name == 'list':
+        _list(arg)
+        exit(0)
     path = os.path.abspath(arg.inputfile)
     if '.py' not in path:
         path = '%s.py' % path
@@ -82,10 +96,12 @@ def run():
         token = arg.token
     elif mod.INFO['git']['host'] == 'github':
         token = os.environ.get('GITHUB_ACCESS_TOKEN', '')
+    if token == '':
+        msg = "ERROR: github token is required to %s style in the cloud\n"
+        error(msg % arg.subparser_name)
     func = {
         'register': _register,
         'delete': _delete,
-        'list': _list,
     }
     func[arg.subparser_name](arg, mod.INFO, token)
 
@@ -128,14 +144,34 @@ def _delete(_, info, token):
             disp('  %s: %s\n' % (key, ans[key]))
 
 
-def _list(arg, info, token):
+def _list(arg):
     """List the available styles. """
     inputs = {}
+    styles = arg.style.split('.')
+    size = len(styles)
+    if size > 0 and styles[0] != '_':
+        inputs['lang'] = styles[0]
+    if size > 1 and styles[1] != '_':
+        if styles[1] not in ['parser', 'writer', 'converter']:
+            error("ERROR: '%s' is not a valid type\n" % styles[1])
+        inputs['type'] = styles[1]
+    if size > 2 and styles[2] != '_':
+        inputs['to_lang' if styles[1] == 'converter' else 'style'] = styles[2]
+    if size > 3 and styles[3] != '_':
+        inputs['style'] = styles[3]
     ans = cloud_request('match', inputs)
     if isinstance(ans, six.string_types):
         error("ERROR: %s\n" % ans)
-    else:
-        print ans
+    if not ans:
+        disp('no matches found\n')
+    for item in ans:
+        name = '%s.%s' % (item['lang'], item['type'])
+        if item['to_lang'] != 'None':
+            name += '.%s' % item['to_lang']
+        name += '.%s' % item['style']
+        url = "https://github.com/%s/%s" % (item['user'], item['repo'])
+        print '{0:35} {1:>35}'.format(name, url)
+
 
 def cloud_request(request, data):
     """Make a request to the cloud. """

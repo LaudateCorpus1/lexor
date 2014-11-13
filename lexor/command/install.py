@@ -14,9 +14,10 @@ import zipfile
 import textwrap
 import distutils.dir_util
 import distutils.errors
+import os.path as pth
 from glob import iglob
 from imp import load_source
-from lexor.command import error
+from lexor.command import error, disp
 from lexor.command import config
 
 DESC = """
@@ -30,18 +31,18 @@ def add_parser(subp, fclass):
     tmpp = subp.add_parser('install', help='install a style',
                            formatter_class=fclass,
                            description=textwrap.dedent(DESC))
-    tmpp.add_argument('style', type=str,
+    tmpp.add_argument('style', type=str, nargs="?",
                       help='name of style to install')
-    tmpp.add_argument('--user', action='store_true',
+    tmpp.add_argument('--user', '-u', action='store_true',
+                      help='install in user-site')
+    tmpp.add_argument('--global', '-g', action='store_true',
                       help='install in user-site')
     tmpp.add_argument('--path', type=str,
                       help='specify the installation path')
 
 
-def install_style(style, install_dir):
-    """Install a given style to the install_dir path. """
-    mod = load_source('tmp_mod', style)
-    info = mod.INFO
+def _get_key_typedir(info, install_dir):
+    """Helper function for install_style. """
     if info['to_lang']:
         key = '%s.%s.%s.%s' % (info['lang'], info['type'],
                                info['to_lang'], info['style'])
@@ -52,6 +53,18 @@ def install_style(style, install_dir):
         key = '%s.%s.%s' % (info['lang'], info['type'], info['style'])
         typedir = '%s/%s.%s'
         typedir = typedir % (install_dir, info['lang'], info['type'])
+    return key, typedir
+
+def install_style(style, install_dir):
+    """Install a given style to the install_dir path. """
+    if not style.startswith('/'):
+        raise NameError('style parameter is not an absolute path')
+    if not install_dir.startswith('/'):
+        raise NameError('install_dir parameter is not an absolute path')
+
+    mod = load_source('tmp_mod', style)
+    info = mod.INFO
+    key, typedir = _get_key_typedir(info, install_dir)
 
     if not os.path.exists(typedir):
         try:
@@ -70,6 +83,8 @@ def install_style(style, install_dir):
     new = '%s/%s-%s.py' % (typedir, name, info['ver'])
     sys.stdout.write('writing %s ... ' % new)
     try:
+        print 'old = ', old
+        print 'new = ', new
         shutil.copyfile(old, new)
     except OSError:
         msg = 'OSError: unable to copy file. Did you `sudo`?\n'
@@ -107,6 +122,8 @@ def install_style(style, install_dir):
         cfg_file['version'][key] = info['ver']
 
     # Write configuration
+    print config.CONFIG['path']
+    print config.CONFIG['name']
     config.write_config(cfg_file)
 
 
@@ -135,8 +152,12 @@ def unzip_file(local_name):
 def run():
     """Run the command. """
     arg = config.CONFIG['arg']
+    from lexor.command.cloud import cloud_request
+    print cloud_request('match', {})
+    print arg
+    exit()
     if arg.path:
-        install_dir = arg.path
+        install_dir = os.path.abspath(arg.path)
     elif arg.user:
         try:
             install_dir = '%s/lib/lexor' % site.getuserbase()
@@ -161,6 +182,7 @@ def run():
         if arg.style in name:
             matches.append([name.strip(), url.strip()])
 
+    cwd = os.getcwd()
     for match in matches:
         doc = urllib2.urlopen(match[1]).read()
         links = re.finditer(r' href="?([^\s^"]+)', doc)
@@ -171,10 +193,7 @@ def run():
                 style_url = '%s://%s%s' % (path[0], path[1], link)
                 local_name = download_file(style_url, '.')
                 dirname = unzip_file(local_name)
-                # Assuming there is only one python file
-                os.chdir(dirname)
-                for path in iglob('*.py'):
-                    install_style(path, install_dir)
-                os.chdir('..')
+                for path in iglob('%s/*.py' % dirname):
+                    install_style(pth.abspath(path), install_dir)
                 os.remove(local_name)
                 shutil.rmtree(dirname)
