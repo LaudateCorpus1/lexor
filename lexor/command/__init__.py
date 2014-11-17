@@ -59,3 +59,8 @@ def date(short=False):
     if not short:
         return now.strftime("%a %b %d, %Y %r")
     return now.strftime("%Y-%m-%d-%H-%M-%S")
+
+
+class ConfigError(Exception):
+    """Raised when a lexor configuration file is not found. """
+    pass

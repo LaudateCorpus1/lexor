@@ -23,6 +23,15 @@ Command Line
     Commands <commands/index>
 
 
+Topics
+======
+
+.. toctree::
+  :maxdepth: 2
+  
+  Topics <topics/index>
+
+
 Lexor API
 =========
 

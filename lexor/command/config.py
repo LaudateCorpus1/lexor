@@ -2,16 +2,32 @@
 This module is in charge of providing all the necessary settings to
 the rest of the modules in lexor.
 
+The config module comes with global variable ``CONFIG`` which is
+meant to be read only. This variable is a dictionary with the
+following keys:
+
+- ``path``: The path to the configuration file
+- ``name``: The name of the configuration file (lexor.config)
+- ``cfg_path``
+- ``cfg_user``
+- ``arg``
+
+The last three keys are meant to be used for the command line, but
+they can come in handy in scripts if we need to specify the location
+of the configuration file.
+
 """
 import os
 import sys
 import argparse
 import textwrap
 import configparser
-from lexor.command import error, disp, import_mod
+import os.path as pth
+from lexor.command import error, disp, import_mod, ConfigError
 
 
-DESC = """View and edit a configuration file for lexor.
+DESC = """
+view and edit a configuration file for lexor.
 
 Some actions performed by lexor can be overwritten by using
 configuration files.
@@ -48,7 +64,10 @@ class _ConfigDispAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         CONFIG['cfg_user'] = namespace.cfg_user
         CONFIG['cfg_path'] = namespace.cfg_path
-        cfg_file = read_config()
+        try:
+            cfg_file = read_config()
+        except ConfigError as err:
+            error("ERROR: %s\n" % err.message)
         fname = '%s/%s' % (CONFIG['path'], CONFIG['name'])
         disp('lexor configuration file: %s\n' % fname)
         cfg_file.write(sys.stdout)
@@ -60,7 +79,7 @@ def add_parser(subp, fclass):
     .. admonition:: Command Line Utility Function
         :class: warning
 
-        Add a parser to the main subparser.
+        Add a parser to the main sub-parser.
     """
     tmpp = subp.add_parser('config', help='configure lexor',
                            formatter_class=fclass,
@@ -85,7 +104,10 @@ def run():
         Run the command.
     """
     arg = CONFIG['arg']
-    cfg_file = read_config()
+    try:
+        cfg_file = read_config()
+    except ConfigError as err:
+        error("ERROR: %s\n" % err.message)
     try:
         command, var = arg.var.split('.', 1)
     except ValueError:
@@ -108,7 +130,53 @@ def run():
 
 
 def read_config():
-    """Read a configuration file."""
+    """Read a configuration file. There are a few ways of specifying
+    which configuration file to use.
+
+    - Setting ``CONFIG['cfg_user']`` to ``True`` will read the file
+      ``~/.lexor.config``. This variable is set to true in the
+      command line by using ``--cfg-user``.
+
+    - Specifying a path via ``CONFIG['cfg_path']`` reads the file
+      ``lexor.config`` in the specified path. We can set this
+      variable in the command line via the option ``--cfg``.
+
+    - If no path is specified by ``CONFIG['cfg_path']`` then it
+      searches for ``lexor.config`` in the current directory. If this
+      fails then it will attempt to look for ``lexor.config`` in the
+      path specified by the environmental variable
+      ``LEXOR_CONFIG_PATH``.
+
+    - If everything else fails then it searches for ``.lexor.config``
+      in the home directory.
+
+    This function may raise a :class:`~lexor.command.ConfigError`
+    exception if the configuration is not found when
+    ``CONFIG['cfg_path']`` is set.
+
+    .. note::
+
+        If you must read a specific configuration file via a script
+        you can import ``lexor.command.config`` and then set
+        ``'cfg_path'``. For instance::
+
+            from lexor.command import config
+            config.CONFIG['cfg_path'] = 'path/to/config/file'
+            print config.read_config()
+
+        If only the ``CONFIG`` variable is imported then the changes
+        will not propagate to the module. That is, if we were to
+        do::
+
+            from lexor.command.config import CONFIG
+            CONFIG['cfg_path'] = 'path/to/config/file'
+            print config.read_config()
+
+        then the module will not be aware of the file since
+        ``CONFIG`` is a copy of the ``CONFIG`` variable in the
+        ``config`` module.
+
+    """
     cfg_file = configparser.ConfigParser(allow_no_value=True)
     name = 'lexor.config'
     if CONFIG['cfg_user']:
@@ -116,7 +184,7 @@ def read_config():
         name = '.lexor.config'
     elif CONFIG['cfg_path'] is None:
         path = '.'
-        if not os.path.exists(name):
+        if not pth.exists(name):
             if 'LEXOR_CONFIG_PATH' in os.environ:
                 path = os.environ['LEXOR_CONFIG_PATH']
             else:
@@ -124,8 +192,8 @@ def read_config():
                 name = '.lexor.config'
     else:
         path = CONFIG['cfg_path']
-        if not os.path.exists('%s/%s' % (path, name)):
-            error("ERROR: %s/%s does not exist.\n" % (path, name))
+        if not pth.exists('%s/%s' % (path, name)):
+            raise ConfigError('%s/%s does not exist.' % (path, name))
     cfg_file.read('%s/%s' % (path, name))
     CONFIG['name'] = name
     CONFIG['path'] = path
@@ -133,26 +201,30 @@ def read_config():
 
 
 def write_config(cfg_file):
-    "Write the configuration file. "
+    """Write the configuration file. The input to this function
+    should be the object returned by :func:`read_config`. This will
+    write the changes made to the configuration in the location
+    specified by the ``CONFIG`` global variable in the config module.
+    """
     fname = '%s/%s' % (CONFIG['path'], CONFIG['name'])
     with open(fname, 'w') as tmp:
         cfg_file.write(tmp)
 
 
 def update_single(cfg, name, defaults=None):
-    """Update the specified section in configuration (`name`) with
-    the `defaults` provided. If none are provided then it will
-    attempt to look for a lexor command and obtain its defaults so
-    that `cfg` may be updated."""
+    """Update the specified section in configuration (``name``) with
+    the ``defaults`` provided. If no defaults are provided then it
+    will attempt to look for a lexor command and obtain its defaults
+    so that ``cfg`` may be updated."""
     if defaults:
         for var, val in defaults.iteritems():
-            cfg[name][var] = os.path.expandvars(str(val))
+            cfg[name][var] = pth.expandvars(str(val))
     else:
         try:
             mod = import_mod('lexor.command.%s' % name)
             if hasattr(mod, "DEFAULTS"):
                 for var, val in mod.DEFAULTS.iteritems():
-                    cfg[name][var] = os.path.expandvars(val)
+                    cfg[name][var] = pth.expandvars(val)
         except ImportError:
             pass
 
@@ -161,7 +233,7 @@ def _update_from_file(cfg, name, cfg_file):
     "Helper function for get_cfg."
     if name in cfg_file:
         for var, val in cfg_file[name].iteritems():
-            cfg[name][var] = os.path.expandvars(val)
+            cfg[name][var] = pth.expandvars(val)
 
 
 def _update_from_arg(cfg, argdict, key):
@@ -172,7 +244,13 @@ def _update_from_arg(cfg, argdict, key):
 
 
 def get_cfg(names, defaults=None):
-    "Obtain settings from the configuration file."
+    """Obtain settings from the configuration file. Sometimes we may
+    wish to only obtain certain sections from the configuration. When
+    this is the case we can use this function and we specify a list
+    of ``names`` or a single string to obtain specific sections from
+    the configuration. We may optionally provide defaults in case we
+    wish to override the defaults provided for each of the
+    sections."""
     cfg = {
         'lexor': {
             'path': ''
@@ -181,7 +259,7 @@ def get_cfg(names, defaults=None):
     cfg_file = read_config()
     if 'lexor' in cfg_file:
         for var, val in cfg_file['lexor'].iteritems():
-            cfg['lexor'][var] = os.path.expandvars(val)
+            cfg['lexor'][var] = pth.expandvars(val)
     cfg['lexor']['root'] = CONFIG['path']
     if isinstance(names, list):
         for name in names:
@@ -203,10 +281,10 @@ def get_cfg(names, defaults=None):
 
 
 def set_style_cfg(obj, name, defaults):
-    """Given a |Parser|, |Converter| or |Writer| `obj`, it
-    sets the attribute ``defaults`` to the specified defaults in the
+    """Given a |Parser|, |Converter| or |Writer| ``obj``, it sets its
+    ``defaults`` attribute to the specified defaults in the
     configuration file or by the user by overwriting values in the
-    parameter `defaults`.
+    parameter ``defaults``.
 
     .. |Parser| replace:: :class:`~lexor.core.parser.Parser`
     .. |Converter| replace:: :class:`~lexor.core.converter.Converter`
@@ -217,11 +295,11 @@ def set_style_cfg(obj, name, defaults):
     if hasattr(obj.style_module, 'DEFAULTS'):
         mod_defaults = obj.style_module.DEFAULTS
         for var, val in mod_defaults.iteritems():
-            obj.defaults[var] = os.path.expandvars(str(val))
+            obj.defaults[var] = pth.expandvars(str(val))
     cfg_file = read_config()
     if name in cfg_file:
         for var, val in cfg_file[name].iteritems():
-            obj.defaults[var] = os.path.expandvars(val)
+            obj.defaults[var] = pth.expandvars(val)
     if defaults:
         for var, val in defaults.iteritems():
             obj.defaults[var] = val

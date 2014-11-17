@@ -72,5 +72,5 @@ def run():
             break
     if not found:
         error("ERROR: file not found.\n")
-    cmd = '%s "%s" > /dev/null' % (cfg['edit']['editor'], abspath)    
+    cmd = '%s "%s"' % (cfg['edit']['editor'], abspath)    
     system(cmd)

@@ -152,6 +152,11 @@ def unzip_file(local_name):
 def run():
     """Run the command. """
     arg = config.CONFIG['arg']
+    cfg = config.get_cfg(['lang', 'version'])
+    print cfg
+    print '----'
+    print config.CONFIG
+    print '----'
     from lexor.command.cloud import cloud_request
     print cloud_request('match', {})
     print arg
