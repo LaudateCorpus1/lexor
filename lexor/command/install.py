@@ -33,10 +33,10 @@ def add_parser(subp, fclass):
                            description=textwrap.dedent(DESC))
     tmpp.add_argument('style', type=str, nargs="?",
                       help='name of style to install')
-    tmpp.add_argument('--user', '-u', action='store_true',
+    tmpp.add_argument('-u', '--user', action='store_true',
                       help='install in user-site')
-    tmpp.add_argument('--global', '-g', action='store_true',
-                      help='install in user-site')
+    tmpp.add_argument('-g', '--global', action='store_true',
+                      help='install globably, requires sudo')
     tmpp.add_argument('--path', type=str,
                       help='specify the installation path')
 
@@ -151,8 +151,24 @@ def unzip_file(local_name):
 
 def run():
     """Run the command. """
+    arg = vars(config.CONFIG['arg'])
+    if arg['global'] or arg['user']:
+        pass
+    else:
+        pass
+    
+    
+    print arg
+    
+    if not pth.exists('lexor.config'):
+        with open('lexor.config', 'w') as _:
+            pass
+    
+    
+    cfg = config.get_cfg(['dependencies'])
     arg = config.CONFIG['arg']
-    cfg = config.get_cfg(['lang', 'version'])
+    print arg
+    print '--------'
     print cfg
     print '----'
     print config.CONFIG

@@ -193,7 +193,7 @@ def get_input(input_file, cfg, default='_'):
     if input_file is '_':
         return sys.stdin.read(), 'STDIN', 'STDIN', default
     found = False
-    if input_file[0] != '/':
+    if input_file[0] not in ['/', '.']:
         root = cfg['lexor']['root']
         paths = cfg['edit']['path'].split(':')
         for path in paths:

@@ -1,11 +1,11 @@
 """
-This module provides functions to load the different languages
-parsers, writers and converters. This module defines the list
-``LEXOR_PATH`` which is an array of paths where lexor looks for the
-parsing, writing and converting styles. You may specify more paths by
-either directly append to this path while using lexor as a python
-module or by editing the enviromental variable ``LEXORPATH`` and
-appending paths to it separating them by a colon ``:``.
+This module provides functions to load the different parsers, writers
+and converters. It defines the list ``LEXOR_PATH`` which is an array
+of paths where lexor looks for the parsing, writing and converting
+styles. You may specify more paths by either directly appending to
+this path while using lexor as a python module or by editing the
+enviromental variable ``LEXORPATH`` and appending paths to it
+separating them by a colon ``:``.
 
 """
 

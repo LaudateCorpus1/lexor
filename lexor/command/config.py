@@ -276,7 +276,6 @@ def get_cfg(names, defaults=None):
         if argdict['parser_name'] in cfg:
             _update_from_arg(cfg, argdict, argdict['parser_name'])
         _update_from_arg(cfg, argdict, 'lexor')
-        CONFIG['arg'] = None
     return cfg
 
 
