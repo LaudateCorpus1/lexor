@@ -4,9 +4,24 @@ Collection of functions to create lexor's command line utility.
 """
 
 import sys
+import lexor
 from dateutil import parser
 from datetime import datetime
 from subprocess import Popen, PIPE
+from inspect import currentframe, getframeinfo
+
+
+def debug(msg, level=1):
+    """Prints a message to the standard error stream. The message
+    will only be displayed if the ``CONFIG`` global variable in the
+    config module is set to a level greater than or equal to the
+    level specified in the parameter of this function. """
+    if lexor.CONFIG['debug'] >= level:
+        cfr = currentframe()
+        fname = getframeinfo(cfr.f_back).filename.split('lexor/lexor/')[1]
+        lineno = cfr.f_back.f_lineno
+        msg = 'debug%d: [%s:%d] => %s\n' % (level, fname, lineno, msg)
+        sys.stderr.write(msg)
 
 
 def error(msg):
@@ -63,4 +78,9 @@ def date(short=False):
 
 class ConfigError(Exception):
     """Raised when a lexor configuration file is not found. """
+    pass
+
+
+class LexorError(Exception):
+    """Every known error should be raised via this exception. """
     pass

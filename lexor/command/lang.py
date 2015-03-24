@@ -13,6 +13,7 @@ import os
 import sys
 import site
 import textwrap
+import logging
 from pkg_resources import parse_version
 from os.path import splitext, abspath
 from imp import load_source
@@ -154,6 +155,7 @@ def _get_info(cfg, type_, lang, style, to_lang=None):
 
 def get_style_module(type_, lang, style, to_lang=None):
     """Return a parsing/writing/converting module. """
+    logging.debug("printing")
     cfg = config.get_cfg(['lang', 'develop', 'version'])
     config.update_single(cfg, 'lang', DEFAULTS)
     key, name, modname = _get_info(cfg, type_, lang, style, to_lang)

@@ -31,6 +31,7 @@ from lexor.__version__ import get_version
 from lexor.command import error
 from lexor.command.lang import load_aux
 from lexor import core
+
 __all__ = [
     'lexor',
     'parse',
@@ -39,6 +40,14 @@ __all__ = [
     'write',
     'init',
 ]
+CONFIG = {
+    'path': None,  # read only
+    'name': None,  # read only
+    'cfg_path': None,  # COMMAND LINE USE ONLY
+    'cfg_user': None,  # COMMAND LINE USE ONLY
+    'arg': None,  # COMMAND LINE USE ONLY
+    'debug': 0, # COMMAND LINE USE ONLY
+}
 
 
 def _read_text(src, search=False):

@@ -12,10 +12,12 @@ import os
 import sys
 import argparse
 import textwrap
+import logging
 import os.path as pt
+import lexor
 from glob import iglob
 from lexor.__version__ import VERSION
-from lexor.command import config, import_mod
+from lexor.command import config, import_mod, debug, LexorError
 from lexor.command.edit import valid_files
 try:
     import argcomplete
@@ -119,6 +121,8 @@ version:
                                    epilog=textwrap.dedent(epi))
     argp.add_argument('inputfile', type=str, default='_', nargs='?',
                       help='input file to process').completer = valid_files
+    argp.add_argument('--debug', type=int, default=0, metavar="LEVEL",
+                      help='set the debug level')
     argp.add_argument('--cfg', type=str, dest='cfg_path',
                       metavar='CFG_PATH',
                       help='configuration file directory')
@@ -159,11 +163,16 @@ def run():
             mod[tmp_name] = tmp_mod
 
     arg = parse_options(mod)
+    lexor.CONFIG['debug'] = arg.debug
     config.CONFIG['cfg_path'] = arg.cfg_path
     config.CONFIG['cfg_user'] = arg.cfg_user
     config.CONFIG['arg'] = arg
-    mod[arg.parser_name].run()
-
+    debug("running command '%s'" % arg.parser_name)
+    logging.basicConfig(stream=sys.stderr, format='%(module)s:%(lineno)d:%(message)s',level=logging.DEBUG)
+    try:
+        mod[arg.parser_name].run()
+    except LexorError as err:
+        print 'ERROR: %s' % err.message
 
 if __name__ == '__main__':
     run()
