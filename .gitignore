@@ -86,3 +86,7 @@ build
 # Dolphin #
 ###########
 .directory
+
+# PyCharm #
+###########
+.idea
