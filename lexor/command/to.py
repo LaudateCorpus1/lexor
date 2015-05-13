@@ -9,7 +9,7 @@ import os
 import sys
 import textwrap
 import argparse
-from lexor.util.logging import LOG
+from lexor.util.logging import L
 from lexor.command import config, warn, LexorError
 from lexor.core.parser import Parser
 from lexor.core.writer import Writer
@@ -231,8 +231,8 @@ def run():
     arg = config.CONFIG['arg']
     cfg = config.get_cfg(['to', 'edit'])
 
-    if LOG.on:
-        LOG.debug("message %d", 5)
+    if L.on:
+        L.debug("message %d", 5)
 
     text, t_name, f_name, f_ext = get_input(arg.inputfile, cfg)
 

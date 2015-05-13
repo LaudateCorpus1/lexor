@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 """Command line use of lexor
 
 To run lexor from the command line do the following:
@@ -15,12 +13,11 @@ import sys
 import argparse
 import textwrap
 import os.path as pt
-import lexor
 from glob import iglob
 from lexor.__version__ import VERSION
 from lexor.command import config, import_mod, LexorError
 from lexor.command.edit import valid_files
-from lexor.util.logging import LOG
+from lexor.util.logging import L
 try:
     import argcomplete
 except ImportError:
@@ -123,8 +120,8 @@ version:
                                    epilog=textwrap.dedent(epi))
     argp.add_argument('inputfile', type=str, default='_', nargs='?',
                       help='input file to process').completer = valid_files
-    argp.add_argument('--debug', type=int, default=0, metavar="LEVEL",
-                      help='set the debug level')
+    argp.add_argument('--debug', action='store_true', dest='debug',
+                      help='log events')
     argp.add_argument('--cfg', type=str, dest='cfg_path',
                       metavar='CFG_PATH',
                       help='configuration file directory')
@@ -157,10 +154,6 @@ def run():
     mod = dict()
     rootpath = pt.split(pt.abspath(__file__))[0]
 
-    LOG.enable()
-    if LOG.on:
-        LOG.log('This is a message %s', 'other', exception='a')
-
     mod_names = [name for name in iglob('%s/command/*.py' % rootpath)]
     for name in mod_names:
         tmp_name = pt.split(name)[1][:-3]
@@ -169,15 +162,20 @@ def run():
             mod[tmp_name] = tmp_mod
 
     arg = parse_options(mod)
-    lexor.CONFIG['debug'] = arg.debug
+
+    if arg.debug:
+        L.enable()
+
     config.CONFIG['cfg_path'] = arg.cfg_path
     config.CONFIG['cfg_user'] = arg.cfg_user
     config.CONFIG['arg'] = arg
     try:
+        if L.on:
+            L.info('running from `%s`', rootpath)
         mod[arg.parser_name].run()
     except LexorError as err:
-        print('ERROR: %s' % err.message)
-    print(repr(LOG))
+        sys.stderr.write('ERROR: %s\n' % err.message)
+    sys.stderr.write(repr(L))
 
 if __name__ == '__main__':
     run()
