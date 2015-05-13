@@ -17,7 +17,7 @@ import distutils.errors
 import os.path as pth
 from glob import iglob
 from imp import load_source
-from lexor.command import error, disp
+from lexor.command import disp
 from lexor.command import config
 
 DESC = """

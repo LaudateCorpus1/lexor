@@ -17,13 +17,18 @@ they can come in handy in scripts if we need to specify the location
 of the configuration file.
 
 """
+
+from __future__ import print_function
 import os
 import sys
+import logging
 import argparse
 import textwrap
 import configparser
 import os.path as pth
-from lexor.command import error, disp, import_mod, ConfigError
+from lexor.command import (
+    disp, import_mod, ConfigError, LexorError
+)
 
 
 DESC = """
@@ -44,7 +49,7 @@ CONFIG = {
     'cfg_path': None,  # COMMAND LINE USE ONLY
     'cfg_user': None,  # COMMAND LINE USE ONLY
     'arg': None,  # COMMAND LINE USE ONLY
-    'debug': 0, # COMMAND LINE USE ONLY
+    'cache': None,  # read_config USE ONLY
 }
 
 
@@ -68,7 +73,7 @@ class _ConfigDispAction(argparse.Action):
         try:
             cfg_file = read_config()
         except ConfigError as err:
-            error("ERROR: %s\n" % err.message)
+            raise LexorError(err.message)
         fname = '%s/%s' % (CONFIG['path'], CONFIG['name'])
         disp('lexor configuration file: %s\n' % fname)
         cfg_file.write(sys.stdout)
@@ -108,17 +113,17 @@ def run():
     try:
         cfg_file = read_config()
     except ConfigError as err:
-        error("ERROR: %s\n" % err.message)
+        raise LexorError(err.message)
     try:
         command, var = arg.var.split('.', 1)
     except ValueError:
-        error("ERROR: '%s' is not of the form sec.key\n" % arg.var)
+        raise LexorError("'%s' is not of the form sec.key" % arg.var)
     if arg.v:
         fname = '%s/%s' % (CONFIG['path'], CONFIG['name'])
         disp('lexor configuration file: %s\n' % fname)
     if arg.value is None:
         try:
-            print cfg_file[command][var]
+            disp(cfg_file[command][var])
         except KeyError:
             pass
         return
@@ -130,7 +135,7 @@ def run():
     write_config(cfg_file)
 
 
-def read_config():
+def read_config(cache=True):
     """Read a configuration file. There are a few ways of specifying
     which configuration file to use.
 
@@ -178,6 +183,8 @@ def read_config():
         ``config`` module.
 
     """
+    if cache and CONFIG['cache'] is not None:
+        return CONFIG['cache']
     cfg_file = configparser.ConfigParser(allow_no_value=True)
     name = 'lexor.config'
     if CONFIG['cfg_user']:
@@ -198,6 +205,8 @@ def read_config():
     cfg_file.read('%s/%s' % (path, name))
     CONFIG['name'] = name
     CONFIG['path'] = path
+    CONFIG['cache'] = cfg_file
+    logging.info('loaded config `%s` from `%s`', name, path)
     return cfg_file
 
 

@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 """
 This module provides functions to load the different parsers, writers
 and converters. It defines the list ``LEXOR_PATH`` which is an array
@@ -75,7 +77,8 @@ def _handle_kind(paths, cfg):
     if paths:
         kind = os.path.basename(paths[0])
     for path in paths:
-        tmp = [os.path.basename(ele) for ele in glob('%s/*.py' % path)]
+        pattern = '%s/*.py' % path
+        tmp = [os.path.basename(ele) for ele in glob(pattern)]
         for style in tmp:
             index = style.find('-')
             if index == -1:
@@ -89,18 +92,18 @@ def _handle_kind(paths, cfg):
         key = '%s.%s' % (kind, style)
         if key in cfg['version']:
             ver = cfg['version'][key]
-            print '        [*] %s -> %s' % (style, ver)
+            print('        [*] %s -> %s' % (style, ver))
         else:
             ver = max(styles[style], key=parse_version)
             cfg['version'][key] = ver
-            print '        [+] %s -> %s' % (style, ver)
+            print('        [+] %s -> %s' % (style, ver))
     config.write_config(cfg)
 
 
 def _handle_lang(path, cfg):
     """Helper function for run. """
     for kind in path:
-        print '    %s:' % kind
+        print('    %s:' % kind)
         _handle_kind(path[kind], cfg)
 
 
@@ -129,9 +132,9 @@ def run():
         else:
             path[name][kind].append(loc)
     for lang in path:
-        print '%s:' % lang
+        print('%s:' % lang)
         _handle_lang(path[lang], cfg)
-        print ''
+        print('')
 
 
 def _get_info(cfg, type_, lang, style, to_lang=None):
@@ -155,23 +158,28 @@ def _get_info(cfg, type_, lang, style, to_lang=None):
 
 def get_style_module(type_, lang, style, to_lang=None):
     """Return a parsing/writing/converting module. """
-    logging.debug("printing")
     cfg = config.get_cfg(['lang', 'develop', 'version'])
     config.update_single(cfg, 'lang', DEFAULTS)
     key, name, modname = _get_info(cfg, type_, lang, style, to_lang)
+    logging.info('searching for %s', name)
     if 'develop' in cfg:
         try:
             path = cfg['develop'][key]
             if path[0] != '/':
                 path = '%s/%s' % (config.CONFIG['path'], path)
+            logging.info('  dev -> load %s from %s', modname, path)
             return load_source(modname, path)
-        except (KeyError, IOError):
+        except KeyError:
             pass
+        except IOError:
+            logging.info('      -> loading FAILED')
     versions = []
     for base in LEXOR_PATH:
         if 'version' in cfg:
             try:
-                path = '%s/%s-%s.py' % (base, name, cfg['version'][key])
+                path = '%s/%s-%s.py' % (
+                    base, name, cfg['version'][key]
+                )
             except KeyError:
                 versions += glob('%s/%s*.py' % (base, name))
                 path = '%s/%s.py' % (base, name)
@@ -179,14 +187,18 @@ def get_style_module(type_, lang, style, to_lang=None):
             versions += glob('%s/%s*.py' % (base, name))
             path = '%s/%s.py' % (base, name)
         try:
+            logging.info('  path -> load %s from %s', modname, path)
             return load_source(modname, path)
         except IOError:
+            logging.info('  path -> loading FAILED')
             continue
     try:
+        logging.info('  ver -> load %s from %s', modname, versions[0])
         mod = load_source(modname, versions[0])
         mod.VERSIONS = versions
         return mod
     except (IOError, IndexError):
+        logging.info('  ver -> loading FAILED')
         raise ImportError("lexor module not found: %s" % name)
 
 

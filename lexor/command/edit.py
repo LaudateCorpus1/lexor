@@ -7,8 +7,7 @@ Module to open files with an editor.
 import textwrap
 from os import listdir, system
 from os.path import isfile, join, exists
-from lexor.command import error
-from lexor.command import config
+from lexor.command import config, LexorError
 
 DEFAULTS = {
     'editor': '$EDITOR',
@@ -71,6 +70,6 @@ def run():
             found = True
             break
     if not found:
-        error("ERROR: file not found.\n")
+        raise LexorError('file not found')
     cmd = '%s "%s"' % (cfg['edit']['editor'], abspath)    
     system(cmd)

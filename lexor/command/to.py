@@ -7,13 +7,14 @@ Execute lexor by transforming a file "to" another language.
 import re
 import os
 import sys
-import logging
 import textwrap
 import argparse
-from lexor.command import config, error, warn, debug, LexorError
+from lexor.util.logging import LOG
+from lexor.command import config, warn, LexorError
 from lexor.core.parser import Parser
 from lexor.core.writer import Writer
 from lexor.core.converter import Converter
+
 
 DEFAULTS = {
     'parse_lang': 'lexor:_',
@@ -195,7 +196,7 @@ def get_input(input_file, cfg, default='_'):
         return sys.stdin.read(), 'STDIN', 'STDIN', default
     found = False
     if input_file[0] not in ['/', '.']:
-        debug('looking for input file')
+        logging.info('looking for input file')
         root = cfg['lexor']['root']
         paths = cfg['edit']['path'].split(':')
         for path in paths:
@@ -203,7 +204,7 @@ def get_input(input_file, cfg, default='_'):
                 abspath = '%s/%s' % (path, input_file)
             else:
                 abspath = '%s/%s/%s' % (root, path, input_file)
-            debug('abspath = %s' % abspath)
+            logging.info('abspath = %s' % abspath)
             if os.path.exists(abspath):
                 found = True
                 break
@@ -213,7 +214,6 @@ def get_input(input_file, cfg, default='_'):
             found = True
     if not found:
         raise LexorError('input file "%s" was not found' % input_file)
-        #error("ERROR: The file '%s' does not exist.\n" % input_file)
     text = open(abspath, 'r').read()
     textname = input_file
     path = os.path.realpath(abspath)
@@ -228,9 +228,11 @@ def get_input(input_file, cfg, default='_'):
 
 def run():
     """Run the command. """
-    logging.info('running `to` command')
     arg = config.CONFIG['arg']
     cfg = config.get_cfg(['to', 'edit'])
+
+    if LOG.on:
+        LOG.debug("message %d", 5)
 
     text, t_name, f_name, f_ext = get_input(arg.inputfile, cfg)
 

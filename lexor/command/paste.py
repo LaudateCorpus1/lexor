@@ -7,7 +7,6 @@ Routine to append paste templates.
 
 import os
 import textwrap
-from lexor.command import error
 from lexor.command import config
 
 DESC = """

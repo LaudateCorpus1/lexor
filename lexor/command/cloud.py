@@ -9,8 +9,8 @@ import json
 import textwrap
 import httplib
 from imp import load_source
-from lexor.command import error, disp
-from lexor.command import config
+from lexor.command import disp
+from lexor.command import config, LexorError
 
 DESC = {'main': """
 communicate with the cloud. This will allow you to register a style
@@ -88,7 +88,7 @@ def run():
     try:
         mod = load_source("tmp-mod", path)
     except IOError:
-        error("ERROR: Not a valid module.\n")
+        raise LexorError('Not a valid module.')
     if not hasattr(mod, 'INFO'):
         error("ERROR: module does not have `INFO`\n")
     token = ''

@@ -8,7 +8,6 @@ file.
 import os
 import textwrap
 from imp import load_source
-from lexor.command import error
 from lexor.command import config
 
 DESC = """

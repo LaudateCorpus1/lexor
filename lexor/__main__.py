@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 """Command line use of lexor
 
 To run lexor from the command line do the following:
@@ -12,13 +14,13 @@ import os
 import sys
 import argparse
 import textwrap
-import logging
 import os.path as pt
 import lexor
 from glob import iglob
 from lexor.__version__ import VERSION
-from lexor.command import config, import_mod, debug, LexorError
+from lexor.command import config, import_mod, LexorError
 from lexor.command.edit import valid_files
+from lexor.util.logging import LOG
 try:
     import argcomplete
 except ImportError:
@@ -27,7 +29,7 @@ except ImportError:
 
 # pylint: disable=W0212
 def get_argparse_options(argp):
-    "Helper function to preparse the arguments. "
+    """Helper function to preparse the arguments. """
     opt = dict()
     for action in argp._optionals._actions:
         for key in action.option_strings:
@@ -96,7 +98,7 @@ def preparse_args(argv, argp, subp):
 
 
 def parse_options(mod):
-    "Interpret the command line inputs and options. "
+    """Interpret the command line inputs and options. """
     desc = """
 lexor can perform various commands. Use the help option with a
 command for more information.
@@ -155,6 +157,10 @@ def run():
     mod = dict()
     rootpath = pt.split(pt.abspath(__file__))[0]
 
+    LOG.enable()
+    if LOG.on:
+        LOG.log('This is a message %s', 'other', exception='a')
+
     mod_names = [name for name in iglob('%s/command/*.py' % rootpath)]
     for name in mod_names:
         tmp_name = pt.split(name)[1][:-3]
@@ -167,12 +173,11 @@ def run():
     config.CONFIG['cfg_path'] = arg.cfg_path
     config.CONFIG['cfg_user'] = arg.cfg_user
     config.CONFIG['arg'] = arg
-    debug("running command '%s'" % arg.parser_name)
-    logging.basicConfig(stream=sys.stderr, format='%(module)s:%(lineno)d:%(message)s',level=logging.DEBUG)
     try:
         mod[arg.parser_name].run()
     except LexorError as err:
-        print 'ERROR: %s' % err.message
+        print('ERROR: %s' % err.message)
+    print(repr(LOG))
 
 if __name__ == '__main__':
     run()

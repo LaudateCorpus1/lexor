@@ -6,7 +6,7 @@ Print the default values for each command.
 import textwrap
 import os.path as pt
 from glob import iglob
-from lexor.command import import_mod, error
+from lexor.command import import_mod
 from lexor.command import config
 
 DESC = """
