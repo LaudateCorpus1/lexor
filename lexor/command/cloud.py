@@ -88,17 +88,17 @@ def run():
     try:
         mod = load_source("tmp-mod", path)
     except IOError:
-        raise LexorError('Not a valid module.')
+        raise LexorError('not a valid module')
     if not hasattr(mod, 'INFO'):
-        error("ERROR: module does not have `INFO`\n")
+        raise LexorError("module does not have `INFO`")
     token = ''
     if arg.token:
         token = arg.token
     elif mod.INFO['git']['host'] == 'github':
         token = os.environ.get('GITHUB_ACCESS_TOKEN', '')
     if token == '':
-        msg = "ERROR: github token is required to %s style in the cloud\n"
-        error(msg % arg.subparser_name)
+        msg = 'github token is required to %s the style in the cloud'
+        raise LexorError(msg % arg.subparser_name)
     func = {
         'register': _register,
         'delete': _delete,
@@ -120,7 +120,7 @@ def _register(_, info, token):
     }
     ans = cloud_request('register', inputs)
     if isinstance(ans, six.string_types):
-        error("ERROR: %s\n" % ans)
+        raise LexorError(ans)
     else:
         disp("registration successful:\n")
         for key in ans:
@@ -137,7 +137,7 @@ def _delete(_, info, token):
     }
     ans = cloud_request('delete', inputs)
     if isinstance(ans, six.string_types):
-        error("ERROR: %s\n" % ans)
+        raise LexorError(ans)
     else:
         disp("deletion successful:\n")
         for key in ans:
@@ -153,7 +153,7 @@ def _list(arg):
         inputs['lang'] = styles[0]
     if size > 1 and styles[1] != '_':
         if styles[1] not in ['parser', 'writer', 'converter']:
-            error("ERROR: '%s' is not a valid type\n" % styles[1])
+            raise LexorError("'%s' is not a valid type" % styles[1])
         inputs['type'] = styles[1]
     if size > 2 and styles[2] != '_':
         inputs['to_lang' if styles[1] == 'converter' else 'style'] = styles[2]
@@ -161,7 +161,7 @@ def _list(arg):
         inputs['style'] = styles[3]
     ans = cloud_request('match', inputs)
     if isinstance(ans, six.string_types):
-        error("ERROR: %s\n" % ans)
+        raise LexorError(ans)
     if not ans:
         disp('no matches found\n')
     for item in ans:
