@@ -9,11 +9,6 @@ from datetime import datetime
 from subprocess import Popen, PIPE
 
 
-def warn(msg):
-    "Print a message to the standard error. "
-    sys.stderr.write(msg)
-
-
 def disp(msg):
     "Print a message to the standard output. "
     sys.stdout.write(msg)

@@ -8,8 +8,10 @@ documentation on :class:`~.Logger`.
 
 """
 
-from inspect import currentframe, getframeinfo
+import sys
+import traceback
 from datetime import datetime
+from inspect import currentframe, getframeinfo
 
 
 class LogMessage(object):
@@ -25,9 +27,12 @@ class LogMessage(object):
         self.level = lvl
 
     def __repr__(self):
-        return '[%s][%s:%d] => %s' % (
+        msg = '[%s][%s:%d] => %s' % (
             self.kind, self.file_name, self.line_number, self.message
         )
+        if self.exception is not None:
+            msg += '\n' + traceback.format_exc()
+        return msg
 
 
 class Logger(object):
@@ -54,22 +59,30 @@ class Logger(object):
         ))
 
     def log(self, msg, *args, **kwargs):
-        self._push(currentframe(), 'log', msg, *args, **kwargs)
+        if self.on:
+            self._push(currentframe(), 'LOG', msg, *args, **kwargs)
 
     def info(self, msg, *args, **kwargs):
-        self._push(currentframe(), 'info', msg, *args, **kwargs)
+        if self.on:
+            self._push(currentframe(), 'INFO', msg, *args, **kwargs)
 
     def debug(self, msg, *args, **kwargs):
-        self._push(currentframe(), 'debug', msg, *args, **kwargs)
+        if self.on:
+            self._push(currentframe(), 'DEBUG', msg, *args, **kwargs)
 
     def warn(self, msg, *args, **kwargs):
-        self._push(currentframe(), 'warn', msg, *args, **kwargs)
+        self._push(currentframe(), 'WARN', msg, *args, **kwargs)
+        sys.stderr.write('%r\n' % self.history[-1])
 
     def error(self, msg, *args, **kwargs):
-        self._push(currentframe(), 'error', msg, *args, **kwargs)
+        self._push(currentframe(), 'ERROR', msg, *args, **kwargs)
+        if not self.on:
+            self.history[-1].exception = None
+        sys.stderr.write('%r\n' % self.history[-1])
 
     def msg(self, kind, msg, *args, **kwargs):
-        self._push(currentframe(), kind, msg, *args, **kwargs)
+        if self.on:
+            self._push(currentframe(), kind, msg, *args, **kwargs)
 
     def __repr__(self):
         return '\n'.join([repr(x) for x in self.history])

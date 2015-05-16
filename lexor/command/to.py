@@ -10,7 +10,7 @@ import sys
 import textwrap
 import argparse
 from lexor.util.logging import L
-from lexor.command import config, warn, LexorError
+from lexor.command import config, LexorError
 from lexor.core.parser import Parser
 from lexor.core.writer import Writer
 from lexor.core.converter import Converter
@@ -194,9 +194,9 @@ def get_input(input_file, cfg, default='_'):
     that text. The last output is the extension of the file. """
     if input_file is '_':
         return sys.stdin.read(), 'STDIN', 'STDIN', default
+    abspath = None
     found = False
     if input_file[0] not in ['/', '.']:
-        logging.info('looking for input file')
         root = cfg['lexor']['root']
         paths = cfg['edit']['path'].split(':')
         for path in paths:
@@ -204,17 +204,18 @@ def get_input(input_file, cfg, default='_'):
                 abspath = '%s/%s' % (path, input_file)
             else:
                 abspath = '%s/%s/%s' % (root, path, input_file)
-            logging.info('abspath = %s' % abspath)
+            L.info('checking existance of `%s`', abspath)
             if os.path.exists(abspath):
                 found = True
                 break
     else:
         abspath = input_file
+        L.info('checking existance of `%s`', abspath)
         if os.path.exists(abspath):
             found = True
     if not found:
-        raise LexorError('input file "%s" was not found' % input_file)
-    text = open(abspath, 'r').read()
+        raise LexorError('`%s` was not found' % input_file)
+    text = open(abspath).read()
     textname = input_file
     path = os.path.realpath(abspath)
     name = os.path.basename(path)
@@ -230,10 +231,6 @@ def run():
     """Run the command. """
     arg = config.CONFIG['arg']
     cfg = config.get_cfg(['to', 'edit'])
-
-    if L.on:
-        L.debug("message %d", 5)
-
     text, t_name, f_name, f_ext = get_input(arg.inputfile, cfg)
 
     parse_lang = cfg['to']['parse_lang']
@@ -259,12 +256,12 @@ def run():
         versions = parser.style_module.VERSIONS
         msg = 'WARNING: No version specified in configuration.\n' \
               'Using the first module in this list:\n\n  %s\n\n'
-        warn(msg % '\n  '.join(versions))
+        L.warn(msg, '\n  '.join(versions))
     try:
         parser.parse(text, t_name)
     except ImportError:
-        msg = "ERROR: Parsing style not found: [%s:%s]\n"
-        error(msg % (in_lang, in_style['name']))
+        msg = 'Parsing style not found: [%s:%s]'
+        raise LexorError(msg % (in_lang, in_style['name']))
     try:
         write_log(log_writer, parser.log, arg.quiet)
     except ImportError:

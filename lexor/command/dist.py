@@ -9,7 +9,6 @@ import glob
 from glob import iglob
 from imp import load_source
 from zipfile import ZipFile
-from lexor.command import warn
 from lexor.command import config
 
 DEFAULTS = {

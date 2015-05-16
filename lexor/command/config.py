@@ -21,13 +21,13 @@ of the configuration file.
 from __future__ import print_function
 import os
 import sys
-import logging
 import argparse
 import textwrap
 import configparser
 import os.path as pth
+from lexor.util.logging import L
 from lexor.command import (
-    disp, import_mod, ConfigError, LexorError
+    import_mod, ConfigError, LexorError
 )
 
 
@@ -206,7 +206,7 @@ def read_config(cache=True):
     CONFIG['name'] = name
     CONFIG['path'] = path
     CONFIG['cache'] = cfg_file
-    logging.info('loaded config `%s` from `%s`', name, path)
+    L.info('loaded configuration `%s` from `%s`', name, path)
     return cfg_file
 
 

@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 """
 This module provides functions to load the different parsers, writers
 and converters. It defines the list ``LEXOR_PATH`` which is an array
@@ -11,15 +9,16 @@ separating them by a colon ``:``.
 
 """
 
+from __future__ import print_function
 import os
 import sys
 import site
 import textwrap
-import logging
 from pkg_resources import parse_version
 from os.path import splitext, abspath
 from imp import load_source
 from glob import iglob, glob
+from lexor.util.logging import L
 from lexor.command import config
 
 
@@ -161,18 +160,19 @@ def get_style_module(type_, lang, style, to_lang=None):
     cfg = config.get_cfg(['lang', 'develop', 'version'])
     config.update_single(cfg, 'lang', DEFAULTS)
     key, name, modname = _get_info(cfg, type_, lang, style, to_lang)
-    logging.info('searching for %s', name)
+    L.info('searching for %s', name)
     if 'develop' in cfg:
         try:
             path = cfg['develop'][key]
             if path[0] != '/':
                 path = '%s/%s' % (config.CONFIG['path'], path)
-            logging.info('  dev -> load %s from %s', modname, path)
-            return load_source(modname, path)
+            module = load_source(modname, path)
+            L.info('LOADED dev:%s from %s', modname, path)
+            return module
         except KeyError:
             pass
         except IOError:
-            logging.info('      -> loading FAILED')
+            L.info('FAILED to dev:%s from %s', modname, path)
     versions = []
     for base in LEXOR_PATH:
         if 'version' in cfg:
@@ -187,18 +187,18 @@ def get_style_module(type_, lang, style, to_lang=None):
             versions += glob('%s/%s*.py' % (base, name))
             path = '%s/%s.py' % (base, name)
         try:
-            logging.info('  path -> load %s from %s', modname, path)
-            return load_source(modname, path)
+            module = load_source(modname, path)
+            L.info('LOADED %s from `%s`', modname, path)
+            return module
         except IOError:
-            logging.info('  path -> loading FAILED')
-            continue
+            L.info('FAILED to load %s from `%s`', modname, path)
     try:
-        logging.info('  ver -> load %s from %s', modname, versions[0])
         mod = load_source(modname, versions[0])
         mod.VERSIONS = versions
+        L.info('LOADED %s from `%s`', modname, versions[0])
         return mod
     except (IOError, IndexError):
-        logging.info('  ver -> loading FAILED')
+        L.info('FAILED to load from any existing version')
         raise ImportError("lexor module not found: %s" % name)
 
 

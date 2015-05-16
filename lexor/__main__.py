@@ -171,11 +171,14 @@ def run():
     config.CONFIG['arg'] = arg
     try:
         if L.on:
-            L.info('running from `%s`', rootpath)
+            msg = 'running lexor v%s `%s` command from `%s`'
+            L.info(msg, VERSION, arg.parser_name, rootpath)
         mod[arg.parser_name].run()
     except LexorError as err:
-        sys.stderr.write('ERROR: %s\n' % err.message)
-    sys.stderr.write(repr(L))
+        L.error(err.message, exception=err)
+
+    if arg.debug:
+        sys.stderr.write('%r\n' % L)
 
 if __name__ == '__main__':
     run()

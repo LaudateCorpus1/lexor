@@ -11,7 +11,7 @@ import lexor
 import textwrap
 from glob import iglob
 from nose.tools import eq_
-from lexor.command import exec_cmd, warn
+from lexor.command import exec_cmd
 from lexor.command.lang import LEXOR_PATH, get_style_module
 from lexor.core.parser import Parser
 from os.path import dirname, exists
