@@ -26,9 +26,7 @@ import textwrap
 import configparser
 import os.path as pth
 from lexor.util.logging import L
-from lexor.command import (
-    import_mod, ConfigError, LexorError, disp
-)
+from lexor.command import import_mod, LexorError, disp
 
 
 DESC = """
@@ -53,16 +51,6 @@ CONFIG = {
 }
 
 
-def _var_completer(**_):
-    """var completer. """
-    return ['SEC.KEY']
-
-
-def _value_completer(**_):
-    """value completer. """
-    return ['VALUE']
-
-
 # pylint: disable=too-few-public-methods
 class _ConfigDispAction(argparse.Action):
     """Derived argparse Action class to use when displaying the
@@ -70,10 +58,7 @@ class _ConfigDispAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         CONFIG['cfg_user'] = namespace.cfg_user
         CONFIG['cfg_path'] = namespace.cfg_path
-        try:
-            cfg_file = read_config()
-        except ConfigError as err:
-            raise LexorError(err.message)
+        cfg_file = read_config()
         fname = '%s/%s' % (CONFIG['path'], CONFIG['name'])
         disp('lexor configuration file: %s\n' % fname)
         cfg_file.write(sys.stdout)
@@ -90,11 +75,10 @@ def add_parser(subp, fclass):
     tmpp = subp.add_parser('config', help='configure lexor',
                            formatter_class=fclass,
                            description=textwrap.dedent(DESC))
-    tmpp.add_argument(
-        'var', type=str, help='Must be in the form of sec.key'
-    ).completer = _var_completer
+    tmpp.add_argument('var', type=str,
+                      help='Must be in the form of sec.key')
     tmpp.add_argument('value', type=str, nargs='?', default=None,
-                      help='var value').completer = _value_completer
+                      help='var value')
     tmpp.add_argument('-v', action='store_true',
                       help='print config file location')
     tmpp.add_argument('--display', action=_ConfigDispAction,
@@ -110,10 +94,7 @@ def run():
         Run the command.
     """
     arg = CONFIG['arg']
-    try:
-        cfg_file = read_config()
-    except ConfigError as err:
-        raise LexorError(err.message)
+    cfg_file = read_config()
     try:
         command, var = arg.var.split('.', 1)
     except ValueError:
@@ -156,7 +137,7 @@ def read_config(cache=True):
     - If everything else fails then it searches for ``.lexor.config``
       in the home directory.
 
-    This function may raise a :class:`~lexor.command.ConfigError`
+    This function may raise a :class:`~lexor.command.LexorError`
     exception if the configuration is not found when
     ``CONFIG['cfg_path']`` is set.
 
@@ -201,7 +182,7 @@ def read_config(cache=True):
     else:
         path = CONFIG['cfg_path']
         if not pth.exists('%s/%s' % (path, name)):
-            raise ConfigError('%s/%s does not exist.' % (path, name))
+            raise LexorError('%s/%s does not exist.' % (path, name))
     cfg_file.read('%s/%s' % (path, name))
     CONFIG['name'] = name
     CONFIG['path'] = path

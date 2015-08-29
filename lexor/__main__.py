@@ -137,6 +137,7 @@ def run():
         L.error(err.message, exception=err)
 
     if arg.debug:
+        sys.stderr.write('[DEBUG MODE] => Writing log to stderr\n')
         sys.stderr.write('%r\n' % L)
 
 
