@@ -27,7 +27,7 @@ import configparser
 import os.path as pth
 from lexor.util.logging import L
 from lexor.command import (
-    import_mod, ConfigError, LexorError
+    import_mod, ConfigError, LexorError, disp
 )
 
 

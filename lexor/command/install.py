@@ -36,7 +36,7 @@ def add_parser(subp, fclass):
                       help='install in user-site')
     tmpp.add_argument('-g', '--global', action='store_true',
                       help='install globably, requires sudo')
-    tmpp.add_argument('--path', type=str,
+    tmpp.add_argument('--path', type=str, default='.',
                       help='specify the installation path')
 
 
@@ -53,6 +53,7 @@ def _get_key_typedir(info, install_dir):
         typedir = '%s/%s.%s'
         typedir = typedir % (install_dir, info['lang'], info['type'])
     return key, typedir
+
 
 def install_style(style, install_dir):
     """Install a given style to the install_dir path. """
@@ -148,9 +149,18 @@ def unzip_file(local_name):
     zfile.extractall()
     return dirname
 
+
 def run():
     """Run the command. """
     arg = vars(config.CONFIG['arg'])
+
+    cfg = config.get_cfg(['dependencies'])
+    if arg['style'] is None:
+        print 'Needs to check local configuration and install everything'
+        exit()
+
+
+
     if arg['global'] or arg['user']:
         pass
     else:

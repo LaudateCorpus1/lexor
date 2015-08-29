@@ -8,7 +8,6 @@ Use the option --help for more information.
 
 """
 
-import os
 import sys
 import argparse
 import textwrap
@@ -16,12 +15,7 @@ import os.path as pt
 from glob import iglob
 from lexor.__version__ import VERSION
 from lexor.command import config, import_mod, LexorError
-from lexor.command.edit import valid_files
 from lexor.util.logging import L
-try:
-    import argcomplete
-except ImportError:
-    pass
 
 
 # pylint: disable=W0212
@@ -35,32 +29,6 @@ def get_argparse_options(argp):
             else:
                 opt[key] = 2
     return opt
-
-
-def preparse_args_argcomplete(argv, argp, subp, complete):
-    """Pre-parse the arguments for argcomplete. """
-    opt = get_argparse_options(argp)
-    parsers = subp.choices.keys()
-    index = 1
-    arg = None
-    try:
-        while argv[index] in opt:
-            index += opt[argv[index]]
-        if index == 1 and argv[index][0] == '-':
-            return
-        arg = argv[index]
-        if arg == 'defaults':
-            argv.insert(index, '_')
-        if argv[index+1] in parsers:
-            return
-    except IndexError:
-        pass
-    if complete == ' ':
-        if arg in parsers:
-            argv.insert(index, '_')
-    else:
-        if arg in parsers and len(argv) - 1 > index:
-            argv.insert(index, '_')
 
 
 def preparse_args(argv, argp, subp):
@@ -119,14 +87,15 @@ version:
                                    description=textwrap.dedent(desc),
                                    epilog=textwrap.dedent(epi))
     argp.add_argument('inputfile', type=str, default='_', nargs='?',
-                      help='input file to process').completer = valid_files
+                      help='input file to process')
     argp.add_argument('--debug', action='store_true', dest='debug',
                       help='log events')
     argp.add_argument('--cfg', type=str, dest='cfg_path',
                       metavar='CFG_PATH',
                       help='configuration file directory')
-    argp.add_argument('--cfg-user', action='store_true', dest='cfg_user',
-                      help='select user configuration file. Overides --cfg')
+    argp.add_argument('--cfg-user', action='store_true',
+                      dest='cfg_user',
+                      help='select user config file. Overides --cfg')
     subp = argp.add_subparsers(title='subcommands',
                                dest='parser_name',
                                help='additional help',
@@ -135,16 +104,6 @@ version:
     names = sorted(mod.keys())
     for name in names:
         mod[name].add_parser(subp, raw)
-    try:
-        if 'COMP_LINE' in os.environ:
-            argv = os.environ['COMP_LINE'].split()
-            last = ' ' if os.environ['COMP_LINE'][-1] == ' ' else ''
-            preparse_args_argcomplete(argv, argp, subp, last)
-            os.environ['COMP_LINE'] = ' '.join(argv) + last
-            os.environ['COMP_POINT'] = str(len(os.environ['COMP_LINE']))
-        argcomplete.autocomplete(argp)
-    except NameError:
-        pass
     preparse_args(sys.argv, argp, subp)
     return argp.parse_args()
 
@@ -179,6 +138,7 @@ def run():
 
     if arg.debug:
         sys.stderr.write('%r\n' % L)
+
 
 if __name__ == '__main__':
     run()
