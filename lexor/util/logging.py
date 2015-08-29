@@ -24,14 +24,18 @@ class LogMessage(object):
         self.kind = kind
         self.message = msg
         self.exception = exception
+        self.exceptionTraceback = None
         self.level = lvl
+        if exception is not None:
+            self.exceptionTraceback = traceback.format_exc()
+
 
     def __repr__(self):
         msg = '[%s][%s:%d] => %s' % (
             self.kind, self.file_name, self.line_number, self.message
         )
         if self.exception is not None:
-            msg += '\n' + traceback.format_exc()
+            msg += '\n' + self.exceptionTraceback
         return msg
 
 

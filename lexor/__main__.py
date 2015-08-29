@@ -142,8 +142,11 @@ def run():
     if arg.debug:
         fp = sys.stderr
         if arg.debug_path:
-            fp = open(pt.join(arg.debug_path, 'lexor.debug'), 'w')
-        fp.write('[DEBUG MODE] => Writing log to stderr\n')
+            try:
+                fp = open(pt.join(arg.debug_path, 'lexor.debug'), 'w')
+            except IOError as err:
+                L.error('invalid debug log directory', exception=err)
+        fp.write('[LEXOR DEBUG LOG]\n')
         fp.write('%r\n' % L)
         if arg.debug_path:
             fp.close()

@@ -103,16 +103,20 @@ def run():
         fname = '%s/%s' % (CONFIG['path'], CONFIG['name'])
         disp('lexor configuration file: %s\n' % fname)
     if arg.value is None:
+        L.info('displaying value for `%s` and exiting' % var)
         try:
-            disp(cfg_file[command][var])
+            disp('%s\n' % cfg_file[command][var])
         except KeyError:
             pass
         return
     try:
         cfg_file[command][var] = arg.value
     except KeyError:
+        L.info('adding section `%s`' % command)
         cfg_file.add_section(command)
         cfg_file[command][var] = arg.value
+    L.info('added key `%s`' % var)
+    L.info('writing configuration file')
     write_config(cfg_file)
 
 
@@ -165,6 +169,7 @@ def read_config(cache=True):
 
     """
     if cache and CONFIG['cache'] is not None:
+        L.info('using cached configuration')
         return CONFIG['cache']
     cfg_file = configparser.ConfigParser(allow_no_value=True)
     name = 'lexor.config'
