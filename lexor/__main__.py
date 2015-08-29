@@ -90,6 +90,9 @@ version:
                       help='input file to process')
     argp.add_argument('--debug', action='store_true', dest='debug',
                       help='log events')
+    argp.add_argument('--lexor-debug', type=str, dest='debug_path',
+                      metavar='PATH', default=None,
+                      help='diretory to write lexor debug logs')
     argp.add_argument('--cfg', type=str, dest='cfg_path',
                       metavar='CFG_PATH',
                       help='configuration file directory')
@@ -137,8 +140,13 @@ def run():
         L.error(err.message, exception=err)
 
     if arg.debug:
-        sys.stderr.write('[DEBUG MODE] => Writing log to stderr\n')
-        sys.stderr.write('%r\n' % L)
+        fp = sys.stderr
+        if arg.debug_path:
+            fp = open(pt.join(arg.debug_path, 'lexor.debug'), 'w')
+        fp.write('[DEBUG MODE] => Writing log to stderr\n')
+        fp.write('%r\n' % L)
+        if arg.debug_path:
+            fp.close()
 
 
 if __name__ == '__main__':
