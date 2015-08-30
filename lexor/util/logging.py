@@ -17,9 +17,10 @@ from inspect import currentframe, getframeinfo
 class LogMessage(object):
     """Simple object to store an event information."""
 
-    def __init__(self, fname, lineno, kind, msg, lvl, exception=None):
+    def __init__(self, fname, func_name, lineno, kind, msg, lvl, exception=None):
         self.date = datetime.now()
         self.file_name = fname
+        self.func_name = func_name
         self.line_number = lineno
         self.kind = kind
         self.message = msg
@@ -31,8 +32,9 @@ class LogMessage(object):
 
 
     def __repr__(self):
-        msg = '[%s][%s:%d] => %s' % (
-            self.kind, self.file_name, self.line_number, self.message
+        msg = '[%s][%s][%s:%d] => %s' % (
+            self.kind, self.func_name, self.file_name,
+            self.line_number, self.message
         )
         if self.exception is not None:
             msg += '\n' + self.exceptionTraceback
@@ -53,13 +55,16 @@ class Logger(object):
         self.on = False
 
     def _push(self, cfr, kind, msg, *args, **kwargs):
-        fname = getframeinfo(cfr.f_back).filename
+        f_back = cfr.f_back
+        fname = getframeinfo(f_back).filename
         fname = fname.split('lexor/lexor/')[1]
-        lineno = cfr.f_back.f_lineno
+        lineno = f_back.f_lineno
+        func_name = f_back.f_code.co_name
         exception = kwargs.get('exception', None)
         level = kwargs.get('level', '=')
         self.history.append(LogMessage(
-            fname, lineno, kind, msg % args, level, exception
+            fname, func_name, lineno,
+            kind, msg % args, level, exception
         ))
 
     def log(self, msg, *args, **kwargs):

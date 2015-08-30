@@ -169,7 +169,7 @@ def read_config(cache=True):
 
     """
     if cache and CONFIG['cache'] is not None:
-        L.info('using cached configuration')
+        L.info('reading cached configuration')
         return CONFIG['cache']
     cfg_file = configparser.ConfigParser(allow_no_value=True)
     name = 'lexor.config'
@@ -252,6 +252,7 @@ def get_cfg(names, defaults=None):
             'path': ''
         }
     }
+    L.info('getting configuration for: %s' % names)
     cfg_file = read_config()
     if 'lexor' in cfg_file:
         for var, val in cfg_file['lexor'].iteritems():
@@ -286,15 +287,19 @@ def set_style_cfg(obj, name, defaults):
     .. |Writer| replace:: :class:`~lexor.core.writer.Writer`
 
     """
+    L.info('configuring %r', obj.__class__)
     obj.defaults = dict()
     if hasattr(obj.style_module, 'DEFAULTS'):
+        L.info('setting module defaults for %r', name)
         mod_defaults = obj.style_module.DEFAULTS
         for var, val in mod_defaults.iteritems():
             obj.defaults[var] = pth.expandvars(str(val))
     cfg_file = read_config()
     if name in cfg_file:
+        L.info('setting defaults from configuration for %r', name)
         for var, val in cfg_file[name].iteritems():
             obj.defaults[var] = pth.expandvars(val)
     if defaults:
+        L.info('overwriting default values from user for %r', name)
         for var, val in defaults.iteritems():
             obj.defaults[var] = val

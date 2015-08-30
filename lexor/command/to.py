@@ -189,35 +189,18 @@ def add_parser(subp, fclass):
                       help="suppress output")
 
 
-def get_input(input_file, cfg, default='_'):
+def get_input(input_file, default='_'):
     """Returns the text to be parsed along with the name assigned to
     that text. The last output is the extension of the file. """
     if input_file is '_':
+        L.info('reading input from stdin')
         return sys.stdin.read(), 'STDIN', 'STDIN', default
-    abspath = None
-    found = False
-    if input_file[0] not in ['/', '.']:
-        root = cfg['lexor']['root']
-        paths = cfg['edit']['path'].split(':')
-        for path in paths:
-            if path[0] in ['/', '.']:
-                abspath = '%s/%s' % (path, input_file)
-            else:
-                abspath = '%s/%s/%s' % (root, path, input_file)
-            L.info('checking existance of `%s`', abspath)
-            if os.path.exists(abspath):
-                found = True
-                break
-    else:
-        abspath = input_file
-        L.info('checking existance of `%s`', abspath)
-        if os.path.exists(abspath):
-            found = True
-    if not found:
-        raise LexorError('`%s` was not found' % input_file)
-    text = open(abspath).read()
+    L.info('checking existance of `%s`', input_file)
+    if not os.path.exists(input_file):
+        raise LexorError('`%s` does not exist' % input_file)
+    text = open(input_file).read()
     textname = input_file
-    path = os.path.realpath(abspath)
+    path = os.path.realpath(input_file)
     name = os.path.basename(path)
     name = os.path.splitext(name)
     file_name = name[0]
@@ -230,8 +213,8 @@ def get_input(input_file, cfg, default='_'):
 def run():
     """Run the command. """
     arg = config.CONFIG['arg']
-    cfg = config.get_cfg(['to', 'edit'])
-    text, t_name, f_name, f_ext = get_input(arg.inputfile, cfg)
+    cfg = config.get_cfg(['to'])
+    text, t_name, f_name, f_ext = get_input(arg.inputfile)
 
     parse_lang = cfg['to']['parse_lang']
     if isinstance(parse_lang, str):
@@ -252,11 +235,6 @@ def run():
 
     parser = Parser(in_lang, in_style['name'], in_style['params'])
     log_writer = Writer(log[0], log[1]['name'], log[1]['params'])
-    if hasattr(parser.style_module, 'VERSIONS'):
-        versions = parser.style_module.VERSIONS
-        msg = 'WARNING: No version specified in configuration.\n' \
-              'Using the first module in this list:\n\n  %s\n\n'
-        L.warn(msg, '\n  '.join(versions))
     try:
         parser.parse(text, t_name)
     except ImportError:
@@ -266,7 +244,7 @@ def run():
         write_log(log_writer, parser.log, arg.quiet)
     except ImportError:
         msg = "ERROR: Writing log style not found: [%s:%s]\n"
-        error(msg % (parser.log.lang, parser.log.style))
+        raise LexorError(msg % (parser.log.lang, parser.log.style))
     if not arg.tolang:
         arg.tolang.append(input_language(cfg['to']['lang']))
     convert_and_write(f_name, parser, in_lang, log, arg)
@@ -324,8 +302,8 @@ def run_converter(param):
         try:
             doc, log = param['converter'].convert(parser.doc)
         except ImportError:
-            msg = "ERROR: Converting style not found: [%s ==> %s:%s]\n"
-            warn(msg % (in_lang, lang, cstyle))
+            msg = 'converting style not found: [%s ==> %s:%s]'
+            L.warn(msg % (in_lang, lang, cstyle))
             continue
         wstyle = style[1]['name']
         if '.' in wstyle:
@@ -338,8 +316,8 @@ def run_converter(param):
         try:
             write_document(writer, doc, fname, arg)
         except ImportError:
-            msg = "ERROR: Writing style not found: [%s:%s]\n"
-            warn(msg % (lang, wstyle))
+            msg = 'writing style not found: [%s:%s]'
+            L.warn(msg % (lang, wstyle))
             continue
 
 
@@ -357,5 +335,5 @@ def run_writer(param):
         try:
             write_document(writer, parser.doc, fname, arg)
         except ImportError:
-            msg = "ERROR: Writing style not found: [%s:%s]\n"
-            warn(msg % (lang, style['name']))
+            msg = 'writing style not found: [%s:%s]'
+            L.warn(msg % (lang, style['name']))

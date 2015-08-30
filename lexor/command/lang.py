@@ -19,7 +19,7 @@ from os.path import splitext, abspath
 from imp import load_source
 from glob import iglob, glob
 from lexor.util.logging import L
-from lexor.command import config
+from lexor.command import config, LexorError
 
 
 DEFAULTS = {
@@ -45,13 +45,14 @@ for you without the need to reinstall the styles.
 """
 try:
     LEXOR_PATH = [
-        '%s/lib/lexor' % site.getuserbase(),
-        '%s/lib/lexor' % sys.prefix
+        './lexor_modules',
+        '%s/lib/lexor_modules' % site.getuserbase(),
+        '%s/lib/lexor_modules' % sys.prefix
     ]
 except AttributeError:
     LEXOR_PATH = [
-        'lib/lexor',
-        '%s/lib/lexor' % sys.prefix
+        './lexor_modules',
+        '%s/lib/lexor_modules' % sys.prefix
     ]
 
 if 'LEXORPATH' in os.environ:
@@ -157,7 +158,7 @@ def _get_info(cfg, type_, lang, style, to_lang=None):
 
 def get_style_module(type_, lang, style, to_lang=None):
     """Return a parsing/writing/converting module. """
-    cfg = config.get_cfg(['lang', 'develop', 'version'])
+    cfg = config.get_cfg(['lang', 'develop'])
     config.update_single(cfg, 'lang', DEFAULTS)
     key, name, modname = _get_info(cfg, type_, lang, style, to_lang)
     L.info('searching for %s', name)
@@ -166,40 +167,24 @@ def get_style_module(type_, lang, style, to_lang=None):
             path = cfg['develop'][key]
             if path[0] != '/':
                 path = '%s/%s' % (config.CONFIG['path'], path)
-            module = load_source(modname, path)
-            L.info('LOADED dev:%s from %s', modname, path)
+            try:
+                module = load_source(modname, path)
+            except IOError:
+                msg = 'Unable to load module in development: %s'
+                raise LexorError(msg % path)
+            L.info('... developing from %s', path)
             return module
         except KeyError:
             pass
-        except IOError:
-            L.info('FAILED to dev:%s from %s', modname, path)
-    versions = []
     for base in LEXOR_PATH:
-        if 'version' in cfg:
-            try:
-                path = '%s/%s-%s.py' % (
-                    base, name, cfg['version'][key]
-                )
-            except KeyError:
-                versions += glob('%s/%s*.py' % (base, name))
-                path = '%s/%s.py' % (base, name)
-        else:
-            versions += glob('%s/%s*.py' % (base, name))
-            path = '%s/%s.py' % (base, name)
+        path = '%s/%s.py' % (base, name)
         try:
             module = load_source(modname, path)
-            L.info('LOADED %s from `%s`', modname, path)
+            L.info('... found in %r', base)
             return module
         except IOError:
-            L.info('FAILED to load %s from `%s`', modname, path)
-    try:
-        mod = load_source(modname, versions[0])
-        mod.VERSIONS = versions
-        L.info('LOADED %s from `%s`', modname, versions[0])
-        return mod
-    except (IOError, IndexError):
-        L.info('FAILED to load from any existing version')
-        raise ImportError("lexor module not found: %s" % name)
+            L.info('... searched in %r', base)
+    raise ImportError('lexor module not found: %s' % name)
 
 
 def load_mod(modbase, dirpath):

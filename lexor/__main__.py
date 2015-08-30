@@ -138,6 +138,8 @@ def run():
         mod[arg.parser_name].run()
     except LexorError as err:
         L.error(err.message, exception=err)
+    except Exception as err:
+        L.error('Unhandled error: ' + err.message, exception=err)
 
     if arg.debug:
         fp = sys.stderr
