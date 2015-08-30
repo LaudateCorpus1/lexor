@@ -9,17 +9,15 @@ separating them by a colon ``:``.
 
 """
 
-from __future__ import print_function
 import os
 import sys
 import site
 import textwrap
-from pkg_resources import parse_version
 from os.path import splitext, abspath
 from imp import load_source
 from glob import iglob, glob
 from lexor.util.logging import L
-from lexor.command import config, LexorError
+from lexor.command import config, disp, LexorError
 
 
 DEFAULTS = {
@@ -37,10 +35,8 @@ DEFAULTS = {
     'pyxml': 'xml',
 }
 DESC = """
-Show the styles available to lexor through the current configuration
-file. You should run this command whenever you create a new
-configuration file so that lexor may select the available languages
-for you without the need to reinstall the styles.
+Show all the lexor modules which are installed in the directories
+specified in ``LEXORPATH``.
 
 """
 try:
@@ -71,40 +67,39 @@ def add_parser(subp, fclass):
                     description=textwrap.dedent(DESC))
 
 
-def _handle_kind(paths, cfg):
+def _handle_kind(paths):
     """Helper function for _handle_lang. """
     styles = dict()
-    if paths:
-        kind = os.path.basename(paths[0])
     for path in paths:
+        L.info('... processing %s', path)
         pattern = '%s/*.py' % path
-        tmp = [os.path.basename(ele) for ele in glob(pattern)]
-        for style in tmp:
-            index = style.find('-')
-            if index == -1:
+        tmp = [ele for ele in glob(pattern)]
+        for module_path in tmp:
+            try:
+                mod_name = '__tmp%d__' % _handle_kind.loaded
+                module = load_source(mod_name, module_path)
+                _handle_kind.loaded += 1
+            except ImportError:
                 continue
-            if style[:index] not in styles:
-                styles[style[:index]] = []
-            styles[style[:index]].append(style[index+1:-3])
-    if 'version' not in cfg:
-        cfg.add_section('version')
-    for style in styles:
-        key = '%s.%s' % (kind, style)
-        if key in cfg['version']:
-            ver = cfg['version'][key]
-            print('        [*] %s -> %s' % (style, ver))
-        else:
-            ver = max(styles[style], key=parse_version)
-            cfg['version'][key] = ver
-            print('        [+] %s -> %s' % (style, ver))
-    config.write_config(cfg)
+            style = os.path.basename(module_path)[:-3]
+            L.info('      - %s: %r', style, module)
+            if style not in styles:
+                styles[style] = []
+            styles[style].append(module)
+    for style in sorted(styles.keys()):
+        disp('        [*] %s ->\n' % style)
+        for module in styles[style]:
+            info = module.INFO
+            msg = '               %s: %s\n'
+            disp(msg % (info['ver'], info['path']))
+_handle_kind.loaded = 0
 
 
-def _handle_lang(path, cfg):
+def _handle_lang(path):
     """Helper function for run. """
-    for kind in path:
-        print('    %s:' % kind)
-        _handle_kind(path[kind], cfg)
+    for kind in sorted(path.keys()):
+        disp('    %s:\n' % kind)
+        _handle_kind(path[kind])
 
 
 def run():
@@ -114,12 +109,13 @@ def run():
 
         Run the command.
     """
+    L.info('searching for lexor modules ...')
     paths = []
     for base in LEXOR_PATH:
         paths += glob('%s/*' % base)
     path = dict()
-    cfg = config.read_config()
     for loc in paths:
+        L.info('searching in %r', loc)
         kind = os.path.basename(loc)
         try:
             name, kind = kind.split('.', 1)
@@ -131,10 +127,10 @@ def run():
             path[name][kind] = [loc]
         else:
             path[name][kind].append(loc)
-    for lang in path:
-        print('%s:' % lang)
-        _handle_lang(path[lang], cfg)
-        print('')
+    for lang in sorted(path.keys()):
+        disp('%s:\n' % lang)
+        _handle_lang(path[lang])
+        disp('\n')
 
 
 def _get_info(cfg, type_, lang, style, to_lang=None):
@@ -148,7 +144,8 @@ def _get_info(cfg, type_, lang, style, to_lang=None):
             to_lang = cfg['lang'][to_lang]
         key = '%s.%s.%s.%s' % (lang, type_, to_lang, style)
         name = '%s.%s.%s/%s' % (lang, type_, to_lang, style)
-        modname = 'lexor-lang_%s_%s_%s_%s' % (lang, type_, to_lang, style)
+        modname = 'lexor-lang_%s_%s_%s_%s'
+        modname %= (lang, type_, to_lang, style)
     else:
         key = '%s.%s.%s' % (lang, type_, style)
         name = '%s.%s/%s' % (lang, type_, style)
