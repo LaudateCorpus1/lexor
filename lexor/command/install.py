@@ -19,6 +19,9 @@ from glob import iglob
 from imp import load_source
 from lexor.util.logging import L
 from lexor.command import config, disp, LexorError
+from lexor.command.cloud import cloud_request
+from lexor.util import github
+
 
 DESC = """
 Install a parser/writer/converter style.
@@ -168,26 +171,49 @@ def run():
             L.info('installing local module: %r', style_file)
             install_style(style_file, install_dir)
             return
+        info = arg['style'].split('.')
+        if len(info) == 3:
+            match_parameters = {
+                'lang': info[0],
+                'type': info[1],
+                'style': info[2]
+            }
+        elif len(info) == 4:
+            match_parameters = {
+                'lang': info[0],
+                'type': info[1],
+                'to_lang': info[2],
+                'style': info[3]
+            }
+        else:
+            types = ['lang.type.style', 'lang.type.to_lang.style']
+            msg = 'invalid module, try %r' % types
+            raise LexorError(msg)
+        L.info('searching online for %r', info)
+        response = cloud_request('match', match_parameters)
+        if len(response) == 0:
+            L.error('no maches found for %r', info)
+            raise LexorError('no matches found')
+        if len(response) > 1:
+            msg = 'there are %d matches, how did this happen?'
+            L.error(msg % len(response))
+            raise LexorError('several matches returned')
+        info = response[0]
+        endpoint = '/repos/{user}/{repo}/tags'.format(
+            user=info['user'],
+            repo=info['repo']
+        )
+        response = github.get(endpoint)
+        # response should be an array containing all the tags
+        print response
 
-    return
 
-
-
-    L.info('installing ... %r', arg)
 
     cfg = config.get_cfg(['dependencies'])
     if arg['style'] is None:
         raise LexorError('Needs to check local configuration and install everything')
 
 
-
-    if arg['global'] or arg['user']:
-        pass
-    else:
-        pass
-    
-    
-    print arg
     
     if not pth.exists('lexor.config'):
         with open('lexor.config', 'w') as _:
@@ -202,27 +228,18 @@ def run():
     print '----'
     print config.CONFIG
     print '----'
-    from lexor.command.cloud import cloud_request
-    print cloud_request('match', {})
+
+    res = cloud_request('match', {
+        'lang': 'lexor',
+        'type': 'converter',
+        'to_lang': 'html',
+        'style': 'default'
+    })
+    import pprint
+    pprint.pprint(res)
     print arg
     exit()
 
-    if arg.path:
-        install_dir = pth.abspath(arg.path)
-    elif arg.user:
-        try:
-            install_dir = '%s/lib/lexor' % site.getuserbase()
-        except AttributeError:
-            install_dir = 'lib/lexor'
-    else:
-        install_dir = '%s/lib/lexor' % sys.prefix
-
-    style_file = arg.style
-    if '.py' not in style_file:
-        style_file = '%s.py' % style_file
-    if pth.exists(style_file):
-        install_style(style_file, install_dir)
-        return
 
     matches = []
     url = 'http://jmlopez-rod.github.io/lexor-lang/lexor-lang.url'
