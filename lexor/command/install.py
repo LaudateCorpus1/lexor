@@ -28,6 +28,10 @@ DESC = """
 Install a parser/writer/converter style.
 
 """
+GITHUB_PATTERN = re.compile(
+    r'(?:@|://)github.com[:/]([^/\s]+?)/([^/\s]+?)(?:\.git)?/?$',
+    re.IGNORECASE
+)
 
 
 def add_parser(subp, fclass):
@@ -64,6 +68,21 @@ def decompose(endpoint):
         'name': name,
         'source': source,
         'target': '*' if is_wild_card else target
+    }
+
+
+def getOrgRepoPair(url):
+    """Parse a github url returning the organization/user and the
+    repo name. """
+    matches = re.search(GITHUB_PATTERN, url)
+    if not matches:
+        return None
+    matches = matches.groups()
+    org = '' if not matches[0] else matches[0].strip()
+    repo = '' if not matches[1] else matches[1].strip()
+    return {
+        'org': org,
+        'repo': repo
     }
 
 
