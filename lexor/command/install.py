@@ -45,6 +45,28 @@ def add_parser(subp, fclass):
                       help='specify the installation path')
 
 
+def decompose(endpoint):
+    """Parse an endpoint. Extracted from
+
+        https://github.com/bower/endpoint-parser/blob/master/index.js
+
+    """
+    exp = '^(?:([\w\-]|(?:[\w\.\-]+[\w\-])?)=)?([^\|#]+)(?:#(.*))?$'
+    matches = re.match(exp, endpoint)
+    if not matches:
+        raise LexorError('invalid endpoint %r' % endpoint)
+    matches = matches.groups()
+    name = '' if not matches[0] else matches[0].strip()
+    source = '' if not matches[1] else matches[1].strip()
+    target = '' if not matches[2] else matches[2].strip()
+    is_wild_card = not target or target == '*' or target == 'latest'
+    return {
+        'name': name,
+        'source': source,
+        'target': '*' if is_wild_card else target
+    }
+
+
 def _get_key_typedir(info, install_dir):
     """Helper function for install_style. """
     if info['to_lang']:
@@ -163,29 +185,25 @@ def _get_install_dir(arg):
     return install_dir
 
 
-def run():
-    """Run the command. """
-    arg = vars(config.CONFIG['arg'])
-    install_dir = _get_install_dir(arg)
+def _is_local_installation(style_file):
+    """Check if the argument exists locally. """
+    if '.py' not in style_file:
+        style_file = '%s.py' % style_file
+    if pth.exists(style_file):
+        return pth.abspath(style_file)
+    return None
 
-    if arg['style']:
-        style_file = arg['style']
-        if '.py' not in style_file:
-            style_file = '%s.py' % style_file
-        if pth.exists(style_file):
-            style_file = pth.abspath(style_file)
-            L.info('installing local module: %r', style_file)
-            install_style(style_file, install_dir)
-            return
-        info = arg['style'].split('.')
+
+def _parse_key(key):
+        info = key.split('.')
         if len(info) == 3:
-            match_parameters = {
+            return {
                 'lang': info[0],
                 'type': info[1],
                 'style': info[2]
             }
         elif len(info) == 4:
-            match_parameters = {
+            return {
                 'lang': info[0],
                 'type': info[1],
                 'to_lang': info[2],
@@ -195,10 +213,44 @@ def run():
             types = ['lang.type.style', 'lang.type.to_lang.style']
             msg = 'invalid module, try %r' % types
             raise LexorError(msg)
-        L.info('searching online for %r', info)
+
+
+def install_url(style, url, install_dir, version=''):
+    """Download and install a zip file"""
+    if version and version[0] != 'v':
+        version = 'v{0}'.format(version)
+    msg = 'installing %s %s ... \n'
+    disp(msg % (style, version))
+    local_name = download_file(url)
+    dirname = unzip_file(local_name)
+    for path in iglob('%s/*.py' % dirname):
+        install_style(pth.abspath(path), install_dir)
+    L.info('removing %r and %r ...', local_name, dirname)
+    os.remove(local_name)
+    shutil.rmtree(dirname)
+    L.info('clean up complete')
+
+
+def run():
+    """Run the command. """
+    arg = vars(config.CONFIG['arg'])
+    install_dir = _get_install_dir(arg)
+
+    if arg['style']:
+        dec_endpoint = decompose(arg['style'])
+        source = dec_endpoint['source']
+        if dec_endpoint['target'] == '*':
+            local_style = _is_local_installation(source)
+            if local_style:
+                L.info('installing local module: %r', local_style)
+                return install_style(local_style, install_dir)
+
+        match_parameters = _parse_key(source)
+
+        L.info('searching online for %r', source)
         response = cloud_request('match', match_parameters)
         if len(response) == 0:
-            L.error('no maches found for %r', info)
+            L.error('no maches found for %r', source)
             raise LexorError('no matches found')
         if len(response) > 1:
             msg = 'there are %d matches, how did this happen?'
@@ -220,51 +272,10 @@ def run():
         versions = url.keys()
         versions = sorted(versions, key=parse_version)
         L.info('found versions %r', versions)
-        msg = 'installing %s v%s ... \n'
-        disp(msg % (arg['style'], versions[-1]))
-        local_name = download_file(url[versions[-1]])
-        dirname = unzip_file(local_name)
-        for path in iglob('%s/*.py' % dirname):
-            install_style(pth.abspath(path), install_dir)
-        L.info('removing %r and %r ...', local_name, dirname)
-        os.remove(local_name)
-        shutil.rmtree(dirname)
-        L.info('clean up complete')
-        return
 
-
-
-    cfg = config.get_cfg(['dependencies'])
-    if arg['style'] is None:
-        raise LexorError('Needs to check local configuration and install everything')
-
-
-    
-    cfg = config.get_cfg(['dependencies'])
-
-
-    #
-    # matches = []
-    # url = 'http://jmlopez-rod.github.io/lexor-lang/lexor-lang.url'
-    # print '-> Searching in %s' % url
-    # response = urllib2.urlopen(url)
-    # for line in response.readlines():
-    #     name, url = line.split(':', 1)
-    #     if arg.style in name:
-    #         matches.append([name.strip(), url.strip()])
-    #
-    # cwd = os.getcwd()
-    # for match in matches:
-    #     doc = urllib2.urlopen(match[1]).read()
-    #     links = re.finditer(r' href="?([^\s^"]+)', doc)
-    #     links = [link.group(1) for link in links if '.zip' in link.group(1)]
-    #     for link in links:
-    #         if 'master' in link:
-    #             path = urllib2.urlparse.urlsplit(match[1])
-    #             style_url = '%s://%s%s' % (path[0], path[1], link)
-    #             local_name = download_file(style_url, '.')
-    #             dirname = unzip_file(local_name)
-    #             for path in iglob('%s/*.py' % dirname):
-    #                 install_style(pth.abspath(path), install_dir)
-    #             os.remove(local_name)
-    #             shutil.rmtree(dirname)
+        return install_url(
+            source, url[versions[-1]], install_dir, versions[-1]
+        )
+    else:
+        dep = config.get_cfg(['dependencies'])
+        raise LexorError('needs work')
