@@ -17,6 +17,7 @@ import distutils.errors
 import os.path as pth
 from glob import iglob
 from imp import load_source
+from pkg_resources import parse_version
 from lexor.util.logging import L
 from lexor.command import config, disp, LexorError
 from lexor.command.cloud import cloud_request
@@ -122,16 +123,16 @@ def install_style(style, install_dir):
 def download_file(url, base='.'):
     """Download a file. """
     try:
-        print '-> Retrieving %s' % url
+        L.info('downloading %s', url)
         response = urllib2.urlopen(url)
         local_name = '%s/tmp_%s' % (base, pth.basename(url))
         with open(local_name, "wb") as local_file:
             local_file.write(response.read())
+        return local_name
     except urllib2.HTTPError, err:
-        print "HTTP Error:", err.code, url
+        L.error('HTTP Error [%r]: %r', err.code, url)
     except urllib2.URLError, err:
-        print "URL Error:", err.reason, url
-    return local_name
+        L.error('URL Error -> %r: %r', err.reason, url)
 
 
 def unzip_file(local_name):
@@ -142,10 +143,8 @@ def unzip_file(local_name):
     return dirname
 
 
-def run():
-    """Run the command. """
-    arg = vars(config.CONFIG['arg'])
-
+def _get_install_dir(arg):
+    """Get the installation directory. """
     if arg['user']:
         try:
             install_dir = '%s/lib/lexor_modules' % site.getuserbase()
@@ -161,6 +160,13 @@ def run():
     else:
         install_dir = pth.join(pth.abspath('.'), 'lexor_modules')
         L.info('default installation: %r', install_dir)
+    return install_dir
+
+
+def run():
+    """Run the command. """
+    arg = vars(config.CONFIG['arg'])
+    install_dir = _get_install_dir(arg)
 
     if arg['style']:
         style_file = arg['style']
@@ -203,9 +209,28 @@ def run():
             user=info['user'],
             repo=info['repo']
         )
+
         response = github.get(endpoint)
-        # response should be an array containing all the tags
-        print response
+        url = {}
+        for item in response:
+            key = item['name']
+            if key[0] == 'v':
+                key = key[1:]
+            url[key] = item['zipball_url']
+        versions = url.keys()
+        versions = sorted(versions, key=parse_version)
+        L.info('found versions %r', versions)
+        msg = 'installing %s v%s ... \n'
+        disp(msg % (arg['style'], versions[-1]))
+        local_name = download_file(url[versions[-1]])
+        dirname = unzip_file(local_name)
+        for path in iglob('%s/*.py' % dirname):
+            install_style(pth.abspath(path), install_dir)
+        L.info('removing %r and %r ...', local_name, dirname)
+        os.remove(local_name)
+        shutil.rmtree(dirname)
+        L.info('clean up complete')
+        return
 
 
 
@@ -215,53 +240,31 @@ def run():
 
 
     
-    if not pth.exists('lexor.config'):
-        with open('lexor.config', 'w') as _:
-            pass
-    
-    
     cfg = config.get_cfg(['dependencies'])
-    arg = config.CONFIG['arg']
-    print arg
-    print '--------'
-    print cfg
-    print '----'
-    print config.CONFIG
-    print '----'
-
-    res = cloud_request('match', {
-        'lang': 'lexor',
-        'type': 'converter',
-        'to_lang': 'html',
-        'style': 'default'
-    })
-    import pprint
-    pprint.pprint(res)
-    print arg
-    exit()
 
 
-    matches = []
-    url = 'http://jmlopez-rod.github.io/lexor-lang/lexor-lang.url'
-    print '-> Searching in %s' % url
-    response = urllib2.urlopen(url)
-    for line in response.readlines():
-        name, url = line.split(':', 1)
-        if arg.style in name:
-            matches.append([name.strip(), url.strip()])
-
-    cwd = os.getcwd()
-    for match in matches:
-        doc = urllib2.urlopen(match[1]).read()
-        links = re.finditer(r' href="?([^\s^"]+)', doc)
-        links = [link.group(1) for link in links if '.zip' in link.group(1)]
-        for link in links:
-            if 'master' in link:
-                path = urllib2.urlparse.urlsplit(match[1])
-                style_url = '%s://%s%s' % (path[0], path[1], link)
-                local_name = download_file(style_url, '.')
-                dirname = unzip_file(local_name)
-                for path in iglob('%s/*.py' % dirname):
-                    install_style(pth.abspath(path), install_dir)
-                os.remove(local_name)
-                shutil.rmtree(dirname)
+    #
+    # matches = []
+    # url = 'http://jmlopez-rod.github.io/lexor-lang/lexor-lang.url'
+    # print '-> Searching in %s' % url
+    # response = urllib2.urlopen(url)
+    # for line in response.readlines():
+    #     name, url = line.split(':', 1)
+    #     if arg.style in name:
+    #         matches.append([name.strip(), url.strip()])
+    #
+    # cwd = os.getcwd()
+    # for match in matches:
+    #     doc = urllib2.urlopen(match[1]).read()
+    #     links = re.finditer(r' href="?([^\s^"]+)', doc)
+    #     links = [link.group(1) for link in links if '.zip' in link.group(1)]
+    #     for link in links:
+    #         if 'master' in link:
+    #             path = urllib2.urlparse.urlsplit(match[1])
+    #             style_url = '%s://%s%s' % (path[0], path[1], link)
+    #             local_name = download_file(style_url, '.')
+    #             dirname = unzip_file(local_name)
+    #             for path in iglob('%s/*.py' % dirname):
+    #                 install_style(pth.abspath(path), install_dir)
+    #             os.remove(local_name)
+    #             shutil.rmtree(dirname)
