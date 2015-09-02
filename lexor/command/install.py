@@ -47,6 +47,8 @@ def add_parser(subp, fclass):
                       help='install globably, requires sudo')
     tmpp.add_argument('--path', type=str, default=None,
                       help='specify the installation path')
+    tmpp.add_argument('-s', '--save', action='store_true',
+                      help='save dependency')
 
 
 def decompose(endpoint):
@@ -171,9 +173,13 @@ def download_file(url, base='.'):
             local_file.write(response.read())
         return local_name
     except urllib2.HTTPError, err:
-        L.error('HTTP Error [%r]: %r', err.code, url)
+        msg = 'HTTP Error [%r]: %r' % (err.code, url)
+        L.error(msg)
+        raise LexorError(msg)
     except urllib2.URLError, err:
-        L.error('URL Error -> %r: %r', err.reason, url)
+        msg = 'URL Error -> %r: %r' % (err.reason, url)
+        L.error(msg)
+        raise LexorError(msg)
 
 
 def unzip_file(local_name):
@@ -240,7 +246,11 @@ def install_url(style, url, install_dir, version=''):
         version = 'v{0}'.format(version)
     msg = 'installing %s %s ... \n'
     disp(msg % (style, version))
-    local_name = download_file(url)
+    try:
+        local_name = download_file(url)
+    except LexorError:
+        L.error('something went wrong while downloading ...')
+        return
     dirname = unzip_file(local_name)
     for path in iglob('%s/*.py' % dirname):
         install_style(pth.abspath(path), install_dir)
@@ -267,23 +277,55 @@ def local_resolver(install_dir, source, _):
     install_style(source, install_dir)
 
 
-def shorthand_resolver(install_dir, source, _):
-    print 'shorthand', source
+def shorthand_resolver(install_dir, source, target):
+    org, repo = source.split('/')
+    _get_github_archive(install_dir, org, repo, target)
 
 
-def registry_resolver(install_dir, source, _):
+def registry_resolver(install_dir, source, target):
     match_parameters = _parse_key(source)
     L.info('searching registry for %r', source)
     response = cloud_request('match', match_parameters)
     if len(response) == 0:
         L.error('no maches found for %r', source)
-        raise LexorError('no matches found')
+        return
     if len(response) > 1:
         msg = 'there are %d matches, how did this happen?'
         L.error(msg % len(response))
-        raise LexorError('several matches returned')
+        return
     info = response[0]
-    print 'Not done yet...should do the same as shorthand: %r' % info
+    _get_github_archive(
+        install_dir, info['user'], info['repo'], target
+    )
+
+
+def _get_github_archive(install_dir, org, repo, target):
+    if target == '*':
+        endpoint = '/repos/{org}/{repo}/tags'.format(
+            org=org,
+            repo=repo
+        )
+        response = github.get(endpoint)
+        if not isinstance(response, list):
+            if 'message' in response:
+                msg = 'message from github: %s' % response['message']
+                L.error(msg)
+            else:
+                L.error('unable to git proper response from github.')
+            return
+        sha = {}
+        for item in response:
+            key = item['name']
+            if key[0] == 'v':
+                key = key[1:]
+            sha[key] = item['commit']['sha']
+        versions = sha.keys()
+        versions = sorted(versions, key=parse_version)
+        target = sha[versions[-1]]
+        L.info('found versions %r', versions)
+    url = 'https://github.com/{org}/{repo}/archive/{target}.zip'
+    url = url.format(org=org, repo=repo, target=target)
+    install_url(repo, url, install_dir)
 
 
 def get_resolver(source):
@@ -325,7 +367,8 @@ def run():
         target = dec_endpoint['target']
         resolver, source = get_resolver(source)
         resolver(install_dir, source, target)
-        # TODO: save dependency if option is given
+        if arg['save']:
+            print 'should save'
         return
         # endpoint = '/repos/{user}/{repo}/tags'.format(
         #     user=info['user'],
