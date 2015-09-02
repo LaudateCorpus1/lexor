@@ -71,7 +71,7 @@ def decompose(endpoint):
     }
 
 
-def getOrgRepoPair(url):
+def get_org_repo_pair(url):
     """Parse a github url returning the organization/user and the
     repo name. """
     matches = re.search(GITHUB_PATTERN, url)
@@ -250,6 +250,52 @@ def install_url(style, url, install_dir, version=''):
     L.info('clean up complete')
 
 
+def github_resolver(source):
+    print 'github', source
+
+
+def git_remote_resolver(source):
+    print 'git remote', source
+
+
+def url_resolver(source):
+    print 'url resolver', source
+
+
+def local_resolver(source):
+    print 'local resolver', source
+
+
+def shorthand_resolver(source):
+    print 'shorthand', source
+
+
+def registry_resolver(source):
+    print 'registry', source
+
+
+def get_resolver(source):
+    """Get the resolver for the source. """
+    # Git Case: git git+ssh, git+http, git+https
+    #           .git at the end (probably ssh shorthand)
+    #            git@ at the start
+    if re.match('^git(\+(ssh|https?))?://', source) \
+            or re.search('\.git/?$', source) \
+            or re.match('^git@', source):
+        source = re.sub('^git\+', '', source)
+        if get_org_repo_pair(source):
+            return [github_resolver, source]
+        return [git_remote_resolver, source]
+    if re.match('^https?://', source):
+        return [url_resolver, source]
+    if pth.exists(source) or pth.exists('%s.py' % source):
+        return [local_resolver, source]
+    parts = source.split('/')
+    if len(parts) == 2:
+        return [shorthand_resolver, source]
+    return [registry_resolver, source]
+
+
 def run():
     """Run the command. """
     arg = vars(config.CONFIG['arg'])
@@ -258,6 +304,11 @@ def run():
     if arg['style']:
         dec_endpoint = decompose(arg['style'])
         source = dec_endpoint['source']
+        resolver, source = get_resolver(source)
+        resolver(source)
+        raise LexorError('you are doing good...')
+
+
         if dec_endpoint['target'] == '*':
             local_style = _is_local_installation(source)
             if local_style:
