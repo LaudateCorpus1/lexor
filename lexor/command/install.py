@@ -250,28 +250,40 @@ def install_url(style, url, install_dir, version=''):
     L.info('clean up complete')
 
 
-def github_resolver(source):
+def github_resolver(install_dir, source, _):
     print 'github', source
 
 
-def git_remote_resolver(source):
+def git_remote_resolver(install_dir, source, _):
     print 'git remote', source
 
 
-def url_resolver(source):
-    print 'url resolver', source
+def url_resolver(install_dir, source, _):
+    install_url(source, source, install_dir)
 
 
-def local_resolver(source):
-    print 'local resolver', source
+def local_resolver(install_dir, source, _):
+    L.info('installing local module: %r', source)
+    install_style(source, install_dir)
 
 
-def shorthand_resolver(source):
+def shorthand_resolver(install_dir, source, _):
     print 'shorthand', source
 
 
-def registry_resolver(source):
-    print 'registry', source
+def registry_resolver(install_dir, source, _):
+    match_parameters = _parse_key(source)
+    L.info('searching registry for %r', source)
+    response = cloud_request('match', match_parameters)
+    if len(response) == 0:
+        L.error('no maches found for %r', source)
+        raise LexorError('no matches found')
+    if len(response) > 1:
+        msg = 'there are %d matches, how did this happen?'
+        L.error(msg % len(response))
+        raise LexorError('several matches returned')
+    info = response[0]
+    print 'Not done yet...should do the same as shorthand: %r' % info
 
 
 def get_resolver(source):
@@ -286,13 +298,18 @@ def get_resolver(source):
         if get_org_repo_pair(source):
             return [github_resolver, source]
         return [git_remote_resolver, source]
+    # url
     if re.match('^https?://', source):
         return [url_resolver, source]
+    # local
     if pth.exists(source) or pth.exists('%s.py' % source):
-        return [local_resolver, source]
+        source = source if '.py' in source else '%s.py' % source
+        return [local_resolver, pth.abspath(source)]
+    # shorthand
     parts = source.split('/')
     if len(parts) == 2:
         return [shorthand_resolver, source]
+    # registry
     return [registry_resolver, source]
 
 
@@ -303,49 +320,32 @@ def run():
 
     if arg['style']:
         dec_endpoint = decompose(arg['style'])
+        name = dec_endpoint['name']
         source = dec_endpoint['source']
+        target = dec_endpoint['target']
         resolver, source = get_resolver(source)
-        resolver(source)
-        raise LexorError('you are doing good...')
-
-
-        if dec_endpoint['target'] == '*':
-            local_style = _is_local_installation(source)
-            if local_style:
-                L.info('installing local module: %r', local_style)
-                return install_style(local_style, install_dir)
-
-        match_parameters = _parse_key(source)
-
-        L.info('searching online for %r', source)
-        response = cloud_request('match', match_parameters)
-        if len(response) == 0:
-            L.error('no maches found for %r', source)
-            raise LexorError('no matches found')
-        if len(response) > 1:
-            msg = 'there are %d matches, how did this happen?'
-            L.error(msg % len(response))
-            raise LexorError('several matches returned')
-        info = response[0]
-        endpoint = '/repos/{user}/{repo}/tags'.format(
-            user=info['user'],
-            repo=info['repo']
-        )
-
-        response = github.get(endpoint)
-        url = {}
-        for item in response:
-            key = item['name']
-            if key[0] == 'v':
-                key = key[1:]
-            url[key] = item['zipball_url']
-        versions = url.keys()
-        versions = sorted(versions, key=parse_version)
-        L.info('found versions %r', versions)
-
-        return install_url(
-            source, url[versions[-1]], install_dir, versions[-1]
-        )
+        resolver(install_dir, source, target)
+        # TODO: save dependency if option is given
+        return
+        # endpoint = '/repos/{user}/{repo}/tags'.format(
+        #     user=info['user'],
+        #     repo=info['repo']
+        # )
+        #
+        # response = github.get(endpoint)
+        # url = {}
+        # for item in response:
+        #     key = item['name']
+        #     if key[0] == 'v':
+        #         key = key[1:]
+        #     url[key] = item['zipball_url']
+        # versions = url.keys()
+        # versions = sorted(versions, key=parse_version)
+        # L.info('found versions %r', versions)
+        #
+        # return install_url(
+        #     source, url[versions[-1]], install_dir, versions[-1]
+        # )
     else:
         dep = config.get_cfg(['dependencies'])
         raise LexorError('needs work')
