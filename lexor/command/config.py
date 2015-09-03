@@ -205,6 +205,7 @@ def write_config(cfg_file):
     fname = '%s/%s' % (CONFIG['path'], CONFIG['name'])
     with open(fname, 'w') as tmp:
         cfg_file.write(tmp)
+    L.info('wrote configuration file `%s`', fname)
 
 
 def update_single(cfg, name, defaults=None):

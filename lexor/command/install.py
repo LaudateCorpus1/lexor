@@ -15,11 +15,11 @@ import textwrap
 import distutils.dir_util
 import distutils.errors
 import os.path as pth
-from glob import iglob
+from glob import iglob, glob
 from imp import load_source
 from pkg_resources import parse_version
 from lexor.util.logging import L
-from lexor.command import config, disp, LexorError
+from lexor.command import config, disp, LexorError, exec_cmd
 from lexor.command.cloud import cloud_request
 from lexor.util import github
 
@@ -159,8 +159,9 @@ def install_style(style, install_dir):
         load_source('tmp_mod', path)
         L.info('    - %r', path)
 
-    msg = '  -> %r has been installed in %r\n'
-    disp(msg % (key, install_dir))
+    msg = '  -> %r v%s has been installed in %r\n'
+    disp(msg % (key, info['ver'], install_dir))
+    return key, info['ver']
 
 
 def download_file(url, base='.'):
@@ -252,34 +253,48 @@ def install_url(style, url, install_dir, version=''):
         L.error('something went wrong while downloading ...')
         return
     dirname = unzip_file(local_name)
-    for path in iglob('%s/*.py' % dirname):
-        install_style(pth.abspath(path), install_dir)
+    source = glob('%s/*.py' % dirname)
+    key, ver = install_style(pth.abspath(source[0]), install_dir)
     L.info('removing %r and %r ...', local_name, dirname)
     os.remove(local_name)
     shutil.rmtree(dirname)
     L.info('clean up complete')
+    return key, ver
 
 
-def github_resolver(install_dir, source, _):
-    print 'github', source
+def github_resolver(install_dir, source, target):
+    return git_remote_resolver(install_dir, source, target)
 
 
-def git_remote_resolver(install_dir, source, _):
-    print 'git remote', source
+def git_remote_resolver(install_dir, source, target):
+    L.info('creating temporary directory ...')
+    os.mkdir('tmp')
+    os.chdir('tmp')
+    exec_cmd('git init')
+    exec_cmd('git pull --tags %s' % source)
+    if target != '*':
+        exec_cmd('git checkout %s' % target)
+    os.chdir('..')
+    source = glob('tmp/*.py')
+    info = install_style(pth.abspath(source[0]), install_dir)
+    L.info('removing temporary directory ...')
+    shutil.rmtree('tmp')
+    L.info('clean up complete')
+    return info
 
 
 def url_resolver(install_dir, source, _):
-    install_url(source, source, install_dir)
+    return install_url(source, source, install_dir)
 
 
 def local_resolver(install_dir, source, _):
     L.info('installing local module: %r', source)
-    install_style(source, install_dir)
+    return install_style(source, install_dir)
 
 
 def shorthand_resolver(install_dir, source, target):
     org, repo = source.split('/')
-    _get_github_archive(install_dir, org, repo, target)
+    return _get_github_archive(install_dir, org, repo, target)
 
 
 def registry_resolver(install_dir, source, target):
@@ -287,14 +302,14 @@ def registry_resolver(install_dir, source, target):
     L.info('searching registry for %r', source)
     response = cloud_request('match', match_parameters)
     if len(response) == 0:
-        L.error('no maches found for %r', source)
+        L.error('no matches found for %r', source)
         return
     if len(response) > 1:
         msg = 'there are %d matches, how did this happen?'
         L.error(msg % len(response))
         return
     info = response[0]
-    _get_github_archive(
+    return _get_github_archive(
         install_dir, info['user'], info['repo'], target
     )
 
@@ -325,7 +340,7 @@ def _get_github_archive(install_dir, org, repo, target):
         L.info('found versions %r', versions)
     url = 'https://github.com/{org}/{repo}/archive/{target}.zip'
     url = url.format(org=org, repo=repo, target=target)
-    install_url(repo, url, install_dir)
+    return install_url(repo, url, install_dir)
 
 
 def get_resolver(source):
@@ -355,40 +370,43 @@ def get_resolver(source):
     return [registry_resolver, source]
 
 
+def handle_argument(install_dir, param, save):
+    dec_endpoint = decompose(param)
+    source = dec_endpoint['source']
+    target = dec_endpoint['target']
+    resolver, source = get_resolver(source)
+    info = resolver(install_dir, source, target)
+    if save:
+        if info is None:
+            return
+        cfg = config.read_config()
+        endpt = dec_endpoint
+        if endpt['target'] != '*':
+            endpt['target'] = '#{0}'.format(endpt['target'])
+        else:
+            endpt['target'] = ''
+        source = '%s%s' % (endpt['source'], endpt['target'])
+        dep = 'dependencies'
+        try:
+            cfg[dep][info[0]] = source
+        except KeyError:
+            cfg.add_section(dep)
+            cfg[dep][info[0]] = source
+        config.write_config(cfg)
+
+
 def run():
     """Run the command. """
     arg = vars(config.CONFIG['arg'])
     install_dir = _get_install_dir(arg)
 
     if arg['style']:
-        dec_endpoint = decompose(arg['style'])
-        name = dec_endpoint['name']
-        source = dec_endpoint['source']
-        target = dec_endpoint['target']
-        resolver, source = get_resolver(source)
-        resolver(install_dir, source, target)
-        if arg['save']:
-            print 'should save'
-        return
-        # endpoint = '/repos/{user}/{repo}/tags'.format(
-        #     user=info['user'],
-        #     repo=info['repo']
-        # )
-        #
-        # response = github.get(endpoint)
-        # url = {}
-        # for item in response:
-        #     key = item['name']
-        #     if key[0] == 'v':
-        #         key = key[1:]
-        #     url[key] = item['zipball_url']
-        # versions = url.keys()
-        # versions = sorted(versions, key=parse_version)
-        # L.info('found versions %r', versions)
-        #
-        # return install_url(
-        #     source, url[versions[-1]], install_dir, versions[-1]
-        # )
+        return handle_argument(install_dir, arg['style'], arg['save'])
     else:
-        dep = config.get_cfg(['dependencies'])
-        raise LexorError('needs work')
+        cfg = config.get_cfg(['dependencies'])
+        for key in cfg['dependencies']:
+            handle_argument(
+                install_dir,
+                cfg['dependencies'][key],
+                False
+            )
