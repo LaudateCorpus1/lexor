@@ -169,7 +169,8 @@ def get_style_module(type_, lang, style, to_lang=None):
             except IOError:
                 msg = 'Unable to load module in development: %s'
                 raise LexorError(msg % path)
-            L.info('... developing from %s', path)
+            ver = module.INFO['ver']
+            L.info('... developing v%s from %s', ver, path)
             return module
         except KeyError:
             pass
@@ -177,7 +178,8 @@ def get_style_module(type_, lang, style, to_lang=None):
         path = '%s/%s.py' % (base, name)
         try:
             module = load_source(modname, path)
-            L.info('... found in %r', base)
+            ver = module.INFO['ver']
+            L.info('... found v%s in %r', ver, base)
             return module
         except IOError:
             L.info('... searched in %r', base)
