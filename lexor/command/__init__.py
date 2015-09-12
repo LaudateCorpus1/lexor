@@ -14,6 +14,11 @@ def disp(msg):
     sys.stdout.write(msg)
 
 
+def wdisp(msg):
+    """Print a message to the standard error. """
+    sys.stderr.write(msg)
+
+
 def import_mod(name):
     """Return a module by string. """
     mod = __import__(name)

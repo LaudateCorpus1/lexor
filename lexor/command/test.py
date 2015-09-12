@@ -11,11 +11,13 @@ import lexor
 import textwrap
 from glob import iglob
 from nose.tools import eq_
-from lexor.command import exec_cmd
+from lexor.command import exec_cmd, wdisp
 from lexor.command.lang import LEXOR_PATH, get_style_module
 from lexor.core.parser import Parser
 from os.path import dirname, exists
 from lexor.command import config
+from lexor.util.logging import L
+
 
 RE = re.compile(r'(?P<code>[A-Z][0-9]*|Okay):')
 WRAPPER = textwrap.TextWrapper(width=70, break_long_words=False)
@@ -55,9 +57,9 @@ def add_parser(subp, fclass):
 def run():
     """Run command. """
     arg = config.CONFIG['arg']
-    cfg = config.get_cfg(['lang', 'develop', 'version'])
+    cfg = config.get_cfg(['lang', 'develop', 'dependencies'])
     if arg.installed:
-        if 'version' in cfg:
+        if 'dependencies' in cfg:
             print('Running installed tests ...')
             run_installed(arg.param, cfg, arg.verbose)
         else:
@@ -104,12 +106,13 @@ def run_installed(param, cfg, verbose):
         testname = param[1]
         if len(param) == 3:
             subtest = ':%s' % param[2]
-    keys = [key for key in cfg['version'] if key.startswith(param[0])]
+    keys = [key for key in cfg['dependencies'] if key.startswith(param[0])]
     failed = []
     for key in keys:
         name = '/'.join(key.rsplit('.', 1))
         for base in LEXOR_PATH:
-            path = '%s/%s-%s' % (base, name, cfg['version'][key])
+            path = '%s/%s' % (base, name)
+            L.info('checking %r', path)
             if not exists(path):
                 continue
             path = '%s/test_%s.py' % (path, testname)
@@ -195,10 +198,10 @@ def parse_msg(msg):
     return '\n'.join([line[4:] for line in lines[:end]]), tests
 
 
-def find_failed(tests, lang, style):
+def find_failed(tests, lang, style, defaults):
     """Run the tests and return a list of the tests that fail. """
     failed = []
-    parser = Parser(lang, style)
+    parser = Parser(lang, style, defaults)
     for test in tests:
         parser.parse(test[1])
         if test[0] == 'Okay':
@@ -215,7 +218,7 @@ def find_failed(tests, lang, style):
     return failed
 
 
-def nose_msg_explanations(lang, type_, style, name):
+def nose_msg_explanations(lang, type_, style, name, defaults=None):
     """Gather the ``MSG_EXPLANATION`` list and run the tests it
     contains."""
     mod = get_style_module(type_, lang, style)
@@ -223,20 +226,20 @@ def nose_msg_explanations(lang, type_, style, name):
     if not hasattr(mod, 'MSG_EXPLANATION'):
         return
     errors = False
-    warn('\n')
+    wdisp('\n')
     for num, msg in enumerate(mod.MSG_EXPLANATION):
-        warn('MSG_EXPLANATION[%d] ... ' % num)
+        wdisp('MSG_EXPLANATION[%d] ... ' % num)
         msg, tests = parse_msg(msg)
-        failed = find_failed(tests, lang, style)
+        failed = find_failed(tests, lang, style, defaults)
         err = ['    %s: %r' % (fail[0], fail[1]) for fail in failed]
         if err:
             errors = True
-            warn('\n%s\n' % '\n'.join(err))
+            wdisp('\n%s\n' % '\n'.join(err))
         else:
-            warn('ok\n')
+            wdisp('ok\n')
         err = '\n'.join(err)
     eq_(errors, False, "Errors in MSG_EXPLANATION")
-    warn('...................... ')
+    wdisp('...................... ')
 
 
 # @deprecated

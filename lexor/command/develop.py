@@ -8,7 +8,8 @@ file.
 import os
 import textwrap
 from imp import load_source
-from lexor.command import config
+from lexor.command import config, LexorError
+from lexor.util.logging import L
 
 DESC = """
 Append the path to the develop section in a configuration file.
@@ -37,9 +38,12 @@ def run():
     try:
         mod = load_source("tmp-mod", path)
     except IOError:
-        error("ERROR: Not a valid module.\n")
+        msg = 'not a valid module.'
+        L.error(msg)
+        raise LexorError(msg)
     if not hasattr(mod, 'INFO'):
-        error("ERROR: module does not have `INFO`\n")
+        msg = 'module does not have `INFO`'
+        L.error(msg)
     if mod.INFO['type'] == 'converter':
         key = '%s.%s.%s.%s' % (mod.INFO['lang'], mod.INFO['type'],
                                mod.INFO['to_lang'], mod.INFO['style'])
@@ -49,7 +53,10 @@ def run():
     if 'develop' in cfg_file:
         if key in cfg_file['develop']:
             if cfg_file['develop'][key] == rel_path:
-                error('%s is already begin developed from %s\n' % (key, path))
+                msg = '%s is already begin developed from %s'
+                msg = msg % (key, path)
+                L.error(msg)
+                raise LexorError(msg)
         cfg_file['develop'][key] = rel_path
     else:
         cfg_file.add_section('develop')
