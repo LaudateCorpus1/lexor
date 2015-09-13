@@ -119,6 +119,7 @@ class Parser(object):
         self.log = None
         self.defaults = defaults
         self._node_parser = None
+        self.current_node = None
 
     def _set_node_parser(self, val):
         """Helper function to create a node parser and store it
@@ -422,12 +423,12 @@ class Parser(object):
     def _parse(self):
         """Main parsing function. This function depends on the
         node parsers of the language. """
-        crt = self.doc
+        self.current_node = crt = self.doc
         self._in_progress = []
         while self.caret < self.end:
             tmp = self._close_node()
             if tmp is not None:
-                crt = tmp
+                self.current_node = crt = tmp
                 continue
             match = False
             processor = None
@@ -441,7 +442,7 @@ class Parser(object):
             if match is False:
                 self._process_text(crt)
             elif self._process_node(crt, node, processor) is node:
-                crt = node
+                self.current_node = crt = node
         for node, processor in self._in_progress:
             self.msg(self.__module__, 'E100', node.pos, [node.name])
             del node.pos
