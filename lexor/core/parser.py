@@ -17,6 +17,7 @@ the abstract class |NodeParser|.
 
 import re
 import sys
+from lexor.util import Position
 from lexor.command import config
 from lexor.command.lang import get_style_module, map_explanations
 LC = sys.modules['lexor.core']
@@ -400,14 +401,14 @@ class Parser(object):
             if autoclose is not None:
                 break
         if autoclose is not None:
-            # Must go backwards since the list inprogress is
+            # Must go backwards since the list `in_progress` is
             # changing.
             for i in xrange(len(self._in_progress)-1, num, -1):
                 name = self._in_progress[i][0].name
                 self.msg(
                     self.__module__, 'W100',
                     self._in_progress[i][0].pos,
-                    (name, autoclose[0], autoclose[1])
+                    (name, Position(autoclose))
                 )
                 del self._in_progress[i][0].pos
                 del self._in_progress[i]
@@ -445,10 +446,35 @@ class Parser(object):
             self.msg(self.__module__, 'E100', node.pos, [node.name])
             del node.pos
 
+    def update_log(self, log, after=True, delta=None):
+        """Append the messages from a `log` document to the
+        parsers log. This removes the children from `log`.
+        """
+        modules = log.modules
+        explanation = log.explanation
+        for mname in modules:
+            if mname not in self.log.modules:
+                self.log.modules[mname] = modules[mname]
+            if mname not in self.log.explanation:
+                self.log.explanation[mname] = explanation[mname]
+        if delta:
+            for error in log.iter_child_elements():
+                error['uri'] = self.uri
+                pos = error['position']
+                pos[0] += delta[0]
+                pos[1] += delta[1]
+                for arg in error['arg']:
+                    if isinstance(arg, Position):
+                        arg.shift(delta)
+        if after:
+            self.log.extend_children(log)
+        else:
+            self.log.extend_before(0, log)
+
 
 MSG = {
     'E100': 'closing string for `Node` of name "{0}" not found',
-    'W100': 'auto-closing `Node` of name "{0}" at {1}:{2:2}',
+    'W100': 'auto-closing `Node` of name "{0}" at {1}',
 }
 MSG_EXPLANATION = [
     """
