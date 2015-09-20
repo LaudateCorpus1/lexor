@@ -307,6 +307,31 @@ class Parser(object):
             self.pos[1] += index - self.caret
         self.caret = index
 
+    def update_log(self, log, after=True, delta=None):
+        """Append the messages from a `log` document to the
+        parsers log. This removes the children from `log`.
+        """
+        modules = log.modules
+        explanation = log.explanation
+        for mname in modules:
+            if mname not in self.log.modules:
+                self.log.modules[mname] = modules[mname]
+            if mname not in self.log.explanation:
+                self.log.explanation[mname] = explanation[mname]
+        if delta:
+            for error in log.iter_child_elements():
+                error['uri'] = self.uri
+                pos = error['position']
+                pos[0] += delta[0]
+                pos[1] += delta[1]
+                for arg in error['arg']:
+                    if isinstance(arg, Position):
+                        arg.shift(delta)
+        if after:
+            self.log.extend_children(log)
+        else:
+            self.log.extend_before(0, log)
+
     def compute(self, index):
         """Return a position ``[line, column]`` in the text given an
         index. This does not modify anything in the parser. It only
@@ -361,7 +386,7 @@ class Parser(object):
         if isinstance(node, LC.Text):
             if len(crt) > 0 and isinstance(crt[-1], LC.Text):
                 crt[-1].data += node.data
-            else:
+            elif node.data:
                 crt.append_child(node)
         elif isinstance(node, list):  # Empty Element
             crt.append_child(node[0])
@@ -446,31 +471,6 @@ class Parser(object):
         for node, processor in self._in_progress:
             self.msg(self.__module__, 'E100', node.pos, [node.name])
             del node.pos
-
-    def update_log(self, log, after=True, delta=None):
-        """Append the messages from a `log` document to the
-        parsers log. This removes the children from `log`.
-        """
-        modules = log.modules
-        explanation = log.explanation
-        for mname in modules:
-            if mname not in self.log.modules:
-                self.log.modules[mname] = modules[mname]
-            if mname not in self.log.explanation:
-                self.log.explanation[mname] = explanation[mname]
-        if delta:
-            for error in log.iter_child_elements():
-                error['uri'] = self.uri
-                pos = error['position']
-                pos[0] += delta[0]
-                pos[1] += delta[1]
-                for arg in error['arg']:
-                    if isinstance(arg, Position):
-                        arg.shift(delta)
-        if after:
-            self.log.extend_children(log)
-        else:
-            self.log.extend_before(0, log)
 
 
 MSG = {
