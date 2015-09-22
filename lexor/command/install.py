@@ -271,9 +271,12 @@ def git_remote_resolver(install_dir, source, target):
     os.mkdir('tmp')
     os.chdir('tmp')
     exec_cmd('git init')
-    exec_cmd('git pull --tags %s' % source)
     if target != '*':
+        L.info('git pull --tags %s %s', source, target)
+        exec_cmd('git pull --tags %s %s' % (source, target))
         exec_cmd('git checkout %s' % target)
+    else:
+        exec_cmd('git pull %s' % source)
     os.chdir('..')
     source = glob('tmp/*.py')
     info = install_style(pth.abspath(source[0]), install_dir)
