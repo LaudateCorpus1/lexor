@@ -2,7 +2,6 @@
 Print the default values for each command.
 
 """
-
 import textwrap
 from lexor.command import import_mod
 from lexor.command import config, LexorError

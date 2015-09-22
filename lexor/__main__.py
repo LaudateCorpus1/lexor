@@ -7,7 +7,6 @@ To run lexor from the command line do the following:
 Use the option --help for more information.
 
 """
-
 import sys
 import argparse
 import textwrap

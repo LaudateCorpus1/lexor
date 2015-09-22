@@ -14,7 +14,6 @@ the abstract class |NodeParser|.
 .. |DocFrag| replace:: :class:`~lexor.core.elements.DocumentFragment`
 
 """
-
 import re
 import sys
 from lexor.util import Position
@@ -135,7 +134,8 @@ class Parser(object):
         return self._node_parser[name]
 
     def _set_node_parsers(self, lang, style, defaults=None):
-        """Imports the correct module based on the language and style. """
+        """Imports the correct module based on the language and style.
+        """
         self.style_module = get_style_module('parser', lang, style)
         name = '%s-parser-%s' % (lang, style)
         config.set_style_cfg(self, name, defaults)
@@ -337,11 +337,13 @@ class Parser(object):
         index. This does not modify anything in the parser. It only
         gives you the line and column where the caret would be given
         the index. The same applies as in update: do not use compute
-        with an index less than the current position of the caret. """
-        nlines = self.text.count('\n', self.caret, index)
+        with an index less than the current position of the caret.
+        """
+        text = self.text
+        nlines = text.count('\n', self.caret, index)
         tmpline = self.pos[0] + nlines
         if nlines > 0:
-            tmpcolumn = index - self.text.rfind('\n', self.caret, index)
+            tmpcolumn = index - text.rfind('\n', self.caret, index)
         else:
             tmpcolumn = self.pos[1] + index - self.caret
         return [tmpline, tmpcolumn]
@@ -350,7 +352,8 @@ class Parser(object):
     def msg(self, mod_name, code, pos, arg=None, uri=None):
         """Provide the name of module issuing the message, the code
         number, the position of caret and optional arguments and uri.
-        This information gets stored in the log. """
+        This information gets stored in the log.
+        """
         if uri is None:
             uri = self._uri
         if arg is None:
@@ -371,12 +374,19 @@ class Parser(object):
 
     def _get_next_checker(self, node):
         """Get the checker based on the name of the node. """
-        return self._next_check.get(node.name, self._next_check['__default__'])
+        return self._next_check.get(
+            node.name,
+            self._next_check['__default__']
+        )
 
     def _get_next_check(self, node):
         """Locate the index where a processor might return Node. If
-        there is no index then return -1."""
-        match = self._get_next_checker(node).search(self.text, self.caret)
+        there is no index then return -1.
+        """
+        match = self._get_next_checker(node).search(
+            self.text,
+            self.caret
+        )
         if match is None:
             return -1
         return match.end(0)-1

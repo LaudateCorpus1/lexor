@@ -2,7 +2,6 @@
 Collection of functions to create lexor's command line utility.
 
 """
-
 import sys
 from dateutil import parser
 from datetime import datetime

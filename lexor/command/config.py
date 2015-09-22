@@ -17,8 +17,6 @@ they can come in handy in scripts if we need to specify the location
 of the configuration file.
 
 """
-
-from __future__ import print_function
 import os
 import sys
 import argparse
