@@ -13,7 +13,7 @@ import lexor
 import os.path as pth
 from imp import load_source
 from lexor.core import elements as core
-from lexor.command import config, error, warn
+from lexor.command import config
 from lexor.command.to import style_parameters
 
 

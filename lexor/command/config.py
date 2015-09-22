@@ -23,7 +23,8 @@ import argparse
 import textwrap
 import configparser
 import os.path as pth
-from lexor.command import error, disp, import_mod, ConfigError
+from lexor.util.logging import L
+from lexor.command import import_mod, LexorError, disp
 
 
 DESC = """
@@ -43,18 +44,9 @@ CONFIG = {
     'name': None,  # read only
     'cfg_path': None,  # COMMAND LINE USE ONLY
     'cfg_user': None,  # COMMAND LINE USE ONLY
-    'arg': None  # COMMAND LINE USE ONLY
+    'arg': None,  # COMMAND LINE USE ONLY
+    'cache': None,  # read_config USE ONLY
 }
-
-
-def _var_completer(**_):
-    """var completer. """
-    return ['SEC.KEY']
-
-
-def _value_completer(**_):
-    """value completer. """
-    return ['VALUE']
 
 
 # pylint: disable=too-few-public-methods
@@ -64,10 +56,7 @@ class _ConfigDispAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         CONFIG['cfg_user'] = namespace.cfg_user
         CONFIG['cfg_path'] = namespace.cfg_path
-        try:
-            cfg_file = read_config()
-        except ConfigError as err:
-            error("ERROR: %s\n" % err.message)
+        cfg_file = read_config()
         fname = '%s/%s' % (CONFIG['path'], CONFIG['name'])
         disp('lexor configuration file: %s\n' % fname)
         cfg_file.write(sys.stdout)
@@ -84,11 +73,10 @@ def add_parser(subp, fclass):
     tmpp = subp.add_parser('config', help='configure lexor',
                            formatter_class=fclass,
                            description=textwrap.dedent(DESC))
-    tmpp.add_argument(
-        'var', type=str, help='Must be in the form of sec.key'
-    ).completer = _var_completer
+    tmpp.add_argument('var', type=str,
+                      help='Must be in the form of sec.key')
     tmpp.add_argument('value', type=str, nargs='?', default=None,
-                      help='var value').completer = _value_completer
+                      help='var value')
     tmpp.add_argument('-v', action='store_true',
                       help='print config file location')
     tmpp.add_argument('--display', action=_ConfigDispAction,
@@ -104,32 +92,33 @@ def run():
         Run the command.
     """
     arg = CONFIG['arg']
-    try:
-        cfg_file = read_config()
-    except ConfigError as err:
-        error("ERROR: %s\n" % err.message)
+    cfg_file = read_config()
     try:
         command, var = arg.var.split('.', 1)
     except ValueError:
-        error("ERROR: '%s' is not of the form sec.key\n" % arg.var)
+        raise LexorError("'%s' is not of the form sec.key" % arg.var)
     if arg.v:
         fname = '%s/%s' % (CONFIG['path'], CONFIG['name'])
         disp('lexor configuration file: %s\n' % fname)
     if arg.value is None:
+        L.info('displaying value for `%s` and exiting' % var)
         try:
-            print cfg_file[command][var]
+            disp('%s\n' % cfg_file[command][var])
         except KeyError:
             pass
         return
     try:
         cfg_file[command][var] = arg.value
     except KeyError:
+        L.info('adding section `%s`' % command)
         cfg_file.add_section(command)
         cfg_file[command][var] = arg.value
+    L.info('added key `%s`' % var)
+    L.info('writing configuration file')
     write_config(cfg_file)
 
 
-def read_config():
+def read_config(cache=True):
     """Read a configuration file. There are a few ways of specifying
     which configuration file to use.
 
@@ -150,7 +139,7 @@ def read_config():
     - If everything else fails then it searches for ``.lexor.config``
       in the home directory.
 
-    This function may raise a :class:`~lexor.command.ConfigError`
+    This function may raise a :class:`~lexor.command.LexorError`
     exception if the configuration is not found when
     ``CONFIG['cfg_path']`` is set.
 
@@ -177,6 +166,9 @@ def read_config():
         ``config`` module.
 
     """
+    if cache and CONFIG['cache'] is not None:
+        L.info('reading cached configuration')
+        return CONFIG['cache']
     cfg_file = configparser.ConfigParser(allow_no_value=True)
     name = 'lexor.config'
     if CONFIG['cfg_user']:
@@ -193,10 +185,12 @@ def read_config():
     else:
         path = CONFIG['cfg_path']
         if not pth.exists('%s/%s' % (path, name)):
-            raise ConfigError('%s/%s does not exist.' % (path, name))
+            raise LexorError('%s/%s does not exist.' % (path, name))
     cfg_file.read('%s/%s' % (path, name))
     CONFIG['name'] = name
     CONFIG['path'] = path
+    CONFIG['cache'] = cfg_file
+    L.info('loaded configuration `%s` from `%s`', name, path)
     return cfg_file
 
 
@@ -209,6 +203,7 @@ def write_config(cfg_file):
     fname = '%s/%s' % (CONFIG['path'], CONFIG['name'])
     with open(fname, 'w') as tmp:
         cfg_file.write(tmp)
+    L.info('wrote configuration file `%s`', fname)
 
 
 def update_single(cfg, name, defaults=None):
@@ -256,6 +251,7 @@ def get_cfg(names, defaults=None):
             'path': ''
         }
     }
+    L.info('getting configuration for: %s' % names)
     cfg_file = read_config()
     if 'lexor' in cfg_file:
         for var, val in cfg_file['lexor'].iteritems():
@@ -276,7 +272,6 @@ def get_cfg(names, defaults=None):
         if argdict['parser_name'] in cfg:
             _update_from_arg(cfg, argdict, argdict['parser_name'])
         _update_from_arg(cfg, argdict, 'lexor')
-        CONFIG['arg'] = None
     return cfg
 
 
@@ -291,15 +286,19 @@ def set_style_cfg(obj, name, defaults):
     .. |Writer| replace:: :class:`~lexor.core.writer.Writer`
 
     """
+    L.info('configuring %r', obj.__class__)
     obj.defaults = dict()
     if hasattr(obj.style_module, 'DEFAULTS'):
+        L.info('setting module defaults for %r', name)
         mod_defaults = obj.style_module.DEFAULTS
         for var, val in mod_defaults.iteritems():
             obj.defaults[var] = pth.expandvars(str(val))
     cfg_file = read_config()
     if name in cfg_file:
+        L.info('setting defaults from configuration for %r', name)
         for var, val in cfg_file[name].iteritems():
             obj.defaults[var] = pth.expandvars(val)
     if defaults:
+        L.info('overwriting default values from user for %r', name)
         for var, val in defaults.iteritems():
             obj.defaults[var] = val

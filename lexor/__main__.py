@@ -7,25 +7,19 @@ To run lexor from the command line do the following:
 Use the option --help for more information.
 
 """
-
-import os
 import sys
 import argparse
 import textwrap
 import os.path as pt
 from glob import iglob
 from lexor.__version__ import VERSION
-from lexor.command import config, import_mod
-from lexor.command.edit import valid_files
-try:
-    import argcomplete
-except ImportError:
-    pass
+from lexor.command import config, import_mod, LexorError
+from lexor.util.logging import L
 
 
 # pylint: disable=W0212
 def get_argparse_options(argp):
-    "Helper function to preparse the arguments. "
+    """Helper function to preparse the arguments. """
     opt = dict()
     for action in argp._optionals._actions:
         for key in action.option_strings:
@@ -34,32 +28,6 @@ def get_argparse_options(argp):
             else:
                 opt[key] = 2
     return opt
-
-
-def preparse_args_argcomplete(argv, argp, subp, complete):
-    """Pre-parse the arguments for argcomplete. """
-    opt = get_argparse_options(argp)
-    parsers = subp.choices.keys()
-    index = 1
-    arg = None
-    try:
-        while argv[index] in opt:
-            index += opt[argv[index]]
-        if index == 1 and argv[index][0] == '-':
-            return
-        arg = argv[index]
-        if arg == 'defaults':
-            argv.insert(index, '_')
-        if argv[index+1] in parsers:
-            return
-    except IndexError:
-        pass
-    if complete == ' ':
-        if arg in parsers:
-            argv.insert(index, '_')
-    else:
-        if arg in parsers and len(argv) - 1 > index:
-            argv.insert(index, '_')
 
 
 def preparse_args(argv, argp, subp):
@@ -94,7 +62,7 @@ def preparse_args(argv, argp, subp):
 
 
 def parse_options(mod):
-    "Interpret the command line inputs and options. "
+    """Interpret the command line inputs and options. """
     desc = """
 lexor can perform various commands. Use the help option with a
 command for more information.
@@ -118,12 +86,18 @@ version:
                                    description=textwrap.dedent(desc),
                                    epilog=textwrap.dedent(epi))
     argp.add_argument('inputfile', type=str, default='_', nargs='?',
-                      help='input file to process').completer = valid_files
+                      help='input file to process')
+    argp.add_argument('--debug', action='store_true', dest='debug',
+                      help='log events')
+    argp.add_argument('--lexor-debug', type=str, dest='debug_path',
+                      metavar='PATH', default=None,
+                      help='diretory to write lexor debug logs')
     argp.add_argument('--cfg', type=str, dest='cfg_path',
                       metavar='CFG_PATH',
                       help='configuration file directory')
-    argp.add_argument('--cfg-user', action='store_true', dest='cfg_user',
-                      help='select user configuration file. Overides --cfg')
+    argp.add_argument('--cfg-user', action='store_true',
+                      dest='cfg_user',
+                      help='select user config file. Overides --cfg')
     subp = argp.add_subparsers(title='subcommands',
                                dest='parser_name',
                                help='additional help',
@@ -132,16 +106,6 @@ version:
     names = sorted(mod.keys())
     for name in names:
         mod[name].add_parser(subp, raw)
-    try:
-        if 'COMP_LINE' in os.environ:
-            argv = os.environ['COMP_LINE'].split()
-            last = ' ' if os.environ['COMP_LINE'][-1] == ' ' else ''
-            preparse_args_argcomplete(argv, argp, subp, last)
-            os.environ['COMP_LINE'] = ' '.join(argv) + last
-            os.environ['COMP_POINT'] = str(len(os.environ['COMP_LINE']))
-        argcomplete.autocomplete(argp)
-    except NameError:
-        pass
     preparse_args(sys.argv, argp, subp)
     return argp.parse_args()
 
@@ -159,10 +123,34 @@ def run():
             mod[tmp_name] = tmp_mod
 
     arg = parse_options(mod)
+
+    if arg.debug:
+        L.enable()
+
     config.CONFIG['cfg_path'] = arg.cfg_path
     config.CONFIG['cfg_user'] = arg.cfg_user
     config.CONFIG['arg'] = arg
-    mod[arg.parser_name].run()
+    try:
+        if L.on:
+            msg = 'running lexor v%s `%s` command from `%s`'
+            L.info(msg, VERSION, arg.parser_name, rootpath)
+        mod[arg.parser_name].run()
+    except LexorError as err:
+        L.error(err.message, exception=err)
+    except Exception as err:
+        L.error('Unhandled error: ' + err.message, exception=err)
+
+    if arg.debug:
+        fp = sys.stderr
+        if arg.debug_path:
+            try:
+                fp = open(pt.join(arg.debug_path, 'lexor.debug'), 'w')
+            except IOError as err:
+                L.error('invalid debug log directory', exception=err)
+        fp.write('[LEXOR DEBUG LOG]\n')
+        fp.write('%r\n' % L)
+        if arg.debug_path:
+            fp.close()
 
 
 if __name__ == '__main__':

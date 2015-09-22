@@ -2,31 +2,24 @@
 Collection of functions to create lexor's command line utility.
 
 """
-
 import sys
 from dateutil import parser
 from datetime import datetime
 from subprocess import Popen, PIPE
 
 
-def error(msg):
-    "Print a message to the standard error stream and exit. "
-    sys.stderr.write(msg)
-    sys.exit(2)
-
-
-def warn(msg):
-    "Print a message to the standard error. "
-    sys.stderr.write(msg)
-
-
 def disp(msg):
-    "Print a message to the standard output. "
+    """Print a message to the standard output. """
     sys.stdout.write(msg)
 
 
+def wdisp(msg):
+    """Print a message to the standard error. """
+    sys.stderr.write(msg)
+
+
 def import_mod(name):
-    "Return a module by string. "
+    """Return a module by string. """
     mod = __import__(name)
     for sub in name.split(".")[1:]:
         mod = getattr(mod, sub)
@@ -51,7 +44,7 @@ def exec_cmd(cmd, verbose=False):
 
 
 def date(short=False):
-    "Return the current date as a string. "
+    """Return the current date as a string. """
     if isinstance(short, str):
         now = parser.parse(short)
         return now.strftime("%a %b %d, %Y %r")
@@ -61,6 +54,6 @@ def date(short=False):
     return now.strftime("%Y-%m-%d-%H-%M-%S")
 
 
-class ConfigError(Exception):
-    """Raised when a lexor configuration file is not found. """
+class LexorError(Exception):
+    """Every known error should be raised via this exception. """
     pass

@@ -28,9 +28,9 @@ import os.path as pth
 from sys import stdout
 from os.path import realpath, basename, splitext
 from lexor.__version__ import get_version
-from lexor.command import error
 from lexor.command.lang import load_aux
 from lexor import core
+
 __all__ = [
     'lexor',
     'parse',
@@ -136,7 +136,7 @@ def parse(text, lang='xml', style='default'):
     the errors encountered during parsing. """
     parser = core.Parser(lang, style)
     parser.parse(text)
-    return (parser.document, parser.log)
+    return parser.document, parser.log
 
 
 def read(filename, style="default", lang=None):
@@ -153,7 +153,7 @@ def read(filename, style="default", lang=None):
         text = tmpf.read()
     parser = core.Parser(lang, style)
     parser.parse(text, filename)
-    return (parser.document, parser.log)
+    return parser.document, parser.log
 
 
 def convert(doc, lang=None, style="default"):
@@ -165,7 +165,7 @@ def convert(doc, lang=None, style="default"):
         lang = doc.owner.lang
     converter = core.Converter(doc.owner.lang, lang, style)
     converter.convert(doc)
-    return (converter.document, converter.log)
+    return converter.document, converter.log
 
 
 def write(doc, filename=None, mode='w', **options):

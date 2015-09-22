@@ -1,11 +1,11 @@
 """
-This module provides functions to load the different languages
-parsers, writers and converters. This module defines the list
-``LEXOR_PATH`` which is an array of paths where lexor looks for the
-parsing, writing and converting styles. You may specify more paths by
-either directly append to this path while using lexor as a python
-module or by editing the enviromental variable ``LEXORPATH`` and
-appending paths to it separating them by a colon ``:``.
+This module provides functions to load the different parsers, writers
+and converters. It defines the list ``LEXOR_PATH`` which is an array
+of paths where lexor looks for the parsing, writing and converting
+styles. You may specify more paths by either directly appending to
+this path while using lexor as a python module or by editing the
+enviromental variable ``LEXORPATH`` and appending paths to it
+separating them by a colon ``:``.
 
 """
 
@@ -13,11 +13,11 @@ import os
 import sys
 import site
 import textwrap
-from pkg_resources import parse_version
 from os.path import splitext, abspath
 from imp import load_source
 from glob import iglob, glob
-from lexor.command import config
+from lexor.util.logging import L
+from lexor.command import config, disp, LexorError
 
 
 DEFAULTS = {
@@ -35,21 +35,20 @@ DEFAULTS = {
     'pyxml': 'xml',
 }
 DESC = """
-Show the styles available to lexor through the current configuration
-file. You should run this command whenever you create a new
-configuration file so that lexor may select the available languages
-for you without the need to reinstall the styles.
+Show all the lexor modules which are installed in the directories
+specified in ``LEXORPATH``.
 
 """
 try:
     LEXOR_PATH = [
-        '%s/lib/lexor' % site.getuserbase(),
-        '%s/lib/lexor' % sys.prefix
+        './lexor_modules',
+        '%s/lib/lexor_modules' % site.getuserbase(),
+        '%s/lib/lexor_modules' % sys.prefix
     ]
 except AttributeError:
     LEXOR_PATH = [
-        'lib/lexor',
-        '%s/lib/lexor' % sys.prefix
+        './lexor_modules',
+        '%s/lib/lexor_modules' % sys.prefix
     ]
 
 if 'LEXORPATH' in os.environ:
@@ -68,39 +67,39 @@ def add_parser(subp, fclass):
                     description=textwrap.dedent(DESC))
 
 
-def _handle_kind(paths, cfg):
+def _handle_kind(paths):
     """Helper function for _handle_lang. """
     styles = dict()
-    if paths:
-        kind = os.path.basename(paths[0])
     for path in paths:
-        tmp = [os.path.basename(ele) for ele in glob('%s/*.py' % path)]
-        for style in tmp:
-            index = style.find('-')
-            if index == -1:
+        L.info('... processing %s', path)
+        pattern = '%s/*.py' % path
+        tmp = [ele for ele in glob(pattern)]
+        for module_path in tmp:
+            try:
+                mod_name = '__tmp%d__' % _handle_kind.loaded
+                module = load_source(mod_name, module_path)
+                _handle_kind.loaded += 1
+            except ImportError:
                 continue
-            if style[:index] not in styles:
-                styles[style[:index]] = []
-            styles[style[:index]].append(style[index+1:-3])
-    if 'version' not in cfg:
-        cfg.add_section('version')
-    for style in styles:
-        key = '%s.%s' % (kind, style)
-        if key in cfg['version']:
-            ver = cfg['version'][key]
-            print '        [*] %s -> %s' % (style, ver)
-        else:
-            ver = max(styles[style], key=parse_version)
-            cfg['version'][key] = ver
-            print '        [+] %s -> %s' % (style, ver)
-    config.write_config(cfg)
+            style = os.path.basename(module_path)[:-3]
+            L.info('      - %s: %r', style, module)
+            if style not in styles:
+                styles[style] = []
+            styles[style].append(module)
+    for style in sorted(styles.keys()):
+        disp('        [*] %s ->\n' % style)
+        for module in styles[style]:
+            info = module.INFO
+            msg = '               %s: %s\n'
+            disp(msg % (info['ver'], info['path']))
+_handle_kind.loaded = 0
 
 
-def _handle_lang(path, cfg):
+def _handle_lang(path):
     """Helper function for run. """
-    for kind in path:
-        print '    %s:' % kind
-        _handle_kind(path[kind], cfg)
+    for kind in sorted(path.keys()):
+        disp('    %s:\n' % kind)
+        _handle_kind(path[kind])
 
 
 def run():
@@ -110,12 +109,13 @@ def run():
 
         Run the command.
     """
+    L.info('searching for lexor modules ...')
     paths = []
     for base in LEXOR_PATH:
         paths += glob('%s/*' % base)
     path = dict()
-    cfg = config.read_config()
     for loc in paths:
+        L.info('searching in %r', loc)
         kind = os.path.basename(loc)
         try:
             name, kind = kind.split('.', 1)
@@ -127,10 +127,10 @@ def run():
             path[name][kind] = [loc]
         else:
             path[name][kind].append(loc)
-    for lang in path:
-        print '%s:' % lang
-        _handle_lang(path[lang], cfg)
-        print ''
+    for lang in sorted(path.keys()):
+        disp('%s:\n' % lang)
+        _handle_lang(path[lang])
+        disp('\n')
 
 
 def _get_info(cfg, type_, lang, style, to_lang=None):
@@ -144,7 +144,8 @@ def _get_info(cfg, type_, lang, style, to_lang=None):
             to_lang = cfg['lang'][to_lang]
         key = '%s.%s.%s.%s' % (lang, type_, to_lang, style)
         name = '%s.%s.%s/%s' % (lang, type_, to_lang, style)
-        modname = 'lexor-lang_%s_%s_%s_%s' % (lang, type_, to_lang, style)
+        modname = 'lexor-lang_%s_%s_%s_%s'
+        modname %= (lang, type_, to_lang, style)
     else:
         key = '%s.%s.%s' % (lang, type_, style)
         name = '%s.%s/%s' % (lang, type_, style)
@@ -154,38 +155,35 @@ def _get_info(cfg, type_, lang, style, to_lang=None):
 
 def get_style_module(type_, lang, style, to_lang=None):
     """Return a parsing/writing/converting module. """
-    cfg = config.get_cfg(['lang', 'develop', 'version'])
+    cfg = config.get_cfg(['lang', 'develop'])
     config.update_single(cfg, 'lang', DEFAULTS)
     key, name, modname = _get_info(cfg, type_, lang, style, to_lang)
+    L.info('searching for %s', name)
     if 'develop' in cfg:
         try:
             path = cfg['develop'][key]
             if path[0] != '/':
                 path = '%s/%s' % (config.CONFIG['path'], path)
-            return load_source(modname, path)
-        except (KeyError, IOError):
-            pass
-    versions = []
-    for base in LEXOR_PATH:
-        if 'version' in cfg:
             try:
-                path = '%s/%s-%s.py' % (base, name, cfg['version'][key])
-            except KeyError:
-                versions += glob('%s/%s*.py' % (base, name))
-                path = '%s/%s.py' % (base, name)
-        else:
-            versions += glob('%s/%s*.py' % (base, name))
-            path = '%s/%s.py' % (base, name)
+                module = load_source(modname, path)
+            except IOError:
+                msg = 'Unable to load module in development: %s'
+                raise LexorError(msg % path)
+            ver = module.INFO['ver']
+            L.info('... developing v%s from %s', ver, path)
+            return module
+        except KeyError:
+            pass
+    for base in LEXOR_PATH:
+        path = '%s/%s.py' % (base, name)
         try:
-            return load_source(modname, path)
+            module = load_source(modname, path)
+            ver = module.INFO['ver']
+            L.info('... found v%s in %r', ver, base)
+            return module
         except IOError:
-            continue
-    try:
-        mod = load_source(modname, versions[0])
-        mod.VERSIONS = versions
-        return mod
-    except (IOError, IndexError):
-        raise ImportError("lexor module not found: %s" % name)
+            L.info('... searched in %r', base)
+    raise ImportError('lexor module not found: %s' % name)
 
 
 def load_mod(modbase, dirpath):

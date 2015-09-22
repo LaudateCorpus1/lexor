@@ -14,9 +14,9 @@ the abstract class |NodeParser|.
 .. |DocFrag| replace:: :class:`~lexor.core.elements.DocumentFragment`
 
 """
-
 import re
 import sys
+from lexor.util import Position
 from lexor.command import config
 from lexor.command.lang import get_style_module, map_explanations
 LC = sys.modules['lexor.core']
@@ -118,6 +118,7 @@ class Parser(object):
         self.log = None
         self.defaults = defaults
         self._node_parser = None
+        self.current_node = None
 
     def _set_node_parser(self, val):
         """Helper function to create a node parser and store it
@@ -133,7 +134,8 @@ class Parser(object):
         return self._node_parser[name]
 
     def _set_node_parsers(self, lang, style, defaults=None):
-        """Imports the correct module based on the language and style. """
+        """Imports the correct module based on the language and style.
+        """
         self.style_module = get_style_module('parser', lang, style)
         name = '%s-parser-%s' % (lang, style)
         config.set_style_cfg(self, name, defaults)
@@ -305,16 +307,43 @@ class Parser(object):
             self.pos[1] += index - self.caret
         self.caret = index
 
+    def update_log(self, log, after=True, delta=None):
+        """Append the messages from a `log` document to the
+        parsers log. This removes the children from `log`.
+        """
+        modules = log.modules
+        explanation = log.explanation
+        for mname in modules:
+            if mname not in self.log.modules:
+                self.log.modules[mname] = modules[mname]
+            if mname not in self.log.explanation:
+                self.log.explanation[mname] = explanation[mname]
+        if delta:
+            for error in log.iter_child_elements():
+                error['uri'] = self.uri
+                pos = error['position']
+                pos[0] += delta[0]
+                pos[1] += delta[1]
+                for arg in error['arg']:
+                    if isinstance(arg, Position):
+                        arg.shift(delta)
+        if after:
+            self.log.extend_children(log)
+        else:
+            self.log.extend_before(0, log)
+
     def compute(self, index):
         """Return a position ``[line, column]`` in the text given an
         index. This does not modify anything in the parser. It only
         gives you the line and column where the caret would be given
         the index. The same applies as in update: do not use compute
-        with an index less than the current position of the caret. """
-        nlines = self.text.count('\n', self.caret, index)
+        with an index less than the current position of the caret.
+        """
+        text = self.text
+        nlines = text.count('\n', self.caret, index)
         tmpline = self.pos[0] + nlines
         if nlines > 0:
-            tmpcolumn = index - self.text.rfind('\n', self.caret, index)
+            tmpcolumn = index - text.rfind('\n', self.caret, index)
         else:
             tmpcolumn = self.pos[1] + index - self.caret
         return [tmpline, tmpcolumn]
@@ -323,7 +352,8 @@ class Parser(object):
     def msg(self, mod_name, code, pos, arg=None, uri=None):
         """Provide the name of module issuing the message, the code
         number, the position of caret and optional arguments and uri.
-        This information gets stored in the log. """
+        This information gets stored in the log.
+        """
         if uri is None:
             uri = self._uri
         if arg is None:
@@ -344,12 +374,19 @@ class Parser(object):
 
     def _get_next_checker(self, node):
         """Get the checker based on the name of the node. """
-        return self._next_check.get(node.name, self._next_check['__default__'])
+        return self._next_check.get(
+            node.name,
+            self._next_check['__default__']
+        )
 
     def _get_next_check(self, node):
         """Locate the index where a processor might return Node. If
-        there is no index then return -1."""
-        match = self._get_next_checker(node).search(self.text, self.caret)
+        there is no index then return -1.
+        """
+        match = self._get_next_checker(node).search(
+            self.text,
+            self.caret
+        )
         if match is None:
             return -1
         return match.end(0)-1
@@ -359,7 +396,7 @@ class Parser(object):
         if isinstance(node, LC.Text):
             if len(crt) > 0 and isinstance(crt[-1], LC.Text):
                 crt[-1].data += node.data
-            else:
+            elif node.data:
                 crt.append_child(node)
         elif isinstance(node, list):  # Empty Element
             crt.append_child(node[0])
@@ -400,14 +437,14 @@ class Parser(object):
             if autoclose is not None:
                 break
         if autoclose is not None:
-            # Must go backwards since the list inprogress is
+            # Must go backwards since the list `in_progress` is
             # changing.
             for i in xrange(len(self._in_progress)-1, num, -1):
                 name = self._in_progress[i][0].name
                 self.msg(
                     self.__module__, 'W100',
                     self._in_progress[i][0].pos,
-                    (name, autoclose[0], autoclose[1])
+                    (name, Position(autoclose))
                 )
                 del self._in_progress[i][0].pos
                 del self._in_progress[i]
@@ -421,12 +458,12 @@ class Parser(object):
     def _parse(self):
         """Main parsing function. This function depends on the
         node parsers of the language. """
-        crt = self.doc
+        self.current_node = crt = self.doc
         self._in_progress = []
         while self.caret < self.end:
             tmp = self._close_node()
             if tmp is not None:
-                crt = tmp
+                self.current_node = crt = tmp
                 continue
             match = False
             processor = None
@@ -440,7 +477,7 @@ class Parser(object):
             if match is False:
                 self._process_text(crt)
             elif self._process_node(crt, node, processor) is node:
-                crt = node
+                self.current_node = crt = node
         for node, processor in self._in_progress:
             self.msg(self.__module__, 'E100', node.pos, [node.name])
             del node.pos
@@ -448,7 +485,7 @@ class Parser(object):
 
 MSG = {
     'E100': 'closing string for `Node` of name "{0}" not found',
-    'W100': 'auto-closing `Node` of name "{0}" at {1}:{2:2}',
+    'W100': 'auto-closing `Node` of name "{0}" at {1}',
 }
 MSG_EXPLANATION = [
     """
