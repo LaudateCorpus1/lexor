@@ -57,10 +57,9 @@ class Logger(object):
     def _push(self, cfr, kind, msg, *args, **kwargs):
         f_back = cfr.f_back
         fname = getframeinfo(f_back).filename
-        try:
-            fname = fname.split('lexor/lexor/')[1]
-        except IndexError:
-            pass
+        parts = fname.split('lexor/lexor/')
+        if len(parts) == 2:
+            fname = parts[1]
         lineno = f_back.f_lineno
         func_name = f_back.f_code.co_name
         exception = kwargs.get('exception', None)
