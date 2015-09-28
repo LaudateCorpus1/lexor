@@ -34,9 +34,10 @@ python embedding and ``__DIR__`` which is equivalent to
 import sys
 import os.path as pth
 import traceback
+import lexor
 from imp import load_source
 from cStringIO import StringIO
-from lexor.command import config
+from lexor.command import config, LexorError
 from lexor.command.lang import get_style_module, map_explanations
 LC = sys.modules['lexor.core']
 
@@ -65,6 +66,27 @@ class NodeConverter(object):
         copy_children = False
 
     """
+    restrict = 'E'
+    directive = None
+    template = None
+    template_uri = None
+    template_options = None
+    priority = 0
+    remove = False  # replaces copy
+    replace = False
+    transclude = True  # replaces copy_children
+    terminal = False
+    require = False
+
+    def compile(self, t_node, info):
+        pass
+
+    def pre_link(self, node):
+        pass
+
+    def post_link(self, node):
+        pass
+
     copy = True
     copy_children = True
 
@@ -75,6 +97,8 @@ class NodeConverter(object):
         is used by |Converter| and it calls it with itself as the
         parameter. """
         self.converter = converter
+        if self.directive is None:
+            raise LexorError('missing directive name')
 
     @classmethod
     def start(cls, node):
@@ -244,6 +268,7 @@ class Converter(object):
         self.log.append(LC.Document("lexor", "log"))
         self.log[-1].modules = dict()
         self.log[-1].explanation = dict()
+        doccopy = self._compile_doc(doc)
         self._convert(doc)
         if hasattr(self.style_module, 'convert'):
             self.style_module.convert(self, self.doc[-1])
@@ -295,14 +320,22 @@ class Converter(object):
             self.log[-1].modules[mod_name] = sys.modules[mod_name]
         self.log[-1].append_child(wnode)
 
-    def _set_node_converter(self, val):
-        """Helper function to create a node converter and store it in
-        a dictionary. """
-        if isinstance(val, str):
-            return self._node_converter[val]
-        name = val.__name__
-        self._node_converter[name] = val(self)
-        return self._node_converter[name]
+    def register(self, nc_class, override=False):
+        """Add a node converter class. This function takes in a
+        class object derived rom `Node Converter`.
+        """
+        node_c = nc_class(self)
+        class_name = nc_class.__name__
+        if not override:
+            if class_name in self._node_converter:
+                msg = 'overriding existing node converter class {0}'
+                raise LexorError(msg.format(class_name))
+            if node_c.directive in self._nc:
+                msg = 'overriding existing node directive {0}'
+                raise LexorError(msg.format(node_c.directive))
+        self._node_converter[class_name] = node_c
+        self._nc[node_c.directive] = node_c
+        return node_c
 
     def _set_node_converters(self, fromlang, tolang, style, defaults=None):
         """Imports the correct module based on the languages and
@@ -314,36 +347,75 @@ class Converter(object):
         config.set_style_cfg(self, name, defaults)
         self._nc = dict()
         self._node_converter = dict()
-        if hasattr(self.style_module, 'REPOSITORY'):
-            for val in self.style_module.REPOSITORY:
-                self._set_node_converter(val)
-        self._nc['__default__'] = self._set_node_converter(NodeConverter)
-        str_key = list()
-        for key, val in self.style_module.MAPPING.iteritems():
-            if isinstance(val, str) and val not in self._node_converter:
-                str_key.append((key, val))
-            else:
-                self._nc[key] = self._set_node_converter(val)
-        for key, val in str_key:
-            self._nc[key] = self._nc[val]
+        for nc_class in self.style_module.REPOSITORY:
+            self.register(nc_class)
+
+    def get_node_directives(self, node):
+        """Examine the node and return a list of directives that can
+        be applied to the node"""
+        directives = []
+        info = {
+            'remove': []
+        }
+        name = node.name
+        if name in self._nc and 'E' in self._nc[name].restrict:
+            if self._nc[name].remove:
+                info['remove'].append(name)
+            priority = self._nc[name].priority
+            directives.append((name, priority))
+        if not isinstance(node, LC.Element):
+            return directives, info
+        for att in node:
+            if att not in self._nc:
+                continue
+            node_c = self._nc[att]
+            if 'A' not in node_c.restrict:
+                continue
+            if node_c.remove:
+                info['remove'].append(att)
+            priority = node_c.priority
+            index = len(directives)
+            while index > 0:
+                if priority > directives[index-1][1]:
+                    index -= 1
+                else:
+                    break
+            directives.insert(index, (att, priority))
+        # TODO: Handle classes
+        return directives, info
 
     def _start(self, node):
         """Evaluate the start function of the node converter based
         on the name of the node. """
-        return self._nc.get(node.name, self._nc['__default__']).start(node)
+        if node.name in self._nc:
+            return self._nc[node.name].start(node)
+        return node
 
     def _end(self, node):
         """Evaluate the end function of the node converter based
         on the name of the node. """
-        return self._nc.get(node.name, self._nc['__default__']).end(node)
+        if node.name in self._nc:
+            return self._nc[node.name].end(node)
+        return node
 
     def _copy(self, node):
         """Return the copy attribute of the node converter. """
-        return self._nc.get(node.name, self._nc['__default__']).copy
+        if node.name in self._nc:
+            return self._nc[node.name].copy
+        return True
+
+    def _template(self, node):
+        """Return the template attribute of the node converter. """
+        if node.name in self._nc:
+            return self._nc[node.name].template
+        return None
 
     def _copy_children(self, node):
         """Return the copy_children attribute of the node converter. """
-        tmp = self._nc.get(node.name, self._nc['__default__']).copy_children
+        if node.name in self._nc:
+            tmp = self._nc[node.name].copy_children
+        else:
+            tmp = True
         return tmp and node.child
 
     def _get_direction(self, crt):
@@ -359,52 +431,122 @@ class Converter(object):
             return crt.clone_node()
         return LC.Text('')
 
+    def _pre_link_node(self, crt, crtcopy, down=False):
+        if self._copy(crt):
+            clone = crt.clone_node()
+            if down:
+                crtcopy.append_child(clone)
+            else:
+                crtcopy.parent.append_child(clone)
+            crtcopy = clone
+            crtcopy = self._start(crtcopy)
+            direction = self._get_direction(crt)
+        else:
+            direction = 'r'
+        return crtcopy, direction
+
+    def _compile_node(self, crt, crtcopy, down=False):
+        directives, info = self.get_node_directives(crt)
+        if not info['remove']:
+            clone = crt.clone_node()
+            if down:
+                crtcopy.append_child(clone)
+            else:
+                crtcopy.parent.append_child(clone)
+            crtcopy = clone
+            direction = self._get_direction(crt)
+        else:
+            direction = 'r'
+        for directive, priority in directives:
+            node_c = self._nc[directive]
+            node_c.compile(None, info)
+        return crtcopy, direction
+
+    def _compile_doc(self, doc):
+        """Creates a copy of the document and calls the compile
+        method on each of the template elements (if any).
+        """
+        crt = doc
+        root = doc
+        doccopy = doc.clone_node()
+        doccopy.namespace = dict()
+        # if hasattr(self.style_module, 'init_conversion'):
+        #     self.style_module.init_conversion(self, doccopy)
+        crtcopy = doccopy
+        #crtcopy = self._start(crtcopy)
+        direction = self._get_direction(crt)
+        loop = direction == 'd'
+        while loop:
+            if direction is 'd':
+                crt = crt.child[0]
+                crtcopy, direction = self._compile_node(
+                    crt, crtcopy, True
+                )
+            elif direction is 'r':
+                if crt.next is None:
+                    direction = 'u'
+                else:
+                    crt = crt.next
+                    crtcopy, direction = self._compile_node(
+                        crt, crtcopy
+                    )
+            else:  # direction is 'u'
+                crtcopy = crtcopy.parent
+                crtcopy.normalize()
+                if crt.parent is root:
+                    loop = False
+                elif crt.parent.next is None:
+                    crt = crt.parent
+                    direction = 'u'
+                else:
+                    crt = crt.parent.next
+                    crtcopy, direction = self._compile_node(
+                        crt, crtcopy
+                    )
+        return doccopy
+
+
     def _convert(self, doc):
         """Main convert function. """
-        direction = None
         # A doc needs to be copied by default. You may prohibit
         # to copy the children, but there must be a document.
         crt = doc
+        root = doc
         self.doc.append(doc.clone_node())
         self.doc[-1].namespace = dict()
         if hasattr(self.style_module, 'init_conversion'):
             self.style_module.init_conversion(self, self.doc[-1])
         crtcopy = self.doc[-1]
         crtcopy = self._start(crtcopy)
-        if self._copy_children(crt):
-            direction = 'd'
-            root = doc
-        else:
-            return
-        while True:
+        direction = self._get_direction(crt)
+        loop = direction == 'd'
+        while loop:
             if direction is 'd':
                 crt = crt.child[0]
-                clone = self._clone_node(crt)
-                crtcopy.append_child(clone)
+                crtcopy, direction = self._pre_link_node(
+                    crt, crtcopy, True
+                )
             elif direction is 'r':
                 if crt.next is None:
                     direction = 'u'
-                    continue
-                crt = crt.next
-                clone = self._clone_node(crt)
-                crtcopy.parent.append_child(clone)
-            elif direction is 'u':
+                else:
+                    crt = crt.next
+                    crtcopy, direction = self._pre_link_node(
+                        crt, crtcopy
+                    )
+            else:  # direction is 'u'
                 crtcopy = self._end(crtcopy.parent)
                 crtcopy.normalize()
                 if crt.parent is root:
-                    break
-                if crt.parent.next is None:
+                    loop = False
+                elif crt.parent.next is None:
                     crt = crt.parent
-                    continue
-                crt = crt.parent.next
-                clone = self._clone_node(crt)
-                crtcopy.parent.append_child(clone)
-            crtcopy = clone
-            if self._copy(crt):
-                crtcopy = self._start(crtcopy)
-                direction = self._get_direction(crt)
-            else:
-                direction = 'r'
+                    direction = 'u'
+                else:
+                    crt = crt.parent.next
+                    crtcopy, direction = self._pre_link_node(
+                        crt, crtcopy
+                    )
 
     def update_log(self, log, after=True):
         """Append the messages from a `log` document to the
