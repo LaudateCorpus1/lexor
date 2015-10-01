@@ -247,7 +247,7 @@ class Element(Node):
     def update_attributes(self, node):
         """Copies the attributes of the input node into the calling
         node. """
-        for k in node:
+        for k in node._order:
             self.__dict__[k] = node.__dict__[k]
             if k not in self._order:
                 self._order.append(k)
@@ -262,9 +262,7 @@ class Element(Node):
         """
         if isinstance(k, str):
             return self.__dict__[k]
-        if self.child:
-            return self.child[k]
-        return None
+        return self.child[k]
 
     def get(self, k, val=''):
         """Return the attribute of name with value of `k`."""
@@ -325,14 +323,14 @@ class Element(Node):
                 return False
         return obj in self
 
-    def __iter__(self):
-        """Iterate over the element attributes names.
-
-        >>> for attribute_name in node: ...
-
-        """
-        for k in self._order:
-            yield k
+    # def __iter__(self):
+    #     """Iterate over the element attributes names.
+    #
+    #     >>> for attribute_name in node: ...
+    #
+    #     """
+    #     for k in self._order:
+    #         yield k
 
     @property
     def attlen(self):
@@ -685,6 +683,7 @@ class DocumentFragment(Document):
         self.child.append(new_child)
         new_child.parent = self
         new_child.owner = self
+        new_child.index = len(self.child)
         return new_child
 
     def __repr__(self):
@@ -700,3 +699,16 @@ class DocumentFragment(Document):
 
         """
         return ''.join([str(node) for node in self.child])
+
+    def __delitem__(self, k):
+        """Remove a child or attribute.
+
+        >>> x.__delitem__(k) <==> del x[k]
+
+        """
+        print 'Deleting %r' % k
+        if isinstance(k, str):
+            self.__dict__.__delitem__(k)
+            self._order.remove(k)
+        else:
+            del self.child[k]

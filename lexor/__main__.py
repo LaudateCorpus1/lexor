@@ -138,7 +138,7 @@ def run():
     except LexorError as err:
         L.error(err.message, exception=err)
     except Exception as err:
-        L.error('Unhandled error: ' + err.message, exception=err)
+        L.error('Unhandled error: %r' % err.message, exception=err)
 
     if arg.debug:
         fp = sys.stderr

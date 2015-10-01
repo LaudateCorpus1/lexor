@@ -23,3 +23,6 @@ clean:
 
 pypi:
 	python setup.py sdist upload
+
+test:
+	nosetests -vs .

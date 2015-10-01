@@ -71,6 +71,7 @@ class NodeConverter(object):
     template = None
     template_uri = None
     template_options = None
+    _t_element = None
     priority = 0
     remove = False  # replaces copy
     replace = False
@@ -269,6 +270,7 @@ class Converter(object):
         self.log[-1].modules = dict()
         self.log[-1].explanation = dict()
         doccopy = self._compile_doc(doc)
+        doccopy = self._link_doc(doccopy)
         self._convert(doc)
         if hasattr(self.style_module, 'convert'):
             self.style_module.convert(self, self.doc[-1])
@@ -277,7 +279,7 @@ class Converter(object):
             del self.doc[-1].namespace
         self.doc[-1].lang = self._tolang
         self.doc[-1].style = 'default'
-        return self.doc[-1], self.log[-1]
+        return doccopy, self.log[-1]
 
     @staticmethod
     def remove_node(node):
@@ -365,7 +367,7 @@ class Converter(object):
             directives.append((name, priority))
         if not isinstance(node, LC.Element):
             return directives, info
-        for att in node:
+        for att in node.attributes:
             if att not in self._nc:
                 continue
             node_c = self._nc[att]
@@ -424,26 +426,16 @@ class Converter(object):
             return 'd'
         return 'r'
 
+    @staticmethod
+    def _get_link_direction(crt):
+        return 'd' if crt.child else 'r'
+
     def _clone_node(self, crt):
         """Clones the node if the node converter assigned to the node
         has the copy property set to True. """
         if self._copy(crt):
             return crt.clone_node()
         return LC.Text('')
-
-    def _pre_link_node(self, crt, crtcopy, down=False):
-        if self._copy(crt):
-            clone = crt.clone_node()
-            if down:
-                crtcopy.append_child(clone)
-            else:
-                crtcopy.parent.append_child(clone)
-            crtcopy = clone
-            crtcopy = self._start(crtcopy)
-            direction = self._get_direction(crt)
-        else:
-            direction = 'r'
-        return crtcopy, direction
 
     def _compile_node(self, crt, crtcopy, down=False):
         directives, info = self.get_node_directives(crt)
@@ -457,10 +449,67 @@ class Converter(object):
             direction = self._get_direction(crt)
         else:
             direction = 'r'
+        if isinstance(crtcopy, LC.Element):
+            crtcopy._directives = directives
+            crtcopy._info = info
+            crtcopy._t_node = dict()
         for directive, priority in directives:
             node_c = self._nc[directive]
-            node_c.compile(None, info)
+            options = node_c.template_options or {}
+            if not node_c._t_element:
+                if node_c.template:
+                    tdoc, tlog = lexor.lexor(
+                        node_c.template, **options
+                    )
+                    node_c._t_element = tdoc
+                else:
+                    tdoc = None
+            else:
+                tdoc = node_c._t_element.clone_node(True)
+            node_c.compile(tdoc, info)
+            crtcopy._t_node[directive] = tdoc
         return crtcopy, direction
+
+    def __pre_link_node(self, crt, crtcopy, down=False):
+        if self._copy(crt):
+            clone = crt.clone_node()
+            if down:
+                crtcopy.append_child(clone)
+            else:
+                crtcopy.parent.append_child(clone)
+            crtcopy = clone
+            crtcopy = self._start(crtcopy)
+            direction = self._get_direction(crt)
+        else:
+            direction = 'r'
+        return crtcopy, direction
+
+    def _pre_link_node(self, crt):
+        if not hasattr(crt, '_directives'):
+            return
+        for directive, priority in crt._directives:
+            node_c = self._nc[directive]
+            tmp = LC.DocumentFragment()
+            while crt.child:
+                tmp.append_child(crt.child[0])
+            print 'TMP %r' % tmp
+            print 'CHILDREN: %r, %r' % (node_c.transclude, tmp)
+            t_node = crt._t_node[directive]
+            crt.extend_children(t_node)
+            if node_c.transclude:
+                print '\n->TRANS: %r' % tmp
+                # for c in tmp.child:
+                #     print 'CHILD: %r' % c
+                print '\n-CURRENT: %r' % crt
+                crt.extend_children(tmp)
+            node_c.pre_link(crt)
+
+    def _post_link_node(self, crt):
+        if not hasattr(crt, '_directives'):
+            return
+        for directive, priority in crt._directives:
+            node_c = self._nc[directive]
+            node_c.post_link(crt)
 
     def _compile_doc(self, doc):
         """Creates a copy of the document and calls the compile
@@ -505,6 +554,38 @@ class Converter(object):
                     )
         return doccopy
 
+    def _link_doc(self, doccopy):
+        """To be run after compiling the document.
+        """
+        crt = doccopy
+        root = doccopy
+        #self._pre_link_node(crt)
+        direction = self._get_link_direction(crt)
+        loop = direction == 'd'
+        while loop:
+            if direction is 'd':
+                crt = crt.child[0]
+                self._pre_link_node(crt)
+                direction = self._get_link_direction(crt)
+            elif direction is 'r':
+                if crt.next is None:
+                    direction = 'u'
+                else:
+                    crt = crt.next
+                    self._pre_link_node(crt)
+                    direction = self._get_link_direction(crt)
+            else:  # direction is 'u'
+                self._post_link_node(crt.parent)
+                if crt.parent is root:
+                    loop = False
+                elif crt.parent.next is None:
+                    crt = crt.parent
+                    direction = 'u'
+                else:
+                    crt = crt.parent.next
+                    self._pre_link_node(crt)
+                    direction = self._get_link_direction(crt)
+        return doccopy
 
     def _convert(self, doc):
         """Main convert function. """
@@ -523,7 +604,7 @@ class Converter(object):
         while loop:
             if direction is 'd':
                 crt = crt.child[0]
-                crtcopy, direction = self._pre_link_node(
+                crtcopy, direction = self.__pre_link_node(
                     crt, crtcopy, True
                 )
             elif direction is 'r':
@@ -531,7 +612,7 @@ class Converter(object):
                     direction = 'u'
                 else:
                     crt = crt.next
-                    crtcopy, direction = self._pre_link_node(
+                    crtcopy, direction = self.__pre_link_node(
                         crt, crtcopy
                     )
             else:  # direction is 'u'
@@ -544,7 +625,7 @@ class Converter(object):
                     direction = 'u'
                 else:
                     crt = crt.parent.next
-                    crtcopy, direction = self._pre_link_node(
+                    crtcopy, direction = self.__pre_link_node(
                         crt, crtcopy
                     )
 

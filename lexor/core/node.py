@@ -62,7 +62,8 @@ class Node(object):
         """Initializes all data descriptors to ``None``. Each
         descriptor has an associated `READ-ONLY` property. Read the
         comment on each property to see what each descriptor
-        represents. """
+        represents.
+        """
         self.name = None
         self.owner = None
         self.parent = None
@@ -80,7 +81,8 @@ class Node(object):
 
             The name of this node. Its value depends on the node
             type. This property is associated with the attribute
-            ``name``. """
+            ``name``.
+        """
         return self.name
 
     @property
@@ -91,7 +93,8 @@ class Node(object):
 
             The :class:`~lexor.core.elements.Document` in which this
             node resides. This property is associated with the
-            attribute ``owner``. """
+            attribute ``owner``.
+        """
         return self.owner
 
     @property
@@ -103,7 +106,8 @@ class Node(object):
             The parent of this node. If the node has been just
             created or removed from a ``Document`` then this property
             is ``None``. This property is associated with the
-            attribute ``parent``. """
+            attribute ``parent``.
+        """
         return self.parent
 
     @property
@@ -118,7 +122,7 @@ class Node(object):
             True
 
             This property is associated with the attribute ``index``.
-            """
+        """
         return self.index
 
     @property
@@ -131,7 +135,7 @@ class Node(object):
             :class:`~lexor.core.elements.Document` object.
 
             This property is associated with the attribute ``level``.
-            """
+        """
         return self.level
 
     @property
@@ -140,7 +144,8 @@ class Node(object):
         .. admonition:: Read-Only Property
             :class: note
 
-            The number of preceding element siblings."""
+            The number of preceding element siblings.
+        """
         index = 0
         crt = self
         while crt.prev is not None:
@@ -148,6 +153,22 @@ class Node(object):
             if isinstance(crt, LC.Element):
                 index += 1
         return index
+
+    @property
+    def first_child(self):
+        """
+        .. admonition:: Read-Only Property
+            :class: note
+
+            The first child node. If this property is not `None` then
+
+            >>> x.first_child is x[0]
+            True
+
+        """
+        if self.child:
+            return self.child[0]
+        return None
 
     @property
     def previous_sibling(self):
@@ -158,10 +179,12 @@ class Node(object):
             The node immediately preceding this node. If this
             property is not `None` then
 
-            >>> x.previous_sibling <==> x.parent_node[x.node_index - 1]
+            >>> x.previous_sibling is x.parent_node[x.node_index - 1]
+            True
 
             This property is associated with the attribute
-            ``prev``."""
+            ``prev``.
+        """
         return self.prev
 
     @property
@@ -173,10 +196,12 @@ class Node(object):
             The node immediately following this node. If this
             property is not `None` then
 
-            >>> x.next_sibling <==> x.parent_node[x.node_index + 1]
+            >>> x.next_sibling is x.parent_node[x.node_index + 1]
+            True
 
             This property is associated with the attribute
-            ``next``."""
+            ``next``.
+        """
         return self.next
 
     @property
@@ -203,7 +228,9 @@ class Node(object):
             :class: note
 
             The sibling :class:`~lexor.core.elements.Element` after
-            this node. """
+            this node.
+
+        """
         crt = self
         while crt.next is not None:
             crt = crt.next
@@ -265,11 +292,12 @@ class Node(object):
 
     def insert_before(self, index, new_child):
         """Inserts `new_child` to the list of children just before
-        the child specified by `index`. """
+        the child specified by `index`.
+        """
         if not isinstance(new_child, Node):
             new_child = LC.Text(str(new_child))
         elif isinstance(new_child, LC.DocumentFragment):
-            msg = "Use extend_before for LC.DocumentFragment Nodes."
+            msg = 'Use extend_before for `DocumentFragment` Nodes.'
             raise TypeError(msg)
         index = self.insert_node_before(index, new_child)
         while index < len(self.child):
@@ -287,7 +315,8 @@ class Node(object):
         >>> node.extend_before(index, doc)
 
         The second form, however, has a more efficient reindexing
-        method. """
+        method.
+        """
         if isinstance(new_children, (list, LC.DocumentFragment)):
             for node in new_children:
                 if node.name == '#document' and node.temporary:
@@ -298,6 +327,8 @@ class Node(object):
                         index = self.insert_node_before(index, node[0])
                 else:
                     index = self.insert_node_before(index, node)
+            if isinstance(new_children, LC.DocumentFragment):
+                new_children.child = []
         else:
             if new_children.name == '#document':
                 if new_children.temporary and self.owner:
@@ -336,6 +367,8 @@ class Node(object):
                         self.append_child_node(node[0])
                 else:
                     self.append_child_node(node)
+            if isinstance(new_children, LC.DocumentFragment):
+                new_children.child = []
         else:
             if new_children.name == '#document':
                 if new_children.temporary and self.owner:
@@ -409,9 +442,9 @@ class Node(object):
     def __getitem__(self, i):
         """Return the `i`-th child of this node.
 
-        >>> x.__getitem__(i) <==> x[i]
-        >>> x.__getitem__(slice(i, j)) <==> x[i:j]
-        >>> x.__getitem__(slice(i, j, dt)) <==> x[i:j:dt]
+        >>> x.__getitem__(i) is x[i]
+        >>> x.__getitem__(slice(i, j)) is x[i:j]
+        >>> x.__getitem__(slice(i, j, dt)) is x[i:j:dt]
 
         When using a slice, the ``__getitem__`` function will return
         a list with references to the requested nodes. """
@@ -653,7 +686,9 @@ class Node(object):
             action.
         """
         if new_child.parent is not None:
-            del new_child.parent[new_child.index]
+            if not isinstance(new_child.parent, LC.DocumentFragment):
+                # Manually remove the children from the fragment
+                del new_child.parent[new_child.index]
         self.child.append(new_child)
         new_child.set_parent(self, len(self.child) - 1)
         try:
@@ -670,7 +705,9 @@ class Node(object):
             :meth:`insert_before` and :meth:`extend_before` to see
             this method in action."""
         if new_child.parent is not None:
-            del new_child.parent[new_child.index]
+            if not isinstance(new_child.parent, LC.DocumentFragment):
+                # Manually remove the children from the fragment
+                del new_child.parent[new_child.index]
         self.child.insert(index, new_child)
         new_child.set_parent(self, index)
         if index > 0:
