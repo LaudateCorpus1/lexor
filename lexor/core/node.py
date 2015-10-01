@@ -689,7 +689,11 @@ class Node(object):
             if not isinstance(new_child.parent, LC.DocumentFragment):
                 # Manually remove the children from the fragment
                 del new_child.parent[new_child.index]
-        self.child.append(new_child)
+        try:
+            self.child.append(new_child)
+        except AttributeError:
+            msg = 'failed to append node to %r'
+            raise AttributeError(msg % self.__class__)
         new_child.set_parent(self, len(self.child) - 1)
         try:
             new_child.set_prev(self.child[-2])
@@ -708,7 +712,11 @@ class Node(object):
             if not isinstance(new_child.parent, LC.DocumentFragment):
                 # Manually remove the children from the fragment
                 del new_child.parent[new_child.index]
-        self.child.insert(index, new_child)
+        try:
+            self.child.insert(index, new_child)
+        except AttributeError:
+            msg = 'failed to append node to %r'
+            raise AttributeError(msg % self.__class__)
         new_child.set_parent(self, index)
         if index > 0:
             new_child.set_prev(self.child[index-1])

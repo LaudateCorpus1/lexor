@@ -438,3 +438,82 @@ def test_extend_before_host_doc_frag():
     for i in xrange(11):
         eq_(host[i].index, i)
         eq_(host[i].name, 'child%d' % i)
+
+
+def test_append_child():
+    """node.append_child(node)"""
+    parent = LC.Element('parent')
+    child = LC.Void('void-child')
+    parent.append_child(child)
+    with assert_raises(AttributeError):
+        child.append_child('this should fail because of void element')
+
+
+def test_extend_children():
+    """node.extend_children([n1, n2, ...])"""
+    root1 = LC.Element('root')
+    for i in xrange(10):
+        root1.append_child(LC.Element('child%d' % i))
+    root2 = LC.Element('root')
+    for i in xrange(10):
+        root2.append_child(LC.Element('child%d' % i))
+
+    root1.extend_children(root2[4::-1])
+
+    order = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 4, 3, 2, 1, 0]
+    for i in xrange(15):
+        eq_(root1[i].index, i)
+        eq_(root1[i].name, 'child%d' % order[i])
+    for i in xrange(5):
+        eq_(root2[i].index, i)
+        eq_(root2[i].name, 'child%d' % (i+5))
+
+
+def test_extend_children_element():
+    """node.extend_children(elem)"""
+    root = LC.Element('root')
+    for i in xrange(10):
+        root.append_child(LC.Element('child%d' % i))
+    host = LC.Element('host')
+    host.append_child(LC.Element('child10'))
+
+    host.extend_children(root)
+
+    eq_(len(root), 0)
+    for i in xrange(1, 11):
+        eq_(host[i].index, i)
+        eq_(host[i].name, 'child%d' % (i-1))
+
+
+def test_extend_children_doc_frag():
+    """node.extend_children(doc_frag)"""
+    root = LC.DocumentFragment()
+    for i in xrange(10):
+        root.append_child(LC.Element('child%d' % (i+1)))
+
+    host = LC.Element('host')
+    host.append_child(LC.Element('child0'))
+
+    host.extend_children(root)
+
+    eq_(len(root), 0)
+    for i in xrange(11):
+        eq_(host[i].index, i)
+        eq_(host[i].name, 'child%d' % i)
+
+
+def test_extend_children_host_doc_frag():
+    """doc_frag.extend_children(doc_frag)"""
+    root = LC.DocumentFragment()
+    for i in xrange(10):
+        root.append_child(LC.Element('child%d' % (i+1)))
+
+    host = LC.DocumentFragment()
+    host.append_child(LC.Element('child0'))
+
+    host.extend_children(root)
+
+    eq_(len(root), 0)
+    for i in xrange(11):
+        eq_(host[i].index, i)
+        eq_(host[i].name, 'child%d' % i)
