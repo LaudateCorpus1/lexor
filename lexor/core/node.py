@@ -343,9 +343,8 @@ class Node(object):
 
     def append_child(self, new_child):
         """Adds the node `new_child` to the end of the list of
-        children of this node. If the node is a
-        :class:`~lexor.core.elements.DocumentFragment` then it
-        appends its child nodes. Returns the calling node. """
+        children of this node. Returns the calling node.
+        """
         if not isinstance(new_child, Node):
             new_child = LC.Text(str(new_child))
         elif isinstance(new_child, LC.DocumentFragment):
@@ -356,7 +355,8 @@ class Node(object):
 
     def extend_children(self, new_children):
         """Extend the list of children by appending children from an
-        iterable containing nodes. """
+        iterable containing nodes.
+        """
         if isinstance(new_children, (list, LC.DocumentFragment)):
             for node in new_children:
                 if node.name == '#document' and node.temporary:
@@ -380,6 +380,8 @@ class Node(object):
 
     def append_after(self, new_child):
         """Place `new_child` after the node. """
+        if self.parent is None:
+            raise TypeError('orphan node cannot use this method')
         if self.index+1 == len(self.parent):
             self.parent.append_child(new_child)
         else:
@@ -387,23 +389,30 @@ class Node(object):
 
     def append_nodes_after(self, new_children):
         """Place `new_children` after the node. """
-        if self.index+1 == len(self.parent):
+        if self.parent is None:
+            raise TypeError('orphan node cannot use this method')
+        if len(self.parent) == self.index+1:
             self.parent.extend_children(new_children)
         else:
             self.parent.extend_before(self.index+1, new_children)
 
     def prepend_before(self, new_child):
         """Place `new_child` before the node. """
+        if self.parent is None:
+            raise TypeError('orphan node cannot use this method')
         self.parent.insert_before(self.index, new_child)
 
     def prepend_nodes_before(self, new_children):
         """Place `new_children` before the node. """
+        if self.parent is None:
+            raise TypeError('orphan node cannot use this method')
         self.parent.extend_before(self.index, new_children)
 
-    def normalize(self):
+    def normalize(self, recurse=True):
         """Removes empty :class:`~lexor.core.elements.Text` nodes,
         and joins adjacent :class:`~lexor.core.elements.Text`
-        nodes."""
+        nodes.
+        """
         if not self.child:
             return self
         crt = self.child[0]
@@ -415,7 +424,7 @@ class Node(object):
                     crt = nextnode
                 elif isinstance(crt.next, LC.Text):
                     marked_node = crt.next
-                    start = marked_node.index
+                    start = end = marked_node.index
                     while isinstance(marked_node, LC.Text):
                         crt.data += marked_node.data
                         end = marked_node.index
@@ -425,6 +434,8 @@ class Node(object):
                 else:
                     crt = crt.next
             else:
+                if recurse:
+                    crt.normalize()
                 crt = crt.next
         return self
 
@@ -447,7 +458,8 @@ class Node(object):
         >>> x.__getitem__(slice(i, j, dt)) is x[i:j:dt]
 
         When using a slice, the ``__getitem__`` function will return
-        a list with references to the requested nodes. """
+        a list with references to the requested nodes.
+        """
         return self.child[i]
 
     def _get_indices(self, i):

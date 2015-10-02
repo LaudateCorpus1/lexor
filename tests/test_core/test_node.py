@@ -274,7 +274,7 @@ def test_remove_children():
 
 
 def test_repr():
-    """repr(node)"""
+    """node.__repr__() == repr(node)"""
     doc = LC.Document()
     doc.append_child(LC.Element('lvl0'))
     doc.append_child(LC.Element('lvl0'))
@@ -342,7 +342,7 @@ def test_repr():
 
 
 def test_str():
-    """str(node)"""
+    """node.__str__() == str(node)"""
     # TODO: depends on a writing style which may not be available
     pass
 
@@ -517,3 +517,165 @@ def test_extend_children_host_doc_frag():
     for i in xrange(11):
         eq_(host[i].index, i)
         eq_(host[i].name, 'child%d' % i)
+
+
+def test_append_after():
+    """node.append_after(elem)"""
+    root = LC.Element('root')
+    for i in xrange(10):
+        root.append_child(LC.Element('child%d' % i))
+    elem = [x for x in root]
+
+    for i, child in enumerate(elem):
+        child.append_after(LC.Element('child%d' % (i*100)))
+
+    for i in xrange(10):
+        even = 2*i
+        odd = 2*i + 1
+        eq_(root[even].index, even)
+        eq_(root[odd].index, odd)
+        eq_(root[even].name, 'child%d' % i)
+        eq_(root[odd].name, 'child%d' % (i*100))
+
+
+def test_append_nodes_after():
+    """node.append_nodes_after(nodes)"""
+    root = LC.Element('root')
+    elem = [LC.Element('child%d' % i) for i in xrange(10)]
+
+    with assert_raises(TypeError):
+        root.append_nodes_after(elem)
+
+    doc = LC.Document()
+    doc.append_child(root)
+
+    root.append_nodes_after(elem)
+
+    eq_(len(doc), 11)
+    eq_(doc[0].index, 0)
+    eq_(doc[0].name, 'root')
+    for i in xrange(1, 10):
+        eq_(doc[i].index, i)
+        eq_(doc[i].name, 'child%d' % (i-1))
+
+def test_prepend_before():
+    """node.prepend_before(elem)"""
+    root = LC.Element('root')
+    for i in xrange(10):
+        root.append_child(LC.Element('child%d' % i))
+    elem = [x for x in root]
+
+    for i, child in enumerate(elem):
+        child.prepend_before(LC.Element('child%d' % (i*100)))
+
+    for i in xrange(10):
+        even = 2*i
+        odd = 2*i + 1
+        eq_(root[even].index, even)
+        eq_(root[odd].index, odd)
+        eq_(root[even].name, 'child%d' % (i*100))
+        eq_(root[odd].name, 'child%d' % i)
+
+
+def test_prepend_nodes_before():
+    """node.prepend_nodes_before(nodes)"""
+    root = LC.Element('root')
+    elem = [LC.Element('child%d' % i) for i in xrange(10)]
+
+    with assert_raises(TypeError):
+        root.prepend_nodes_before(elem)
+
+    doc = LC.Document()
+    doc.append_child(root)
+
+    root.prepend_nodes_before(elem)
+
+    eq_(len(doc), 11)
+    eq_(doc[10].index, 10)
+    eq_(doc[10].name, 'root')
+    for i in xrange(0, 10):
+        eq_(doc[i].index, i)
+        eq_(doc[i].name, 'child%d' % i)
+
+
+def test_normalize():
+    """node.normalize()"""
+    root = LC.Element('numbers')
+    root.append_child('1')
+    root.append_child('2')
+    root.append_child(LC.Element('container'))
+    root[2].append_child('3')
+    root[2].append_child('4')
+    root.append_child('5')
+    root.append_child('6')
+
+    root.normalize()
+
+    eq_(root[0].data, '12')
+    eq_(root[1][0].data, '34')
+    eq_(root[2].data, '56')
+
+
+def test_len():
+    """len(node) == node.__len__()"""
+    root = LC.Element('root')
+    for i in xrange(10):
+        root.append_child(LC.Element('child%d' % i))
+
+    eq_(len(root), 10)
+
+    void = LC.Void('void')
+
+    eq_(len(void), 0)
+
+
+def test_getitem():
+    """node.__getitem__(i) is x[i]"""
+    # All the previous test take advantage of this, nothing to test
+    pass
+
+
+def test_delitem():
+    """node.__delitem__(i) <==> del x[i]"""
+    # Showing how to delete even nodes
+    root = LC.Element('root')
+    even = []
+    for i in xrange(10):
+        root.append_child(LC.Element('child%d' % i))
+        if i % 2 == 0:
+            even.append(root[i])
+
+    # Had to get a reference to the even nodes since the root node
+    # keeps changing after each deletion.
+    for child in even:
+        del root[child.index]
+
+    eq_(len(root), 5)
+    names = ['child%d' % (2*i+1) for i in xrange(5)]
+    node_names = [x.name for x in root]
+    eq_(''.join(names), ''.join(node_names))
+
+    # Much simpler
+    root = LC.Element('root')
+    for i in xrange(10):
+        root.append_child(LC.Element('child%d' % i))
+
+    del root[::2]
+
+    eq_(len(root), 5)
+    names = ['child%d' % (2*i+1) for i in xrange(5)]
+    node_names = [x.name for x in root]
+    eq_(''.join(names), ''.join(node_names))
+
+    # Weird one
+    root = LC.Element('root')
+    for i in xrange(10):
+        root.append_child(LC.Element('child%d' % i))
+
+    # does not delete 9 since it is not in the range
+    del root[1:9:4]
+
+    eq_(len(root), 8)
+    names = ['child%d' % i for i in [0, 2, 3, 4, 6, 7, 8, 9]]
+    node_names = [x.name for x in root]
+    eq_(''.join(names), ''.join(node_names))
