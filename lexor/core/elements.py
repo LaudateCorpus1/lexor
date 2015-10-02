@@ -673,7 +673,8 @@ class DocumentFragment(Document):
         ``DocumentFragment`` only have a parent (the
         ``DocumentFragment``). As opposed as
         :meth:`lexor.core.node.Node.append_child` which also takes
-        care of the ``prev`` and ``next`` attributes. """
+        care of the ``prev`` and ``next`` attributes.
+        """
         if isinstance(new_child, str):
             new_child = Text(new_child)
         elif not isinstance(new_child, Node):
@@ -688,27 +689,14 @@ class DocumentFragment(Document):
 
     def __repr__(self):
         """
-        >>> x.__repr__() <==> repr(x)
+        >>> x.__repr__() is repr(x)
 
         """
         return ''.join([repr(node) for node in self.child])
 
     def __str__(self):
         """
-        >>> x.__str__() <==> str(x)
+        >>> x.__str__() is str(x)
 
         """
         return ''.join([str(node) for node in self.child])
-
-    def __delitem__(self, k):
-        """Remove a child or attribute.
-
-        >>> x.__delitem__(k) <==> del x[k]
-
-        """
-        print 'Deleting %r' % k
-        if isinstance(k, str):
-            self.__dict__.__delitem__(k)
-            self._order.remove(k)
-        else:
-            del self.child[k]

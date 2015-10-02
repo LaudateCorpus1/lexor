@@ -53,6 +53,26 @@ def _set_owner_and_level(node, owner, level):
         node.level = level - 1
 
 
+def debug_info(node):
+    """Print basic information on the node. """
+    print '-'*10
+    print 'Name[0x%x]: ' % id(node), node.name
+    if node.owner:
+        print 'Owner[0x%x]: ' % id(node.owner), node.owner.name
+    if node.parent:
+        print 'Parent[0x%x]: ' % id(node.parent), node.parent.name
+    print 'Index: %r' % node.index
+    print 'Level: %r' % node.level
+    if node.prev is not None:
+        print 'Prev[0x%x]: ' % id(node.prev), node.prev.name
+    if node.next is not None:
+        print 'Next[0x%x]: ' % id(node.next), node.next.name
+    if node.child:
+        print 'Children: '
+        print '  ', ['0x%x:%s' % (id(x), x.name) for x in node.child]
+    print '-'*10
+
+
 class Node(object):
     """Primary datatype for the entire Document Object Model. """
     __slots__ = ('name', 'owner', 'parent', 'index',
@@ -324,7 +344,9 @@ class Node(object):
                         self.owner.meta.update(node.meta)
                         node.meta = dict()
                     while node:
-                        index = self.insert_node_before(index, node[0])
+                        index = self.insert_node_before(
+                            index, node[0]
+                        )
                 else:
                     index = self.insert_node_before(index, node)
             if isinstance(new_children, LC.DocumentFragment):
@@ -335,7 +357,9 @@ class Node(object):
                     self.owner.meta.update(new_children.meta)
                     new_children.meta = dict()
             while new_children:
-                index = self.insert_node_before(index, new_children[0])
+                index = self.insert_node_before(
+                    index, new_children[0]
+                )
         while index < len(self.child):
             self[index].index = index
             index += 1
@@ -476,9 +500,9 @@ class Node(object):
     def __delitem__(self, index):
         """Delete child nodes.
 
-        >>> x.__delitem__(index) <==> del x[index]
-        >>> x.__delitem__(slice(i, j)) <==> del x[i:j]
-        >>> x.__delitem__(slice(i, j, dt)) <==> del x[i:j:dt]
+            x.__delitem__(index) <==> del x[index]
+            x.__delitem__(slice(i, j)) <==> del x[i:j]
+            x.__delitem__(slice(i, j, dt)) <==> del x[i:j:dt]
 
         """
         index, indices = self._get_indices(index)
@@ -500,51 +524,45 @@ class Node(object):
     def __setitem__(self, index, node):
         """Replace child nodes.
 
-        >>> x.__setitem__(index) = node <==> x[index] = node
-        >>> x.__setitem__(slice(i, j)) = dfrag <==> x[i:j] = dfrag
-        >>> x.__setitem__(slice(i, j, dt)) = dfrag <==> x[i:j:dt] = dfrag
+            x.__setitem__(index) = node <==> x[index] = node
+            x.__setitem__(slice(i, j)) = dfrag <==> x[i:j] = dfrag
+            x.__setitem__(slice(i, j, dt)) = df <==> x[i:j:dt] = df
 
         When using slices the nodes to be assigned to the indices
         need to be contained in a
         :class:`~lexor.core.elements.DocumentFragment` node. This
         function does not support insertion as the regular slice for
         list does. To insert use a node use :meth:`insert_before` or
-        :meth:`append_after`."""
-        indices = self._get_indices(index)
+        :meth:`append_after`.
+        """
+        index, indices = self._get_indices(index)
         if not isinstance(node, Node):
-            raise TypeError("items must be Nodes")
+            node = LC.Text(str(node))
         if node is self:
             raise TypeError("A node cannot have itself as a child.")
         if not isinstance(node, LC.DocumentFragment):
-            # Better take a look at this, DocFrag needs more development
-            nodes = LC.DocumentFragment(node)
+            nodes = LC.DocumentFragment()
+            nodes.append_child(node)
         else:
             nodes = node
         if len(indices) != len(nodes):
             msg = "attempt to assign sequence of size %d to extended" \
-                  "slice of size %d" % (len(nodes), len(indices))
+                  " slice of size %d" % (len(nodes), len(indices))
             raise ValueError(msg)
-        for i in xrange(len(nodes)):
-            index = indices[i]
+        i = 0
+        for index in indices:
             node = nodes[i]
-            if node.parent is self:
-                raise ValueError("Node is already the child at index %d" %
-                                 node.index)
-            if node.parent is not None:
-                del node.parent[node.index]
-            # Disconnect the current Node
             self.child[index].disconnect()
-            # Assign and connect the new Node
             self.child[index] = node
             node.set_parent(self, index)
             try:
                 node.set_next(self.child[index + 1])
             except IndexError:
                 pass
-            try:
+            if index > 0:  # -1 index loops to the last index
                 node.set_prev(self.child[index - 1])
-            except IndexError:
-                pass
+            i += 1
+        nodes.child = []
         return node
 
     def get_nodes_by_name(self, name):
@@ -603,7 +621,8 @@ class Node(object):
         else:
             self.level = parent.level + 1
         self.owner = parent.owner
-        if self.owner and isinstance(self, LC.Element) and 'id' in self:
+        is_element = isinstance(self, LC.Element)
+        if self.owner and is_element and 'id' in self:
             self.owner.id_dict[self['id']] = self
         self.increase_child_level()
 

@@ -679,3 +679,72 @@ def test_delitem():
     names = ['child%d' % i for i in [0, 2, 3, 4, 6, 7, 8, 9]]
     node_names = [x.name for x in root]
     eq_(''.join(names), ''.join(node_names))
+
+
+def test_setitem():
+    """node.__setitem__(i, child) <==> node[i] = child"""
+    # Showing how to replace even nodes
+    root = LC.Element('root')
+    for i in xrange(10):
+        root.append_child(LC.Element('child%d' % i))
+
+    for i in xrange(5):
+        root[2*i] = LC.Void('void%d' % i)
+
+    eq_(len(root), 10)
+    names = [
+        'void0', 'child1', 'void1', 'child3', 'void2', 'child5',
+        'void3', 'child7', 'void4', 'child9'
+    ]
+    node_names = [x.name for x in root]
+    eq_(''.join(names), ''.join(node_names))
+
+    # slicing
+    root = LC.Element('root')
+    for i in xrange(10):
+        root.append_child(LC.Element('child%d' % i))
+
+    doc_frag = LC.DocumentFragment()
+    for i in xrange(5):
+        doc_frag.append_child(LC.Void('void%d' % i))
+
+    root[::2] = doc_frag
+
+    eq_(len(root), 10)
+    names = [
+        'void0', 'child1', 'void1', 'child3', 'void2', 'child5',
+        'void3', 'child7', 'void4', 'child9'
+    ]
+    node_names = [x.name for x in root]
+    eq_(''.join(names), ''.join(node_names))
+
+    # slicing 2
+    root = LC.Element('root')
+    for i in xrange(10):
+        root.append_child(LC.Element('child%d' % i))
+
+    doc_frag = LC.DocumentFragment()
+    for i in xrange(5):
+        doc_frag.append_child(LC.Void('void%d' % i))
+
+    root[9:0:-2] = doc_frag
+
+    eq_(len(root), 10)
+    names = [
+        'child0', 'void4', 'child2', 'void3', 'child4', 'void2',
+        'child6', 'void1', 'child8', 'void0'
+    ]
+    node_names = [x.name for x in root]
+    eq_(''.join(names), ''.join(node_names))
+
+    # Errors
+    with assert_raises(TypeError):
+        root[0] = root
+
+    doc_frag.append_child('1')
+    doc_frag.append_child('2')
+    doc_frag.append_child('3')
+    with assert_raises(ValueError):
+        root[0:6] = doc_frag
+
+
