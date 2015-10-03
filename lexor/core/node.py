@@ -676,35 +676,26 @@ class Node(object):
 
             Sets the level of the child nodes.
         """
+        crt = self
+        level = self.level
+        owner = self.owner
+        loop = False
         if self.child:
-            crt = self
-            direction = 'd'
-            level = self.level
-            owner = self.owner
-        else:
-            return
-        while True:
-            if direction is 'd':
-                level += 1
-                crt = crt.child[0]
-            elif direction is 'r':
-                if crt.next is None:
-                    direction = 'u'
-                    continue
-                crt = crt.next
-            elif direction is 'u':
-                level -= 1
-                if crt.parent is self:
-                    break
-                if crt.parent.next is None:
-                    crt = crt.parent
-                    continue
-                crt = crt.parent.next
+            level += 1
+            crt = crt[0]
+            loop = True
+        while loop:
             _set_owner_and_level(crt, owner, level)
             if crt.child:
-                direction = 'd'
+                level += 1
+                crt = crt[0]
             else:
-                direction = 'r'
+                while loop and crt.next is None:
+                    level -= 1
+                    crt = crt.parent
+                    if crt is self:
+                        loop = False
+                crt = crt.next
 
     def append_child_node(self, new_child):
         """
