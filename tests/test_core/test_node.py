@@ -75,13 +75,22 @@ def traverse_node_short(root, on_enter, on_exit, level=-1):
             crt = crt.next
 
 
-def traverse_node_rec(root, on_enter, on_exit, level=-1):
+def traverse_node_rec(root, on_enter, on_exit, level=-1, index=None):
     """Similar to `traverse_node` but this time we do it recursively.
     """
-    on_enter(root, level)
-    for child in root:
-        traverse_node(child, on_enter, on_exit, level+1)
-    on_exit(root, level)
+    on_enter(root, level, index)
+    if root.child:
+        for i, child in enumerate(root):
+            traverse_node_rec(child, on_enter, on_exit, level+1, i)
+    on_exit(root, level, index)
+
+
+def verify_node_structure(root, lvl=-1):
+    """Check that all the levels and node indices are correct."""
+    def on_enter(node, level, index):
+        eq_(node.level, level)
+        eq_(node.index, index)
+    traverse_node_rec(root, on_enter, noop, lvl)
 
 
 def test_node_name():
@@ -89,6 +98,7 @@ def test_node_name():
     node = LC.Element('tagname')
     eq_(node.node_name, 'tagname')
     eq_(node.node_name, node.name)
+    verify_node_structure(node, 0)
 
 
 def test_owner_document():
@@ -149,6 +159,7 @@ def test_node_level():
 
     on_exit = on_enter
     traverse_node(doc, on_enter, on_exit)
+    verify_node_structure(doc)
 
 
 def test_element_index():
@@ -168,6 +179,7 @@ def test_element_index():
     eq_(root[4].element_index, 2)
     eq_(root[5].element_index, 2)
     eq_(root[6].element_index, 2)
+    verify_node_structure(root, 0)
 
 
 def test_first_child():
@@ -271,6 +283,7 @@ def test_remove_children():
         ok_(elem.index is None)
         ok_(elem.prev is None)
         ok_(elem.next is None)
+    verify_node_structure(root, 0)
 
 
 def test_repr():
@@ -298,7 +311,7 @@ def test_repr():
 
     repr_str = repr(doc)
 
-    def on_enter(node, lvl):
+    def on_enter(node, lvl, *_):
         strf.write('%s%s' % ('    '*lvl, node.name))
         if not isinstance(node, LC.Element):
             strf.write('[0x%x]' % id(node))
@@ -339,6 +352,7 @@ def test_repr():
     repr_new = strf.getvalue()
 
     eq_(repr_str, repr_new)
+    verify_node_structure(doc)
 
 
 def test_str():
@@ -368,6 +382,8 @@ def test_insert_before():
     for i in xrange(5):
         eq_(root2[i].index, i)
         eq_(root2[i].name, 'child%d' % (i+5))
+    verify_node_structure(root1, 0)
+    verify_node_structure(root2, 0)
 
 
 def test_extend_before_list():
@@ -388,6 +404,8 @@ def test_extend_before_list():
     for i in xrange(5):
         eq_(root2[i].index, i)
         eq_(root2[i].name, 'child%d' % (i+5))
+    verify_node_structure(root1, 0)
+    verify_node_structure(root2, 0)
 
 
 def test_extend_before_element():
@@ -558,6 +576,7 @@ def test_append_nodes_after():
         eq_(doc[i].index, i)
         eq_(doc[i].name, 'child%d' % (i-1))
 
+
 def test_prepend_before():
     """node.prepend_before(elem)"""
     root = LC.Element('root')
@@ -614,6 +633,7 @@ def test_normalize():
     eq_(root[0].data, '12')
     eq_(root[1][0].data, '34')
     eq_(root[2].data, '56')
+    verify_node_structure(root, 0)
 
 
 def test_len():
@@ -679,6 +699,7 @@ def test_delitem():
     names = ['child%d' % i for i in [0, 2, 3, 4, 6, 7, 8, 9]]
     node_names = [x.name for x in root]
     eq_(''.join(names), ''.join(node_names))
+    verify_node_structure(root, 0)
 
 
 def test_setitem():
@@ -747,4 +768,18 @@ def test_setitem():
     with assert_raises(ValueError):
         root[0:6] = doc_frag
 
+    root = LC.Element('root')
 
+    def add_children(node, rec_level=1):
+        if rec_level == 0:
+            return
+        for i in xrange(node.level+1):
+            node.append_child(LC.Element('lvl%d' % (node.level+1)))
+            add_children(node[i], rec_level-1)
+
+    add_children(root, 5)
+    host = LC.Element('host')
+    host.append_child(root[0][1][2])
+
+    verify_node_structure(root, 0)
+    verify_node_structure(host, 0)
