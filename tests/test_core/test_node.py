@@ -88,6 +88,44 @@ def traverse_node_rec(root, on_enter, on_exit, level=-1, index=None):
     on_exit(root, level, index)
 
 
+def copy_node(root):
+    """Creates a deep copy of the node, assuming an Element."""
+    node = LC.Element(root.name)
+    node.update_attributes(root)
+    crt = root
+    crtcopy = node
+    if not crt.child:
+        return crtcopy
+    crt = crt[0]
+    while True:
+        clone = crt.clone_node()
+        crtcopy.append_child(clone)
+        if crt.child:
+            crtcopy = clone
+            crt = crt[0]
+        else:
+            while crt.next is None:
+                crt = crt.parent
+                if crt is root:
+                    return crtcopy
+                crtcopy = crtcopy.parent
+                crtcopy.normalize(recurse=False)
+            crt = crt.next
+
+
+def equal_nodes(node1, node2):
+    """Return true if the nodes contain the same information."""
+    if node1.name != node2.name:
+        return False
+    if len(node1) != len(node2):
+        return False
+    if node1.child:
+        for i, child in enumerate(node1):
+            if not equal_nodes(child, node2[i]):
+                return False
+    return True
+
+
 def verify_node_structure(root, lvl=-1):
     """Check that all the levels and node indices are correct."""
     def on_enter(node, level, index):
@@ -818,3 +856,21 @@ def test_iter_child_elements():
     names = [x.name for x in root.iter_child_elements()]
     eq_(names, ['void', 'elem', 'last'])
 
+
+def test_copy_node():
+    """node.get_nodes_by_name(node_name)"""
+    root = LC.Element('root')
+
+    def add_children(node, rec_level=1):
+        if rec_level == 0:
+            return
+        for i in xrange(node.level + 1):
+            node.append_child(LC.Element('lvl%d' % (node.level+1)))
+            add_children(node[i], rec_level-1)
+
+    add_children(root, 5)
+
+    copy = copy_node(root)
+
+    print repr(copy)
+    print equal_nodes(root, copy)

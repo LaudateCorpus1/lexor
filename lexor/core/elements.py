@@ -35,7 +35,7 @@ LC = sys.modules['lexor.core']
 class CharacterData(Node):
     """A simple interface to deal with strings. """
 
-    __slots__ = ('data')
+    __slots__ = ('data',)
 
     def __init__(self, text=''):
         """Set the data property to the value of `text` and set its
@@ -75,7 +75,7 @@ class Text(CharacterData):
 class ProcessingInstruction(CharacterData):
     """Represents a "processing instruction", used to keep
     processor-specific information in the text of the document. """
-    __slots__ = ('_target')
+    __slots__ = ('_target',)
 
     def __init__(self, target, data=''):
         """Create a `Text` node with its `data` set to data. """
@@ -102,7 +102,7 @@ class ProcessingInstruction(CharacterData):
 class Comment(CharacterData):
     """A node to store comments. """
 
-    __slots__ = ('type')
+    __slots__ = ('type',)
 
     def __init__(self, data=''):
         """Create a comment node. """
