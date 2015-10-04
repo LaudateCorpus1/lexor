@@ -685,6 +685,8 @@ class DocumentFragment(Document):
         new_child.parent = self
         new_child.owner = self
         new_child.index = len(self.child) - 1
+        new_child.next = None
+        new_child.prev = None
         return new_child
 
     def __repr__(self):

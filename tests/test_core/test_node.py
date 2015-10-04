@@ -58,20 +58,23 @@ def traverse_node(root, on_enter, on_exit, level=-1):
 def traverse_node_short(root, on_enter, on_exit, level=-1):
     """An nicer node traversal function. """
     crt = root
-    loop = True
-    while loop:
+    if not crt.child:
+        on_enter(crt, level)
+        on_exit(crt, level)
+        return
+    while True:
         on_enter(crt, level)
         if crt.child:
             level += 1
             crt = crt[0]
         else:
             on_exit(crt, level)
-            while loop and crt.next is None:
+            while crt.next is None:
                 level -= 1
                 crt = crt.parent
                 on_exit(crt, level)
                 if crt is root:
-                    loop = False
+                    return
             crt = crt.next
 
 
@@ -159,6 +162,7 @@ def test_node_level():
 
     on_exit = on_enter
     traverse_node(doc, on_enter, on_exit)
+    traverse_node_short(LC.Text('data'), noop, noop)
     verify_node_structure(doc)
 
 
@@ -783,3 +787,34 @@ def test_setitem():
 
     verify_node_structure(root, 0)
     verify_node_structure(host, 0)
+
+
+def test_get_nodes_by_name():
+    """node.get_nodes_by_name(node_name)"""
+    root = LC.Element('root')
+
+    def add_children(node, rec_level=1):
+        if rec_level == 0:
+            return
+        for i in xrange(node.level + 1):
+            node.append_child(LC.Element('lvl%d' % (node.level+1)))
+            add_children(node[i], rec_level-1)
+
+    add_children(root, 5)
+    nodes = root.get_nodes_by_name('lvl4')
+    eq_(len(nodes), 4 * 3 * 2)
+
+
+def test_iter_child_elements():
+    """node.iter_child_elements():"""
+    root = LC.Element('root')
+    root.append_child(LC.Void('void'))
+    root.append_child(LC.Text('text'))
+    root.append_child(LC.Text('text'))
+    root.append_child(LC.Element('elem'))
+    root.append_child(LC.ProcessingInstruction('python'))
+    root.append_child(LC.Text('text'))
+    root.append_child(LC.Element('last'))
+    names = [x.name for x in root.iter_child_elements()]
+    eq_(names, ['void', 'elem', 'last'])
+

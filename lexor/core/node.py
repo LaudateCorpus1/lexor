@@ -28,13 +28,9 @@ def _write_node_info(node, strf):
         strf.write(': (%s:%s:%s)' % (node.uri, node.lang, node.style))
     else:
         strf.write(':')
-    direction = 'r'
     if isinstance(node, LC.CharacterData):
         strf.write(' %r' % node.data)
-    elif node.child:
-        direction = 'd'
     strf.write('\n')
-    return direction
 
 
 def _set_owner_and_level(node, owner, level):
@@ -270,26 +266,19 @@ class Node(object):
         """
         strf = StringIO()
         crt = self
-        direction = _write_node_info(crt, strf)
-        if direction is not 'd':
+        if not crt.child:
+            _write_node_info(crt, strf)
             return strf.getvalue()
         while True:
-            if direction is 'd':
-                crt = crt.child[0]
-            elif direction is 'r':
-                if crt.next is None:
-                    direction = 'u'
-                    continue
-                crt = crt.next
-            elif direction is 'u':
-                if crt.parent is self:
-                    break
-                if crt.parent.next is None:
+            _write_node_info(crt, strf)
+            if crt.child:
+                crt = crt[0]
+            else:
+                while crt.next is None:
                     crt = crt.parent
-                    continue
-                crt = crt.parent.next
-            direction = _write_node_info(crt, strf)
-        return strf.getvalue()
+                    if crt is self:
+                        return strf.getvalue()
+                crt = crt.next
 
     def __str__(self):
         """>>> x.__str__() == str(x)
@@ -569,32 +558,20 @@ class Node(object):
         """Return a ``list`` of child nodes that have the given
         `name`. """
         nodes = []
-        if not self.child:
-            return nodes
         crt = self
-        direction = 'd'
         while True:
-            if direction is 'd':
-                crt = crt.child[0]
-            elif direction is 'r':
-                if crt.next is None:
-                    direction = 'u'
-                    continue
-                crt = crt.next
-            elif direction is 'u':
-                if crt.parent is self:
-                    break
-                if crt.parent.next is None:
-                    crt = crt.parent
-                    continue
-                crt = crt.parent.next
             if crt.name == name:
                 nodes.append(crt)
             if crt.child:
-                direction = 'd'
+                crt = crt[0]
             else:
-                direction = 'r'
-        return nodes
+                if crt is self:
+                    return nodes
+                while crt.next is None:
+                    crt = crt.parent
+                    if crt is self:
+                        return nodes
+                crt = crt.next
 
     def iter_child_elements(self):
         """Iterate over child nodes which are
@@ -679,22 +656,22 @@ class Node(object):
         crt = self
         level = self.level
         owner = self.owner
-        loop = False
         if self.child:
             level += 1
             crt = crt[0]
-            loop = True
-        while loop:
+        else:
+            return
+        while True:
             _set_owner_and_level(crt, owner, level)
             if crt.child:
                 level += 1
                 crt = crt[0]
             else:
-                while loop and crt.next is None:
+                while crt.next is None:
                     level -= 1
                     crt = crt.parent
                     if crt is self:
-                        loop = False
+                        return
                 crt = crt.next
 
     def append_child_node(self, new_child):
