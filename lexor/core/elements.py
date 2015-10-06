@@ -397,6 +397,10 @@ class Element(Node):
         # the level of the child nodes when we move the node around
         node = Element(self.name)
         node.update_attributes(self)
+        if hasattr(self, '__directives__'):
+            node.__directives__ = self.__directives__
+            node.__info__ = self.__info__
+            # node.__t_node__ = self.__t_node__
         if deep is False or not self.child:
             return node
         crt = self

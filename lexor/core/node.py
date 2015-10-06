@@ -554,7 +554,7 @@ class Node(object):
         nodes.child = []
         return node
 
-    def get_nodes_by_name(self, name):
+    def get_nodes_by_name(self, name, limit=None):
         """Return a ``list`` of child nodes that have the given
         `name`. """
         nodes = []
@@ -562,6 +562,8 @@ class Node(object):
         while True:
             if crt.name == name:
                 nodes.append(crt)
+                if len(nodes) == limit:
+                    return nodes
             if crt.child:
                 crt = crt[0]
             else:

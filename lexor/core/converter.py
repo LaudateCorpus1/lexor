@@ -39,6 +39,7 @@ from imp import load_source
 from cStringIO import StringIO
 from lexor.command import config, LexorError
 from lexor.command.lang import get_style_module, map_explanations
+from lexor.util.logging import L
 LC = sys.modules['lexor.core']
 
 
@@ -75,17 +76,17 @@ class NodeConverter(object):
     priority = 0
     remove = False  # replaces copy
     replace = False
-    transclude = True  # replaces copy_children
+    transclude = False  # replaces copy_children
     terminal = False
     require = False
 
-    def compile(self, t_node, info):
+    def compile(self, **_):
         pass
 
-    def pre_link(self, node):
+    def pre_link(self, **_):
         pass
 
-    def post_link(self, node):
+    def post_link(self, **_):
         pass
 
     copy = True
@@ -176,6 +177,8 @@ class Converter(object):
         self._node_converter = None
         self._convert_func = None
         self._reload = True
+        # TODO: Think of a way to let use set the parser style
+        self._parser = LC.Parser(fromlang)
         self.style_module = None
         self.doc = list()
         self.log = list()
@@ -194,6 +197,7 @@ class Converter(object):
     def convert_from(self, value):
         """Setter function for convert_from. """
         self._fromlang = value
+        # TODO: If you set it to the same value?
         self._reload = True
 
     @property
@@ -225,6 +229,7 @@ class Converter(object):
         self._style = style
         self._tolang = tolang
         self._fromlang = fromlang
+        self._parser.set(fromlang, 'default')
         self._reload = True
 
     def match_info(self, fromlang, tolang, style, defaults=None):
@@ -271,9 +276,9 @@ class Converter(object):
         self.log[-1].explanation = dict()
         doccopy = self._compile_doc(doc)
         doccopy = self._link_doc(doccopy)
-        self._convert(doc)
-        if hasattr(self.style_module, 'convert'):
-            self.style_module.convert(self, self.doc[-1])
+        #self._convert(doc)
+        # if hasattr(self.style_module, 'convert'):
+        #     self.style_module.convert(self, self.doc[-1])
         map_explanations(self.log[-1].modules, self.log[-1].explanation)
         if not namespace:
             del self.doc[-1].namespace
@@ -386,46 +391,6 @@ class Converter(object):
         # TODO: Handle classes
         return directives, info
 
-    def _start(self, node):
-        """Evaluate the start function of the node converter based
-        on the name of the node. """
-        if node.name in self._nc:
-            return self._nc[node.name].start(node)
-        return node
-
-    def _end(self, node):
-        """Evaluate the end function of the node converter based
-        on the name of the node. """
-        if node.name in self._nc:
-            return self._nc[node.name].end(node)
-        return node
-
-    def _copy(self, node):
-        """Return the copy attribute of the node converter. """
-        if node.name in self._nc:
-            return self._nc[node.name].copy
-        return True
-
-    def _template(self, node):
-        """Return the template attribute of the node converter. """
-        if node.name in self._nc:
-            return self._nc[node.name].template
-        return None
-
-    def _copy_children(self, node):
-        """Return the copy_children attribute of the node converter. """
-        if node.name in self._nc:
-            tmp = self._nc[node.name].copy_children
-        else:
-            tmp = True
-        return tmp and node.child
-
-    def _get_direction(self, crt):
-        """Returns the direction in which the traversal should go. """
-        if crt.child and self._copy_children(crt):
-            return 'd'
-        return 'r'
-
     @staticmethod
     def _get_link_direction(crt):
         return 'd' if crt.child else 'r'
@@ -485,107 +450,107 @@ class Converter(object):
         return crtcopy, direction
 
     def _pre_link_node(self, crt):
-        if not hasattr(crt, '_directives'):
+        if not hasattr(crt, '__directives__'):
             return
-        for directive, priority in crt._directives:
+        for directive, priority in crt.__directives__:
             node_c = self._nc[directive]
-            tmp = LC.DocumentFragment()
-            while crt.child:
-                tmp.append_child(crt.child[0])
-            print 'TMP %r' % tmp
-            print 'CHILDREN: %r, %r' % (node_c.transclude, tmp)
-            t_node = crt._t_node[directive]
-            crt.extend_children(t_node)
-            if node_c.transclude:
-                print '\n->TRANS: %r' % tmp
-                # for c in tmp.child:
-                #     print 'CHILD: %r' % c
-                print '\n-CURRENT: %r' % crt
-                crt.extend_children(tmp)
-            node_c.pre_link(crt)
+            if node_c._t_element is not None:
+                t_node = node_c._t_element.clone_node(True)
+                transcluded_elements = LC.DocumentFragment()
+                transcluded_elements.extend_children(crt)
+                crt.extend_children(t_node)
+            else:
+                transcluded_elements = None
+            node_c.pre_link(node=crt, transclude=transcluded_elements)
 
     def _post_link_node(self, crt):
-        if not hasattr(crt, '_directives'):
+        if not hasattr(crt, '__directives__'):
             return
-        for directive, priority in crt._directives:
+        for directive, priority in crt.__directives__:
             node_c = self._nc[directive]
-            node_c.post_link(crt)
+            node_c.post_link(node=crt)
+
+    def _run_compile_method(self, directives, info, clone):
+        for directive, priority in directives:
+            node_c = self._nc[directive]
+            if not node_c._t_element:
+                if node_c.template is not None:
+                    # TODO: Adapt errors
+                    self._parser.parse(node_c.template)
+                    parser_doc = self._parser.doc
+                    compiled_doc = self._compile_doc(parser_doc)
+                    node_c._t_element = compiled_doc
+                    tdoc = node_c._t_element.clone_node(True)
+                else:
+                    tdoc = None
+            else:
+                tdoc = node_c._t_element.clone_node(True)
+            node_c.compile(t_node=tdoc, info=info)
+            if clone is not None:
+                clone.__t_node__[directive] = tdoc
 
     def _compile_doc(self, doc):
         """Creates a copy of the document and calls the compile
         method on each of the template elements (if any).
         """
-        crt = doc
-        root = doc
         doccopy = doc.clone_node()
         doccopy.namespace = dict()
+        self.doc.append(doccopy)
         # if hasattr(self.style_module, 'init_conversion'):
         #     self.style_module.init_conversion(self, doccopy)
+        root = doc
+        crt = root
         crtcopy = doccopy
-        #crtcopy = self._start(crtcopy)
-        direction = self._get_direction(crt)
-        loop = direction == 'd'
-        while loop:
-            if direction is 'd':
-                crt = crt.child[0]
-                crtcopy, direction = self._compile_node(
-                    crt, crtcopy, True
-                )
-            elif direction is 'r':
-                if crt.next is None:
-                    direction = 'u'
-                else:
-                    crt = crt.next
-                    crtcopy, direction = self._compile_node(
-                        crt, crtcopy
-                    )
-            else:  # direction is 'u'
-                crtcopy = crtcopy.parent
-                crtcopy.normalize()
-                if crt.parent is root:
-                    loop = False
-                elif crt.parent.next is None:
+        if not crt.child:
+            # Compile the document?
+            return doccopy
+        crt = crt[0]
+        while True:
+            directives, info = self.get_node_directives(crt)
+            remove = info['remove']
+            if not remove:
+                clone = crt.clone_node()
+                crtcopy.append_child(clone)
+                if isinstance(clone, LC.Element):
+                    clone.__directives__ = directives
+                    clone.__info__ = info
+                    clone.__t_node__ = dict()
+            else:
+                clone = None
+            self._run_compile_method(directives, info, clone)
+            if crt.child and not remove:
+                crtcopy = clone
+                crt = crt[0]
+            else:
+                while crt.next is None:
                     crt = crt.parent
-                    direction = 'u'
-                else:
-                    crt = crt.parent.next
-                    crtcopy, direction = self._compile_node(
-                        crt, crtcopy
-                    )
-        return doccopy
+                    if crt is root:
+                        return doccopy
+                    crtcopy = crtcopy.parent
+                    crtcopy.normalize(recurse=False)
+                crt = crt.next
 
     def _link_doc(self, doccopy):
         """To be run after compiling the document.
         """
-        crt = doccopy
         root = doccopy
-        #self._pre_link_node(crt)
-        direction = self._get_link_direction(crt)
-        loop = direction == 'd'
-        while loop:
-            if direction is 'd':
-                crt = crt.child[0]
-                self._pre_link_node(crt)
-                direction = self._get_link_direction(crt)
-            elif direction is 'r':
-                if crt.next is None:
-                    direction = 'u'
-                else:
-                    crt = crt.next
-                    self._pre_link_node(crt)
-                    direction = self._get_link_direction(crt)
-            else:  # direction is 'u'
-                self._post_link_node(crt.parent)
-                if crt.parent is root:
-                    loop = False
-                elif crt.parent.next is None:
+        crt = root
+        if not crt.child:
+            #on_enter(crt)
+            #on_exit(crt)
+            return
+        while True:
+            self._pre_link_node(crt)
+            if crt.child:
+                crt = crt[0]
+            else:
+                self._post_link_node(crt)
+                while crt.next is None:
                     crt = crt.parent
-                    direction = 'u'
-                else:
-                    crt = crt.parent.next
-                    self._pre_link_node(crt)
-                    direction = self._get_link_direction(crt)
-        return doccopy
+                    self._post_link_node(crt)
+                    if crt is root:
+                        return root
+                crt = crt.next
 
     def _convert(self, doc):
         """Main convert function. """

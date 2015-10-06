@@ -871,6 +871,4 @@ def test_copy_node():
     add_children(root, 5)
 
     copy = copy_node(root)
-
-    print repr(copy)
-    print equal_nodes(root, copy)
+    assert equal_nodes(root, copy)
