@@ -54,43 +54,62 @@ if not hasattr(get_converter_namespace, 'namespace'):
 
 
 class NodeConverter(object):
-    """A node converter is an object which determines if the node
-    will be copied (default). To avoid copying the node simply
-    declare::
+    """A node converter is an object which executes commands on
+    some special elements in the document. The elements in which
+    the node converter executes are determined by the directive
+    name of the node converter. The following are some of the
+    properties that you may define when deriving a ``NodeConverter``.
 
-        copy = False
+    - directive: This is the name which the node converter looks for
+                 to determine if it should execute commands on a node.
 
-    when deriving a node converter. Note that by default, the
-    children of the node (if any) will be copied and assigned to the
-    parent. To avoid copying the children then set::
+    - restrict: A string specifying where to look for the directive
+                name. The string is allowed to have any of the
+                following charcters:
 
-        copy_children = False
+                'E': Search in the node name
+                'A': Search in any of the attributes names.
+                'C': Search in the class.
+
+                By default we restrict a node directive to the
+                element name.
+
+    - remove: Boolean specifying if the node should be removed. Note
+              that if another directive acts on a node and has the
+              remove property set to ``True`` then only the compile
+              method of this node converter will execute and the node
+              will be removed. It only takes one to ruin everything.
+              By default this property is set to ``False`` so be very
+              careful when removing nodes and all its children.
+
+    - remove_children: Boolean specifying if the children of the node
+                       should be removed. Note that setting this to
+                       True will remove the children during the
+                       compile phase and those nodes will not be
+                       available even if the tranclude property is
+                       set set. By default it is set to ``False`` and
+                       as with the ``remove`` property, if another
+                       directive has this property set then none
+                       of the other directives will not have access
+                       those children.
 
     """
-    restrict = 'E'
     directive = None
+    restrict = 'E'
+    remove = False
+    remove_children = False
+
     template = None
     template_uri = None
     template_options = None
     _t_element = None
     priority = 0
-    remove = False  # replaces copy
+
     replace = False
-    transclude = False  # replaces copy_children
+    transclude = False
     terminal = False
     require = False
 
-    def compile(self, **_):
-        pass
-
-    def pre_link(self, **_):
-        pass
-
-    def post_link(self, **_):
-        pass
-
-    copy = True
-    copy_children = True
 
     def __init__(self, converter):
         """A node converter needs to be initialized with a converter
@@ -102,24 +121,14 @@ class NodeConverter(object):
         if self.directive is None:
             raise LexorError('missing directive name')
 
-    @classmethod
-    def start(cls, node):
-        """This method gets called only if ``copy`` is set to True
-        (default). By overloading this method you have access to the
-        converter and the node. You can thus set extra variables in
-        the converter or modify the node. **DO NOT** modify any of
-        the parents of the node. If there is a need to modify any of
-        parents of the node then set a variable in the converter to
-        point to the node so that later on in the ``convert``
-        function it can be modified. """
-        return node
+    def compile(self, **_):
+        pass
 
-    @classmethod
-    def end(cls, node):
-        """This method gets called after all the children have been
-        copied. Make sure to return the node or the node replacement.
-        """
-        return node
+    def pre_link(self, **_):
+        pass
+
+    def post_link(self, **_):
+        pass
 
     def msg(self, code, node, arg=None, uri=None):
         """Send a message to the converter by providing one of the
@@ -367,12 +376,15 @@ class Converter(object):
         be applied to the node"""
         directives = []
         info = {
-            'remove': []
+            'remove': [],
+            'remove_children': []
         }
         name = node.name
         if name in self._nc and 'E' in self._nc[name].restrict:
             if self._nc[name].remove:
                 info['remove'].append(name)
+            if self._nc[name].remove_children:
+                info['remove_children'].append(name)
             priority = self._nc[name].priority
             directives.append((name, priority))
         if not isinstance(node, LC.Element):
@@ -385,6 +397,8 @@ class Converter(object):
                 continue
             if node_c.remove:
                 info['remove'].append(att)
+            if node_c.remove_children:
+                info['remove_children'].append(att)
             priority = node_c.priority
             index = len(directives)
             while index > 0:
@@ -449,6 +463,7 @@ class Converter(object):
         while True:
             directives, info = self.get_node_directives(crt)
             remove = info['remove']
+            remove_children = info['remove_children']
             if not remove:
                 clone = crt.clone_node()
                 crtcopy.append_child(clone)
@@ -459,7 +474,7 @@ class Converter(object):
             else:
                 clone = None
             self._run_compile_method(directives, info)
-            if crt.child and not remove:
+            if not remove and not remove_children and crt.child:
                 crtcopy = clone
                 crt = crt[0]
             else:
