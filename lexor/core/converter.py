@@ -74,6 +74,18 @@ class NodeConverter(object):
                 By default we restrict a node directive to the
                 element name.
 
+    - priority: Sometimes it is necessary to specify the order in
+                which directives are run, this is mainly when an
+                attribute directive needs be ran before the element
+                one. The priority is used to sort the directives
+                before their compile functions get called. Priority
+                is defined as a number. Directives with greater
+                numerical priority are compiled first and their
+                pre-link functions are also run in priority order.
+                Directives with the same priority are ordered in the
+                ordered in which they are declared. The default
+                priority is 0.
+
     - remove: Boolean specifying if the node should be removed. Note
               that if another directive acts on a node and has the
               remove property set to ``True`` then only the compile
@@ -87,27 +99,44 @@ class NodeConverter(object):
                        True will remove the children during the
                        compile phase and those nodes will not be
                        available even if the tranclude property is
-                       set set. By default it is set to ``False`` and
+                       set. By default it is set to ``False`` and
                        as with the ``remove`` property, if another
-                       directive has this property set then none
-                       of the other directives will not have access
+                       directive has this property then none
+                       of the other directives will have access
                        those children.
+
+    - terminal: If set to true then the current directive will be the
+                last one to execute.
+
+    - template: A string co
+
+    - auto_transclude: The name of an element in the template in which
+                       the transcluded elements will be placed. Note
+                       that this will remove the element itself and
+                       replaced by the trancluded contents. For this
+                       reason you have to choose a name that does not
+                       collide with any other element in the template.
+                       Also, if more than one elements are declared,
+                       only the first one is used.
 
     """
     directive = None
     restrict = 'E'
+    priority = 0
     remove = False
     remove_children = False
+    terminal = False
 
     template = None
+    parser = None
+    replace = False
+
     template_uri = None
     template_options = None
     _t_element = None
-    priority = 0
 
-    replace = False
     transclude = False
-    terminal = False
+    auto_transclude = False
     require = False
 
 
@@ -377,7 +406,8 @@ class Converter(object):
         directives = []
         info = {
             'remove': [],
-            'remove_children': []
+            'remove_children': [],
+            'replace': [],
         }
         name = node.name
         if name in self._nc and 'E' in self._nc[name].restrict:
@@ -385,8 +415,12 @@ class Converter(object):
                 info['remove'].append(name)
             if self._nc[name].remove_children:
                 info['remove_children'].append(name)
+            if self._nc[name].replace:
+                info['replace'].append(name)
             priority = self._nc[name].priority
             directives.append((name, priority))
+            if self._nc[name].terminal:
+                return directives, info
         if not isinstance(node, LC.Element):
             return directives, info
         for att in node.attributes:
@@ -399,6 +433,8 @@ class Converter(object):
                 info['remove'].append(att)
             if node_c.remove_children:
                 info['remove_children'].append(att)
+            if node_c.replace:
+                info['replace'].append(att)
             priority = node_c.priority
             index = len(directives)
             while index > 0:
@@ -407,22 +443,38 @@ class Converter(object):
                 else:
                     break
             directives.insert(index, (att, priority))
+            if node_c.terminal:
+                break
         # TODO: Handle classes
         return directives, info
 
     def _pre_link_node(self, crt):
         if not hasattr(crt, '__directives__'):
-            return
-        for directive, priority in crt.__directives__:
+            return crt
+        directives = crt.__directives__
+        for directive, priority in directives:
             node_c = self._nc[directive]
             if node_c._t_element is not None:
                 t_node = node_c._t_element.clone_node(True)
                 transcluded_elements = LC.DocumentFragment()
                 transcluded_elements.extend_children(crt)
                 crt.extend_children(t_node)
+                if node_c.auto_transclude:
+                    target = crt.get_nodes_by_name(
+                        node_c.auto_transclude, 1
+                    )[0]
+                    target.append_nodes_after(transcluded_elements)
+                    del target.parent[target.index]
+                transcluded_elements = None
             else:
                 transcluded_elements = None
-            node_c.pre_link(node=crt, transclude=transcluded_elements)
+            node_c.pre_link(node=crt, transclude=transcluded_elements, info=crt.__info__)
+        if crt.__info__['replace']:
+            crt.append_nodes_after(crt)
+            new_crt = crt.next
+            del crt.parent[crt.index]
+            crt = new_crt
+        return crt
 
     def _post_link_node(self, crt):
         if not hasattr(crt, '__directives__'):
@@ -496,7 +548,7 @@ class Converter(object):
             #on_exit(crt)
             return
         while True:
-            self._pre_link_node(crt)
+            crt = self._pre_link_node(crt)
             if crt.child:
                 crt = crt[0]
             else:
