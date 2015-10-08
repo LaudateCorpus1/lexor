@@ -206,27 +206,53 @@ def load_aux(info):
     """Wrapper around :func:`load_mod` for easy use when developing
     styles. The only parameter is the dictionary ``INFO`` that needs
     to be defined with every style. ``INFO`` is returned by the
-    :func:`lexor.init` function."""
+    :func:`lexor.init` function.
+    """
     dirpath = splitext(abspath(info['path']))[0]
     if info['to_lang']:
-        modbase = 'lexor-lang_%s_converter_%s' % (info['lang'],
-                                                  info['to_lang'])
+        modbase = 'lexor-lang_%s_converter_%s_%s'
+        modbase %= (info['lang'], info['to_lang'], info['style'])
     else:
-        modbase = 'lexor-lang_%s_%s_%s' % (info['lang'],
-                                           info['type'],
-                                           info['style'])
+        modbase = 'lexor-lang_%s_%s_%s'
+        modbase %= (info['lang'], info['type'], info['style'])
     return load_mod(modbase, dirpath)
 
 
 def load_rel(path, module):
     """Load relative to a path. If path is the name of a file the
-    filename will be dropped."""
+    filename will be dropped.
+    """
     if not os.path.isdir(path):
         path = os.path.dirname(os.path.realpath(path))
     if '.py' in module:
         module = module[1:-3]
     fname = '%s/%s.py' % (path, module)
     return load_source('load-rel-%s' % module, fname)
+
+
+def style_reference(**info):
+    """Return a reference to a style module. Useful in situations
+    when a node converter may want to access to the style they define.
+
+    Expects the following keys:
+
+    - lang
+    - [to_lang]
+    - [type]: Required if to_lang is not defined.
+    - [style]: defaults to 'default'.
+
+    """
+    style = info.get('style', 'default')
+    if style == '_':
+        style = 'default'
+    to_lang = info.get('to_lang', None)
+    if to_lang:
+        modbase = 'lexor-lang_%s_converter_%s_%s'
+        modbase %= (info['lang'], to_lang, style)
+    else:
+        modbase = 'lexor-lang_%s_%s_%s'
+        modbase %= (info['lang'], info['type'], style)
+    return sys.modules[modbase]
 
 
 def map_explanations(mod, exp):

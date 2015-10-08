@@ -28,7 +28,7 @@ import os.path as pth
 from sys import stdout
 from os.path import realpath, basename, splitext
 from lexor.__version__ import get_version
-from lexor.command.lang import load_aux
+from lexor.command.lang import load_aux, style_reference
 from lexor import core
 
 __all__ = [
@@ -44,7 +44,7 @@ __all__ = [
 def _read_text(src, search=False):
     """Attempt to read a file and return its contents. """
     try:
-        return open(src, 'r').read()
+        return open(src).read()
     except IOError:
         if search is False:
             return None
@@ -55,7 +55,7 @@ def _read_text(src, search=False):
     for directory in lexorinputs.split(':'):
         path = '%s/%s' % (directory, src)
         try:
-            return open(path, 'r').read()
+            return open(path).read()
         except IOError:
             pass
     return None

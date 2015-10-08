@@ -265,8 +265,9 @@ class Parser(object):
     @language.setter
     def language(self, value):
         """Setter function for style. """
-        self._lang = value
-        self._reload = True
+        if self._lang != value:
+            self._lang = value
+            self._reload = True
 
     @property
     def parsing_style(self):
@@ -277,16 +278,18 @@ class Parser(object):
     @parsing_style.setter
     def parsing_style(self, value):
         """Setter function for style. """
-        self._style = value
-        self._reload = True
+        if self._style != value:
+            self._style = value
+            self._reload = True
 
     def set(self, lang, style, defaults=None):
         """Set the language and style in one call. """
         if defaults is not None:
-            self.defaults = defaults
-        self._lang = lang
-        self._style = style
-        self._reload = True
+            if self.defaults is not defaults:
+                self.defaults = defaults
+                self._reload = True
+        self.parsing_style = style
+        self.language = lang
 
     def copy_pos(self):
         """Return a copy of the current position. """

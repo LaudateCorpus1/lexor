@@ -128,7 +128,7 @@ class NodeConverter(object):
     terminal = False
 
     template = None
-    parser = None
+    template_parser = None
     replace = False
 
     template_uri = None
@@ -322,7 +322,10 @@ class Converter(object):
         #self._convert(doc)
         # if hasattr(self.style_module, 'convert'):
         #     self.style_module.convert(self, self.doc[-1])
-        map_explanations(self.log[-1].modules, self.log[-1].explanation)
+        map_explanations(
+            self.log[-1].modules,
+            self.log[-1].explanation
+        )
         if not namespace:
             del self.doc[-1].namespace
         self.doc[-1].lang = self._tolang
@@ -400,6 +403,15 @@ class Converter(object):
         for nc_class in self.style_module.REPOSITORY:
             self.register(nc_class)
 
+    def _gather_node_info(self, directive, node_c, info):
+        """Helper function to attach information on `info`. """
+        if node_c.remove:
+            info['remove'].append(directive)
+        if node_c.remove_children:
+            info['remove_children'].append(directive)
+        if node_c.replace:
+            info['replace'].append(directive)
+
     def get_node_directives(self, node):
         """Examine the node and return a list of directives that can
         be applied to the node"""
@@ -411,12 +423,7 @@ class Converter(object):
         }
         name = node.name
         if name in self._nc and 'E' in self._nc[name].restrict:
-            if self._nc[name].remove:
-                info['remove'].append(name)
-            if self._nc[name].remove_children:
-                info['remove_children'].append(name)
-            if self._nc[name].replace:
-                info['replace'].append(name)
+            self._gather_node_info(name, self._nc[name], info)
             priority = self._nc[name].priority
             directives.append((name, priority))
             if self._nc[name].terminal:
@@ -429,12 +436,7 @@ class Converter(object):
             node_c = self._nc[att]
             if 'A' not in node_c.restrict:
                 continue
-            if node_c.remove:
-                info['remove'].append(att)
-            if node_c.remove_children:
-                info['remove_children'].append(att)
-            if node_c.replace:
-                info['replace'].append(att)
+            self._gather_node_info(att, node_c, info)
             priority = node_c.priority
             index = len(directives)
             while index > 0:
@@ -489,6 +491,13 @@ class Converter(object):
             if not node_c._t_element:
                 if node_c.template is not None:
                     # TODO: Adapt errors
+                    if node_c.template_parser is not None:
+                        settings = node_c.template_parser
+                        self._parser.set(
+                            settings['lang'],
+                            settings['style'],
+                            settings['defaults']
+                        )
                     self._parser.parse(node_c.template)
                     parser_doc = self._parser.doc
                     compiled_doc = parser_doc.clone_node()
