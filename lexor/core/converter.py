@@ -609,8 +609,11 @@ class Converter(object):
         original_stdout = sys.stdout
         sys.stdout = StringIO()
         try:
-            exec(node.data, namespace)
-        except BaseException:
+            file_name = '<%s: ?python section-%d>' % (namespace['__FILE__'], id_num)
+            code = compile(node.data, file_name, 'exec')
+            import codeop
+            exec(code, namespace)
+        except BaseException as e:
             self.msg(self.__module__, 'E100', node, [id_num])
             if error:
                 err_node = LC.Element('python_pi_error')
