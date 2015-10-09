@@ -89,8 +89,9 @@ def run_develop(param, cfg, verbose):
             path = '%s/%s' % (config.CONFIG['path'], path)
         for pth in iglob('%s/test_%s.py' % (path, testname)):
             cmd = 'nosetests -vs %s%s' % (pth, subtest)
-            _, err, _ = exec_cmd(cmd)
+            out, err, _ = exec_cmd(cmd)
             if verbose:
+                print(out)
                 print(err)
             if 'FAILED' in err:
                 failed.append([cmd, err])
@@ -218,10 +219,11 @@ def find_failed(tests, lang, style, defaults):
     return failed
 
 
-def nose_msg_explanations(lang, type_, style, name, defaults=None):
+def nose_msg_explanations(lang, type_, style, name, to_lang=None,
+                          defaults=None):
     """Gather the ``MSG_EXPLANATION`` list and run the tests it
     contains."""
-    mod = get_style_module(type_, lang, style)
+    mod = get_style_module(type_, lang, style, to_lang)
     mod = sys.modules['%s_%s' % (mod.__name__, name)]
     if not hasattr(mod, 'MSG_EXPLANATION'):
         return
@@ -237,61 +239,19 @@ def nose_msg_explanations(lang, type_, style, name, defaults=None):
             wdisp('\n%s\n' % '\n'.join(err))
         else:
             wdisp('ok\n')
-        err = '\n'.join(err)
     eq_(errors, False, "Errors in MSG_EXPLANATION")
     wdisp('...................... ')
 
 
-# @deprecated
-def print_log(node):
-    """Display the error obtained from parsing. """
-    pos = node['position']
-    sys.stderr.write('\n  Line %d, Column %d ' % (pos[0], pos[1]))
-    sys.stderr.write('in %s:\n      ' % node['file'])
-    tmp = re.sub(r"\s+", " ", node['message'])
-    sys.stderr.write('\n      '.join(WRAPPER.wrap(tmp)))
-    sys.stderr.write('\n\n ... ')
-
-
-# @deprecated
-def parse_write(callerfile, in_, out_, style, lang):
-    """Provide the filename as the input and the style you wish
-    to compare it against. """
-    inputfile = "%s/../%s" % (dirname(callerfile), in_)
-    with open(inputfile) as tmpf:
-        text = tmpf.read()
-    sys.stderr.write('\n%s\n%s' % ('='*70, text))
-    sys.stderr.write('%s\n' % ('-'*50))
-    outputfile = "%s/%s.%s.%s" % (dirname(callerfile), out_, style, lang)
-    with open(outputfile) as tmpf:
-        text = tmpf.read()
-    doc, log = lexor.read(inputfile)
-    doc.style = style
-    lexor.write(log, sys.stderr)
-    sys.stderr.write('\n%s\n' % ('-'*50))
-    lexor.write(doc, sys.stderr)
-    sys.stderr.write('\n%s\n' % ('='*70))
-    return str(doc), text
-
-
-# @deprecated
-def parse_convert_write(callerfile, in_, out_, style, tolang):
-    """Provide the filename as the input and the style you wish
-    to compare it against. """
-    inputfile = "%s/../%s" % (dirname(callerfile), in_)
-    with open(inputfile) as tmpf:
-        text = tmpf.read()
-    sys.stderr.write('\n%s\n%s' % ('='*70, text))
-    sys.stderr.write('%s\n' % ('-'*50))
-    outputfile = "%s/%s.%s.%s" % (dirname(callerfile), out_, style, tolang)
-    with open(outputfile) as tmpf:
-        text = tmpf.read()
-    doc, log = lexor.read(inputfile)
-    doc.style = 'default'
-    newdoc, newlog = lexor.convert(doc, tolang, style)
-    lexor.write(log, sys.stderr)
-    lexor.write(newlog, sys.stderr)
-    sys.stderr.write('\n%s\n' % ('-'*50))
-    lexor.write(newdoc, sys.stderr)
-    sys.stderr.write('\n%s\n' % ('='*70))
-    return str(newdoc), text
+def equal_nodes(node1, node2):
+    """Return true if the nodes contain the same information."""
+    # TODO: Perform more comparisons on data and attributes
+    if node1.name != node2.name:
+        return False
+    if len(node1) != len(node2):
+        return False
+    if node1.child:
+        for i, child in enumerate(node1):
+            if not equal_nodes(child, node2[i]):
+                return False
+    return True

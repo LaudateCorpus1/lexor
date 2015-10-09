@@ -119,6 +119,9 @@ class NodeConverter(object):
                        Also, if more than one elements are declared,
                        only the first one is used.
 
+    NOTE: All nodes execute the compile method. The prelink and
+    postlink however, those are only run by Elements.
+
     """
     directive = None
     restrict = 'E'
@@ -481,11 +484,11 @@ class Converter(object):
     def _post_link_node(self, crt):
         if not hasattr(crt, '__directives__'):
             return
-        for directive, priority in crt.__directives__:
+        for directive, priority in reversed(crt.__directives__):
             node_c = self._nc[directive]
             node_c.post_link(node=crt)
 
-    def _run_compile_method(self, directives, info):
+    def _run_compile_method(self, directives, info, clone):
         for directive, priority in directives:
             node_c = self._nc[directive]
             if not node_c._t_element:
@@ -508,7 +511,7 @@ class Converter(object):
                     tdoc = None
             else:
                 tdoc = node_c._t_element.clone_node(True)
-            node_c.compile(t_node=tdoc, info=info)
+            node_c.compile(t_node=tdoc, info=info, clone=clone)
 
     def _compile_doc(self, doc, doccopy):
         """Creates a copy of the document and calls the compile
@@ -534,7 +537,7 @@ class Converter(object):
                     clone.__t_node__ = dict()
             else:
                 clone = None
-            self._run_compile_method(directives, info)
+            self._run_compile_method(directives, info, clone)
             if not remove and not remove_children and crt.child:
                 crtcopy = clone
                 crt = crt[0]
@@ -620,7 +623,11 @@ class Converter(object):
         sys.stdout.close()
         sys.stdout = original_stdout
         parser.parse(text)
-        node.parent.extend_before(node.index, parser.doc)
+
+        compiled_doc = parser.doc.clone_node()
+        self._compile_doc(parser.doc, compiled_doc)
+
+        node.parent.extend_before(node.index, compiled_doc)
         newnode = Converter.remove_node(node)
         if parser.log:
             self.msg(self.__module__, 'W101', node, [id_num])

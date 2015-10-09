@@ -24,7 +24,7 @@ LC = sys.modules['lexor.core']
 
 class NodeParser(object):
     """An object that has two methods: ``make_node`` and ``close``.
-    Both method is required to be overloaded in derived objects."""
+    Both methods are required to be overloaded in derived classes."""
 
     def __init__(self, parser):
         """A |NodeParser| needs to be initialized with a |Parser|
