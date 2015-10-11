@@ -293,7 +293,7 @@ class Parser(object):
 
     def copy_pos(self):
         """Return a copy of the current position. """
-        return list(self.pos)
+        return self.pos[0], self.pos[1]
 
     def update(self, index):
         """Changes the position of the ``caret`` and updates ``pos``.

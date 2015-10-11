@@ -69,9 +69,7 @@ class Text(CharacterData):
 
     def clone_node(self, _=True):
         """Return a new ``Text`` node with the same data content. """
-        node = Text(self.data)
-        node.set_position(self.line, self.column)
-        return node
+        return Text(self.data).set_position(self.line, self.column)
 
 
 class ProcessingInstruction(CharacterData):
@@ -149,6 +147,7 @@ class Comment(CharacterData):
         """Returns a new comment with the same data content. """
         node = Comment(self.data)
         node.type = self.type
+        node.set_position(self.line, self.column)
         return node
 
 
@@ -171,7 +170,7 @@ class CData(CharacterData):
     def clone_node(self, _=True):
         """Returns a new ``CData`` node with the same data content.
         """
-        return CData(self.data)
+        return CData(self.data).set_position(self.line, self.column)
 
 
 class Entity(CharacterData):
@@ -203,7 +202,7 @@ class Entity(CharacterData):
 
     def clone_node(self, _=True):
         """Returns a new ``Entity`` with the same data content. """
-        return Entity(self.data)
+        return Entity(self.data).set_position(self.line, self.column)
 
 
 class DocumentType(CharacterData):
@@ -229,6 +228,7 @@ class DocumentType(CharacterData):
     def clone_node(self, _=True):
         """Returns a new doctype with the same data content. """
         node = DocumentType(self.data)
+        node.set_position(self.line, self.column)
         return node
 
 
@@ -298,7 +298,7 @@ class Element(Node):
         :meth:`lexor.core.node.Node.__setitem__` for documentation on
         when `val` is not string.
 
-        >>> x.__setitem__(attname) = 'att' <==> x[attname] = 'att'
+            x.__setitem__(attname) = 'att' <==> x[attname] = 'att'
 
         """
         if isinstance(k, str):
@@ -313,7 +313,7 @@ class Element(Node):
     def __delitem__(self, k):
         """Remove a child or attribute.
 
-        >>> x.__delitem__(k) <==> del x[k]
+            x.__delitem__(k) <==> del x[k]
 
         """
         if isinstance(k, str):
@@ -631,6 +631,7 @@ class Document(Element):
         node.update_attributes(self)
         node.uri_ = self.uri_
         node.meta.update(self.meta)
+        node.set_position(self.line, self.column)
         if deep is False or not self.child:
             return node
         clone = Element.clone_node(self, deep, normalize)

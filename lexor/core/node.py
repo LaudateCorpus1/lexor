@@ -274,12 +274,14 @@ class Node(object):
         """
         self.line = line
         self.column = column
+        return self
 
     def remove_children(self):
         """Remove all the child nodes. """
         for child in self.child:
             child.disconnect()
         del self.child[:]
+        return self
 
     def __repr__(self):
         """>>> x.__repr__() == repr(x)

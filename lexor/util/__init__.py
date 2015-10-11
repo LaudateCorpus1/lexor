@@ -15,14 +15,15 @@ class Position(object):
     """
 
     def __init__(self, pos, fmt='{0}:{1:2}'):
-        self.pos = list(pos)
+        self.line = pos[0]
+        self.column = pos[1]
         self.fmt = fmt
 
     def __str__(self):
-        return self.fmt.format(*self.pos)
+        return self.fmt.format(self.line, self.column)
 
     def __repr__(self):
-        return repr(self.pos)
+        return repr([self.line, self.column])
 
     def set_format(self, fmt='{0}:{1:2}'):
         """Set the display format. To reset to the default value
@@ -32,5 +33,5 @@ class Position(object):
 
     def shift(self, delta):
         """Shift the position by the amount specified by delta."""
-        self.pos[0] += delta[0]
-        self.pos[1] += delta[1]
+        self.line += delta[0]
+        self.column += delta[1]
