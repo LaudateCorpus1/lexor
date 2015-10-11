@@ -413,12 +413,14 @@ class Parser(object):
     def _process_text(self, crt):
         """When there is no node then we just read the text. """
         index = self._get_next_check(crt)
+        pos = self.copy_pos()
         if index == -1:
             content = self.text[self.caret:self.end]
             if len(crt) > 0 and isinstance(crt[-1], LC.Text):
                 crt[-1].data += content
             else:
                 crt.append_child(content)
+                crt[-1].set_position(*pos)
             self.update(self.end)
             return
         elif index - self.caret == 0:
@@ -429,6 +431,7 @@ class Parser(object):
             crt[-1].data += content
         else:
             crt.append_child(content)
+            crt[-1].set_position(*pos)
 
     def _close_node(self):
         """Checks and closes a node that is in self._in_progress. """

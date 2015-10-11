@@ -69,24 +69,33 @@ class Text(CharacterData):
 
     def clone_node(self, _=True):
         """Return a new ``Text`` node with the same data content. """
-        return Text(self.data)
+        node = Text(self.data)
+        node.set_position(self.line, self.column)
+        return node
 
 
 class ProcessingInstruction(CharacterData):
     """Represents a "processing instruction", used to keep
     processor-specific information in the text of the document. """
-    __slots__ = ('_target',)
+    __slots__ = ('_target', '_code')
 
     def __init__(self, target, data=''):
         """Create a `Text` node with its `data` set to data. """
         CharacterData.__init__(self, data)
         self.name = target
         self._target = target
+        self._code = None
 
     @property
     def target(self):
         """The target of this processing instruction."""
         return self._target
+
+    @property
+    def code(self):
+        """Return the compiled python code. This is only available
+        after we call `compile_python`. """
+        return self._code
 
     @target.setter
     def target(self, new_target):
@@ -96,7 +105,22 @@ class ProcessingInstruction(CharacterData):
 
     def clone_node(self, _=True):
         """Returns a new PI with the same data content. """
-        return ProcessingInstruction(self._target, self.data)
+        node = ProcessingInstruction(self._target, self.data)
+        node.set_position(self.line, self.column)
+        node._code = self._code
+        return node
+
+    def compile_python(self, uri='<?python>'):
+        """Compiles the processing instruction to python bytecode.
+        Since this is just a wrapper around the built in compile,
+        this function may raise SyntaxError and TypeError exceptions.
+
+        Note: Make sure to set the position of the node is set so that
+        the correct line numbers appear on possible errors thrown by
+        executing the instructions.
+        """
+        data = '{0}{1}'.format('\n'*(self.line-1), self.data)
+        self._code = compile(data, uri, 'exec')
 
 
 class Comment(CharacterData):
@@ -400,7 +424,7 @@ class Element(Node):
         if hasattr(self, '__directives__'):
             node.__directives__ = self.__directives__
             node.__info__ = self.__info__
-            # node.__t_node__ = self.__t_node__
+        node.set_position(self.line, self.column)
         if deep is False or not self.child:
             return node
         crt = self
@@ -560,6 +584,7 @@ class RawText(Element, CharacterData):
     def clone_node(self, deep=True, normalize=True):
         """Returns a new ``RawText`` element"""
         node = RawText(self.name)
+        node.set_position(self.line, self.column)
         node.update_attributes(self)
         if deep is True:
             node.data = self.data
@@ -577,6 +602,7 @@ class Void(Element):
     def clone_node(self, _=True, normalize=True):
         """Returns a new ``Void`` element. """
         node = Void(self.name)
+        node.set_position(self.line, self.column)
         node.update_attributes(self)
         return node
 

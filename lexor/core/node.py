@@ -72,7 +72,8 @@ def debug_info(node):
 class Node(object):
     """Primary datatype for the entire Document Object Model. """
     __slots__ = ('name', 'owner', 'parent', 'index',
-                 'prev', 'next', 'child', 'level')
+                 'prev', 'next', 'child', 'level',
+                 'line', 'column')
 
     def __init__(self):
         """Initializes all data descriptors to ``None``. Each
@@ -88,6 +89,8 @@ class Node(object):
         self.next = None
         self.child = None
         self.level = 0
+        self.line = 0
+        self.column = 0
 
     @property
     def node_name(self):
@@ -153,6 +156,18 @@ class Node(object):
             This property is associated with the attribute ``level``.
         """
         return self.level
+
+    @property
+    def node_position(self):
+        """
+        .. admonition:: Read-Only Property
+            :class: note
+
+            A tuple representing the line and column where the node
+            appears in a string. Defaults to ``(0, 0)``.
+
+        """
+        return self.line, self.column
 
     @property
     def element_index(self):
@@ -253,6 +268,12 @@ class Node(object):
             if isinstance(crt, LC.Element):
                 return crt
         return None
+
+    def set_position(self, line, column):
+        """Specify the position where the node begins in a document.
+        """
+        self.line = line
+        self.column = column
 
     def remove_children(self):
         """Remove all the child nodes. """

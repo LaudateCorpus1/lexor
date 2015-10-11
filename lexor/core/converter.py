@@ -609,14 +609,12 @@ class Converter(object):
         original_stdout = sys.stdout
         sys.stdout = StringIO()
         try:
-            file_name = '<%s: ?python section-%d>' % (namespace['__FILE__'], id_num)
-            code = compile(node.data, file_name, 'exec')
-            import codeop
-            exec(code, namespace)
-        except BaseException as e:
+            exec(node.code, namespace)
+        except BaseException:
             self.msg(self.__module__, 'E100', node, [id_num])
             if error:
                 err_node = LC.Element('python_pi_error')
+                err_node.set_position(*node.node_position)
                 err_node['section'] = str(id_num)
                 err_node.append_child(
                     LC.CData(traceback.format_exc())
