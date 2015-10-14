@@ -449,10 +449,9 @@ class Parser(object):
                 name = self._in_progress[i][0].name
                 self.msg(
                     self.__module__, 'W100',
-                    self._in_progress[i][0].pos,
+                    self._in_progress[i][0].node_position,
                     (name, Position(autoclose))
                 )
-                del self._in_progress[i][0].pos
                 del self._in_progress[i]
             del self._in_progress[num]
             if self._in_progress:
@@ -485,8 +484,8 @@ class Parser(object):
             elif self._process_node(crt, node, processor) is node:
                 self.current_node = crt = node
         for node, processor in self._in_progress:
-            self.msg(self.__module__, 'E100', node.pos, [node.name])
-            del node.pos
+            node_pos = node.node_position
+            self.msg(self.__module__, 'E100', node_pos, [node.name])
 
 
 MSG = {

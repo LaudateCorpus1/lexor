@@ -8,19 +8,19 @@ There are a couple of functions that have been written to be used
 inside python embeddings. These are:
 
 - :func:`get_converter_namespace`
-- :func:`get_lexor_namespace`
-- :func:`get_current_node` equivalent to ``__NODE__``
 - :func:`echo`
 - :func:`include`
 - :func:`import_module`
 
 When writing python embeddings there are several special variables
-that can be used, one of them as mentioned above is ``__NODE__``
-which has the returned value of the function
-:func:`get_current_node`. The other two are ``__FILE__`` which takes
-in the value of the path of the document which is executing the
-python embedding and ``__DIR__`` which is equivalent to
-``os.path.dirname(__FILE__)``.
+that can be used:
+
+- ``__NAMESPACE__``: The namespace where the execution is taking place
+- ``__NODE__``: The current processing instruction
+- ``__FILE__``:  path of the document which is executing the
+                 python embedding
+- ``__DIR__``: equivalent to ``os.path.dirname(__FILE__)``
+
 
 .. |Converter| replace:: :class:`~.Converter`
 .. |Parser| replace:: :class:`~lexor.core.parser.Parser`
@@ -124,6 +124,7 @@ class NodeConverter(object):
 
     """
     directive = None
+    directive_alias = []
     restrict = 'E'
     priority = 0
     remove = False
@@ -164,14 +165,42 @@ class NodeConverter(object):
 
     def msg(self, code, node, arg=None, uri=None):
         """Send a message to the converter by providing one of the
-        error codes defined in the style as well as the position
-        where the error took place. The position has the form of a
-        list containing the line and column number. Some error codes
-        may provide arguments, this can be passed to `arg`. In case
-        the error occurred somewhere not in the current document,
-        perhaps in a string, then you may provide a new `uri` to
-        denote the location."""
+        error codes defined in the style as well as the node
+        where the error took place. Some error codes may provide
+        arguments, this can be passed to `arg`. In case the error
+        occurred somewhere not in the current document, perhaps in a
+        string, then you may provide a new `uri` to denote the
+        location.
+        """
         self.converter.msg(self.__module__, code, node, arg, uri)
+
+
+class PythonNC(NodeConverter):
+    """Append a node with python instructions to a list. """
+
+    directive = '?python'
+    directive_alias = ['?py']
+
+    def __init__(self, converter):
+        NodeConverter.__init__(self, converter)
+        self.parser = LC.Parser(converter._fromlang, 'default')
+        self.err = 'on'
+        self.exe = 'on'
+        if 'py_error' in converter.defaults:
+            self.err = converter.defaults['py_error']
+        if 'py_exec' in converter.defaults:
+            self.exe = converter.defaults['py_exec']
+        self.err = self.err not in ['off', 'false', '0']
+        self.exe = self.exe not in ['off', 'false', '0']
+        self.num = 0
+
+    def compile(self, **info):
+        node = info['clone']
+        self.num += 1
+        ctr = self.converter
+        if not self.exe:
+            return node
+        ctr.exec_python(node, self.num, self.parser, self.err)
 
 
 # pylint: disable=R0903
@@ -366,6 +395,8 @@ class Converter(object):
         wnode['code'] = code
         wnode['node_id'] = id(node)
         wnode.node = node
+        if node.node_position != (0, 0):
+            wnode['position'] = node.node_position
         try:
             wnode['uri'] = node['uri']
             del node['uri']
@@ -391,19 +422,26 @@ class Converter(object):
                 raise LexorError(msg.format(node_c.directive))
         self._node_converter[class_name] = node_c
         self._nc[node_c.directive] = node_c
+        for alias in node_c.directive_alias:
+            self._nc[alias] = node_c
         return node_c
 
     def _set_node_converters(self, fromlang, tolang, style, defaults=None):
         """Imports the correct module based on the languages and
         style. """
-        self.style_module = get_style_module(
+        mod = self.style_module = get_style_module(
             'converter', fromlang, style, tolang
         )
         name = '%s-converter-%s-%s' % (fromlang, tolang, style)
         config.set_style_cfg(self, name, defaults)
         self._nc = dict()
         self._node_converter = dict()
-        for nc_class in self.style_module.REPOSITORY:
+        self.register(PythonNC)
+        try:
+            repo = mod.REPOSITORY
+        except AttributeError:
+            repo = []
+        for nc_class in repo:
             self.register(nc_class)
 
     def _gather_node_info(self, directive, node_c, info):
@@ -603,9 +641,10 @@ class Converter(object):
             namespace['import_module'] = import_module
             namespace['include'] = include
             namespace['echo'] = echo
-        namespace['__FILE__'] = pth.realpath(include.converter[-1].doc[-1].uri)
+        namespace['__FILE__'] = pth.realpath(self.doc[-1].uri)
         namespace['__DIR__'] = pth.dirname(namespace['__FILE__'])
         namespace['__NODE__'] = get_current_node()
+        namespace['__CONVERTER__'] = self
         original_stdout = sys.stdout
         sys.stdout = StringIO()
         try:
@@ -641,10 +680,12 @@ class Converter(object):
             namespace['__FILE__'] = pth.realpath(doc.uri)
             namespace['__DIR__'] = pth.dirname(namespace['__FILE__'])
             namespace['__NODE__'] = get_current_node()
+            namespace['__CONVERTER__'] = get_converter()
         else:
             namespace['__FILE__'] = None
             namespace['__DIR__'] = None
             namespace['__NODE__'] = None
+            namespace['__CONVERTER__'] = None
         return newnode
 
 
@@ -658,7 +699,8 @@ if not hasattr(get_lexor_namespace, 'namespace'):
 
 def get_current_node():
     """Return the document node containing the python embeddings
-    currently being executed. """
+    currently being executed.
+    """
     return get_current_node.current[-1]
 if not hasattr(get_current_node, 'current'):
     get_current_node.current = list()
@@ -690,6 +732,13 @@ def echo(node):
             echo(node[0])
 
 
+def get_converter():
+    """Return the current converter being used to execute the python
+    embeddings.
+    """
+    return include.converter[-1]
+
+
 def include(input_file, **keywords):
     """Inserts a file into the current node. Absolute paths may be
     provided as well as relative. When using relative paths the files
@@ -709,7 +758,7 @@ def include(input_file, **keywords):
     will be inserted."""
     parent_converter = include.converter[-1]
     if input_file[0] != '/':
-        input_file = pth.join(pth.dirname(parent_converter.doc.uri),
+        input_file = pth.join(pth.dirname(parent_converter.doc[-1].uri),
                               input_file)
     info = {
         'parser_style': 'default',

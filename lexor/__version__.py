@@ -8,7 +8,7 @@ version_info conforms to PEP 386
 
 """
 
-VERSION_INFO = (0, 1, 2, 'rc', 4)
+VERSION_INFO = (0, 1, 3, 'rc', 0)
 
 
 def get_version(version_info):
