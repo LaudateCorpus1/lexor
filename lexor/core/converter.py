@@ -275,12 +275,24 @@ class Converter(object):
     """To see the languages available to the converter see the
     :mod:`lexor.command.lang` module. """
 
-    def __init__(self, fromlang='xml', tolang='xml',
-                 style='default', defaults=None):
+    def __init__(self, fromlang='lexor', tolang='html',
+                 style='default', defaults=None,
+                 parser_info=None):
         """Create a new converter by specifying the language and the
-        style in which node objects will be written. """
+        style in which node objects will be written. Each converter
+        also comes with a parser, you may specify the parser info
+        by setting the parameter `parser_info` to a dictionary
+        containing the keys `[lang, style, defaults]. By default the
+        parser takes on the language the converter is converting from.
+        """
         if defaults is None:
             defaults = dict()
+        if parser_info is None:
+            parser_info = {
+                'lang': fromlang,
+                'style': 'default',
+                'defaults': None
+            }
         self._fromlang = fromlang
         self._tolang = tolang
         self._style = style
@@ -288,8 +300,7 @@ class Converter(object):
         self._node_converter = None
         self._convert_func = None
         self._reload = True
-        # TODO: Think of a way to let use set the parser style
-        self._parser = LC.Parser(fromlang)
+        self.parser = LC.Parser(**parser_info)
         self.style_module = None
         self.doc = list()
         self.log = list()
@@ -307,9 +318,9 @@ class Converter(object):
     @convert_from.setter
     def convert_from(self, value):
         """Setter function for convert_from. """
-        self._fromlang = value
-        # TODO: If you set it to the same value?
-        self._reload = True
+        if self._fromlang != value:
+            self._fromlang = value
+            self._reload = True
 
     @property
     def convert_to(self):
@@ -319,8 +330,9 @@ class Converter(object):
     @convert_to.setter
     def convert_to(self, value):
         """Setter function for convert_to. """
-        self._tolang = value
-        self._reload = True
+        if self._tolang != value:
+            self._tolang = value
+            self._reload = True
 
     @property
     def converting_style(self):
@@ -330,18 +342,35 @@ class Converter(object):
     @converting_style.setter
     def converting_style(self, value):
         """Setter function for converting_style. """
-        self._style = value
-        self._reload = True
+        if self._style != value:
+            self._style = value
+            self._reload = True
+
+    @property
+    def options(self):
+        """The default settings for the current converting style. This
+        is a dictionary mapping keys to strings or array of strings.
+
+        This property is associated with attribute `defaults`.
+        """
+        return self.defaults
+
+    @options.setter
+    def options(self, value):
+        """Setter function for defaults. """
+        if value is None:
+            value = {}
+        if self.defaults is not value:
+            self.defaults = value
+            self._reload = True
 
     def set(self, fromlang, tolang, style, defaults=None):
         """Sets the languages and styles in one call. """
-        if defaults is not None:
-            self.defaults = defaults
-        self._style = style
-        self._tolang = tolang
-        self._fromlang = fromlang
-        self._parser.set(fromlang, 'default')
-        self._reload = True
+        self.convert_from = fromlang
+        self.convert_to = tolang
+        self.converting_style = style
+        self.options = defaults
+        self.parser.language = fromlang
 
     def match_info(self, fromlang, tolang, style, defaults=None):
         """Check to see if the converter main information matches."""
@@ -577,13 +606,13 @@ class Converter(object):
                     # TODO: Adapt errors
                     if node_c.template_parser is not None:
                         settings = node_c.template_parser
-                        self._parser.set(
+                        self.parser.set(
                             settings['lang'],
                             settings['style'],
                             settings['defaults']
                         )
-                    self._parser.parse(node_c.template)
-                    parser_doc = self._parser.doc
+                    self.parser.parse(node_c.template)
+                    parser_doc = self.parser.doc
                     compiled_doc = parser_doc.clone_node()
                     self._compile_doc(parser_doc, compiled_doc)
                     node_c._t_element = compiled_doc

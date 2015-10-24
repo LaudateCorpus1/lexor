@@ -97,7 +97,7 @@ class Parser(object):
     """To see the languages that it is able to parse see the
     :mod:`lexor.command.lang` module. """
 
-    def __init__(self, lang='xml', style='default', defaults=None):
+    def __init__(self, lang='lexor', style='default', defaults=None):
         """Create a new parser by specifying the language and the
         style in which text will be parsed. """
         if defaults is None:
@@ -282,12 +282,27 @@ class Parser(object):
             self._style = value
             self._reload = True
 
+    @property
+    def options(self):
+        """The default settings for the current parsing style. This
+        is a dictionary mapping keys to strings or array of strings.
+
+        This property is associated with attribute `defaults`.
+        """
+        return self.defaults
+
+    @options.setter
+    def options(self, value):
+        """Setter function for defaults. """
+        if value is None:
+            value = {}
+        if self.defaults is not value:
+            self.defaults = value
+            self._reload = True
+
     def set(self, lang, style, defaults=None):
         """Set the language and style in one call. """
-        if defaults is not None:
-            if self.defaults is not defaults:
-                self.defaults = defaults
-                self._reload = True
+        self.options = defaults
         self.parsing_style = style
         self.language = lang
 
