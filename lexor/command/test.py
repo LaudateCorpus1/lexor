@@ -38,6 +38,12 @@ specific test name:
     lang.type.style:testname
     lang.converter.tolang.style:testname
 
+Note: `testname` is the name of one of the auxitiliary files used for
+the style. If you need to run a test inside one of these auxiliary
+files you can use an extra semicolon as follows:
+
+    lang.tyle.style:testname:test_method
+
 """
 
 
@@ -83,6 +89,7 @@ def run_develop(param, cfg, verbose):
             subtest = ':%s' % param[2]
     keys = [key for key in cfg['develop'] if param[0] in key]
     failed = []
+    # TODO: work on debugging messages
     for key in keys:
         path = cfg['develop'][key][:-3]
         if path[0] != '/':

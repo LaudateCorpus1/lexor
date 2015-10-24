@@ -119,6 +119,47 @@ class NodeConverter(object):
                        Also, if more than one elements are declared,
                        only the first one is used.
 
+    - require: A list of required directives to get a handle on. Some
+               times we may require another directive to be declared
+               on the current node or perhaps in one of the parents.
+
+               The require property is a list of directive names. Each
+               name can be prefixed with
+
+               * (no prefix) - Locate the required node converter on
+                               the current element. Throw an error if
+                               not found.
+               * $ - Attempt to locate the required node converter or
+                     pass None if not found.
+               * ^ - Locate the required node converter by searching
+                     the element and its parents. Throw an error if
+                     not found.
+               * ^^ - Locate the required node converter by searching
+                      the element's parents. Throw an error if not
+                      found.
+               * $^ - Attempt to locate the required node converter
+                      by searching the element and its parents or pass
+                      None if not found.
+               * $^^ - Attempt to locate the required node converter
+                       by searching the element's parents, or pass
+                       None if not found.
+               * ^N - Locate the require node converter by searching
+                      the Nth element's parent. Throw an error if not
+                      found.
+               * $^N - Attempt to locate the required node converter
+                       by searching the Nth element's parent, or pass
+                       None if not found.
+
+               Additionally, if a node converter is not found you may
+               try to recover by asking for another one by separating
+               with `|`. For instance:
+
+               require: ['?python|?py', '^1dir_name']
+
+               This says, look for the directive of name '?python', if
+               its not found, look for '?py', and the first parent
+               must contain the directive 'dir_name'.
+
     NOTE: All nodes execute the compile method. The prelink and
     postlink however, those are only run by Elements.
 
@@ -141,7 +182,7 @@ class NodeConverter(object):
 
     transclude = False
     auto_transclude = False
-    require = False
+    require = []
 
 
     def __init__(self, converter):
@@ -444,7 +485,8 @@ class Converter(object):
         for nc_class in repo:
             self.register(nc_class)
 
-    def _gather_node_info(self, directive, node_c, info):
+    @staticmethod
+    def _gather_node_info(directive, node_c, info):
         """Helper function to attach information on `info`. """
         if node_c.remove:
             info['remove'].append(directive)
@@ -461,6 +503,7 @@ class Converter(object):
             'remove': [],
             'remove_children': [],
             'replace': [],
+
         }
         name = node.name
         if name in self._nc and 'E' in self._nc[name].restrict:
