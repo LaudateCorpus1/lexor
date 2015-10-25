@@ -192,12 +192,27 @@ class NodeConverter(object):
         is used by |Converter| and it calls it with itself as the
         parameter. """
         self.converter = converter
+
         if self.directive is None:
             raise LexorError('missing directive name')
+        if isinstance(self.require, str):
+            self.require = [self.require]
+        parse = Converter.parse_requirement
+        self.require = [parse(r) for r in self.require]
 
-    def compile(self, **_):
+    def compile(self, node, dir_info, t_node, required):
+        """Method to run during the compilation phase. Here we can
+        use the current ``node`` in which the directive is running.
+        ``dir_info`` is a dictionary with the directive information,
+        it mainly informs you if any other directives in the node
+        will remove the node or any of the children. Then we get
+        the ``t_node`` which is the compiled template that the
+        directive declares. Finally ``required`` is an array
+        containing the required directives for this node converter.
+        """
         pass
 
+    # node_c.pre_link(node=crt, transclude=transcluded_elements, info=crt.__info__)
     def pre_link(self, **_):
         pass
 
@@ -373,15 +388,24 @@ class Converter(object):
         self.parser.language = fromlang
 
     def match_info(self, fromlang, tolang, style, defaults=None):
-        """Check to see if the converter main information matches."""
+        """Check to see if the converter main information matches.
+        This may help us decide if we need to create another converter
+        or use the current one if the main information is the one we
+        need.
+
+        NOTE: Currently the default values are not being compared
+              this means that if defaults are provided to this method
+              then it will return False.
+        """
         match = True
         if defaults is not None:
+            # TODO: Compare the default values
             match = False
-        elif fromlang not in [self._fromlang]:
+        elif fromlang != self._fromlang:
             match = False
-        elif tolang not in [self._tolang]:
+        elif tolang != self._tolang:
             match = False
-        elif style not in [self._style]:
+        elif style != self._style:
             match = False
         return match
 
@@ -417,13 +441,12 @@ class Converter(object):
         doccopy = doc.clone_node()
         doccopy.namespace = dict()
         self.doc.append(doccopy)
-        # if hasattr(self.style_module, 'init_conversion'):
-        #     self.style_module.init_conversion(self, doccopy)
+        if hasattr(self.style_module, 'pre_process'):
+            self.style_module.pre_process(self, doccopy)
         self._compile_doc(doc, doccopy)
         self._link_doc(doccopy)
-        #self._convert(doc)
-        # if hasattr(self.style_module, 'convert'):
-        #     self.style_module.convert(self, self.doc[-1])
+        if hasattr(self.style_module, 'post_process'):
+            self.style_module.post_process(self, doccopy)
         map_explanations(
             self.log[-1].modules,
             self.log[-1].explanation
@@ -513,6 +536,112 @@ class Converter(object):
             repo = []
         for nc_class in repo:
             self.register(nc_class)
+
+    @staticmethod
+    def _parse_requirement(req):
+        """Parse a string ``req``. Each requiment can be prefixed with
+
+            - (no prefix)
+            - $
+            - ^
+            - ^^
+            - $^
+            - $^^
+            - ^N
+            - $^N
+
+        Returns a tuple formated as follows:
+
+            (optional, level, directive)
+
+        where
+
+            - optional: boolean specifying if the requirement is
+                        optional, that is, not to raise an
+                        exception.
+            - level: 0 if the directive should be on the same node
+                     N if the directive should be on the Nth parent
+                     -1 if the directive may be found in the same
+                        node or any of the parents.
+                     -2 if the directive may be found in any of the
+                        parent nodes.
+            - directive: The directive name
+        """
+        optional = req[0] == '$'
+        caret = int(optional)
+        if req[caret] != '^':
+            level = 0
+        elif req[caret+1] == '^':
+            level = -2
+            caret += 2
+        elif req[caret+1] == '(':
+            caret += 2
+            begin = caret
+            while req[caret] != ')':
+                caret += 1
+            tmp = req[begin:caret]
+            level = -1 if not tmp else int(tmp)
+            caret += 1
+        else:
+            caret += 1
+            begin = caret
+            while req[caret].isdigit():
+                caret += 1
+            tmp = req[begin:caret]
+            level = -1 if not tmp else int(tmp)
+        directive = req[caret:]
+        return optional, level, directive
+
+    @staticmethod
+    def parse_requirement(req):
+        """Parse a requirement containing ``|``. Splits the
+        requirement and runs the method ``parse_requirement`` for each
+        entry.
+        """
+        parse = Converter._parse_requirement
+        return [parse(r) for r in req.split('|')]
+
+    @staticmethod
+    def get_requirement(node, req):
+        """Find the given requirement in the node. The requirement
+        may be a string which will be parsed or an already parsed
+        requirement.
+
+        Returns a tuple containing the directive and the node where
+        it was found.
+        """
+        if isinstance(req, str):
+            req = Converter.parse_requirement(req)
+        for requirement in req:
+            optional, level, directive = requirement
+            if level in [-2, -1]:
+                if level == -1:
+                    for name, _ in node.__directives__:
+                        if directive == name:
+                            return directive, node
+                crt = node
+                while crt.parent is not None:
+                    crt = crt.parent
+                    for name, _ in crt.__directives__:
+                        if directive == name:
+                            return directive, crt
+            elif level == 0:
+                for name, _ in node.__directives__:
+                    if directive == name:
+                        return directive, node
+            else:
+                crt = node
+                parent_num = 0
+                while crt.parent is not None and parent_num < level:
+                    crt = crt.parent
+                    parent_num += 1
+                if parent_num == level:
+                    for name, _ in crt.__directives__:
+                        if directive == name:
+                            return directive, crt
+            if optional:
+                return directive, None
+        raise LexorError('directive not found')
 
     @staticmethod
     def _gather_node_info(directive, node_c, info):
@@ -621,7 +750,14 @@ class Converter(object):
                     tdoc = None
             else:
                 tdoc = node_c._t_element.clone_node(True)
-            node_c.compile(t_node=tdoc, info=info, clone=clone)
+            if clone is not None:
+                require = [
+                    self.get_requirement(clone, r)
+                    for r in node_c.require
+                ]
+            else:
+                require = []
+            node_c.compile(clone, info, tdoc, require)
 
     def _compile_doc(self, doc, doccopy):
         """Creates a copy of the document and calls the compile
