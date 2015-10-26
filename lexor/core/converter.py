@@ -648,6 +648,18 @@ class Converter(object):
         """Helper function to attach information on `info`. """
         if node_c.remove:
             info['remove'].append(directive)
+            values = ['compile', 'pre_link', 'post_link']
+            try:
+                new_val = values.index(node_c.remove)
+            except ValueError:
+                new_val = 0
+            if 'remove_after' in info:
+                crt_val = values.index(info['remove_after'])
+            else:
+                info['remove_after'] = values[2]
+                crt_val = 2
+            if new_val < crt_val:
+                info['remove_after'] = values[new_val]
         if node_c.remove_children:
             info['remove_children'].append(directive)
         if node_c.replace:
@@ -661,7 +673,6 @@ class Converter(object):
             'remove': [],
             'remove_children': [],
             'replace': [],
-
         }
         name = node.name
         if name in self._nc and 'E' in self._nc[name].restrict:
@@ -774,17 +785,18 @@ class Converter(object):
             directives, info = self.get_node_directives(crt)
             remove = info['remove']
             remove_children = info['remove_children']
-            if not remove:
+            if remove and info['remove_after'] == 'compile':
+                clone = None
+            else:
                 clone = crt.clone_node()
                 crtcopy.append_child(clone)
                 if isinstance(clone, LC.Element):
                     clone.__directives__ = directives
                     clone.__info__ = info
                     clone.__t_node__ = dict()
-            else:
-                clone = None
             self._run_compile_method(directives, info, clone)
-            if not remove and not remove_children and crt.child:
+            if (clone is not None and
+                    not remove_children and crt.child):
                 crtcopy = clone
                 crt = crt[0]
             else:
@@ -807,6 +819,11 @@ class Converter(object):
             return
         while True:
             crt = self._pre_link_node(crt)
+            if hasattr(crt, '__info__'):
+                info = crt.__info__
+                remove = info['remove']
+                if remove and info['remove_after'] == 'pre_link':
+                    crt = self.remove_node(crt)
             if crt.child:
                 crt = crt[0]
             else:
