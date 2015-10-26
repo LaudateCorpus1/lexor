@@ -3,7 +3,6 @@
 Execute lexor by transforming a file "to" another language.
 
 """
-
 import re
 import os
 import sys
@@ -179,8 +178,12 @@ def add_parser(subp, fclass):
     tmpp.add_argument('--from', type=language_style, metavar='FROM',
                       dest='parse_lang',
                       help='language to be parsed in')
+    tmpp.add_argument('--convert-from', type=language_style,
+                      metavar='CFROM',
+                      dest='convert_from',
+                      help='language to convert from, ignores --from')
     tmpp.add_argument('--log', type=language_style,
-                      help='language in which the logs will be written')
+                      help='language the logs will be written')
     tmpp.add_argument('--write', '-w', action='store_true',
                       help='write to file')
     tmpp.add_argument('--quiet', '-q', action='store_true',
@@ -222,6 +225,10 @@ def run():
     if arg.parse_lang is None and f_ext != '_':
         parse_lang = (f_ext, parse_lang[1])
     in_lang, in_style = parse_lang
+    if arg.convert_from is None:
+        convert_from = in_lang
+    else:
+        convert_from, _ = arg.convert_from
 
     log = cfg['to']['log']
     if isinstance(log, str):
@@ -236,6 +243,7 @@ def run():
     parser = Parser(in_lang, in_style['name'], in_style['params'])
     log_writer = Writer(log[0], log[1]['name'], log[1]['params'])
     try:
+        L.info('parsing with [%s:%s] ...', in_lang, in_style['name'])
         parser.parse(text, t_name)
     except ImportError:
         msg = 'Parsing style not found: [%s:%s]'
@@ -247,7 +255,7 @@ def run():
         raise LexorError(msg % (parser.log.lang, parser.log.style))
     if not arg.tolang:
         arg.tolang.append(input_language(cfg['to']['lang']))
-    convert_and_write(f_name, parser, in_lang, log, arg)
+    convert_and_write(f_name, parser, convert_from, log, arg)
 
 
 def convert_and_write(f_name, parser, in_lang, log, arg):
@@ -300,6 +308,8 @@ def run_converter(param):
         cstyle = style[0]['name']
         param['converter'].set(in_lang, lang, cstyle, style[0]['params'])
         try:
+            msg = 'converting with [%s ==> %s:%s] ...'
+            L.info(msg, in_lang, lang, cstyle)
             doc, log = param['converter'].convert(parser.doc)
         except ImportError:
             msg = 'converting style not found: [%s ==> %s:%s]'
