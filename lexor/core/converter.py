@@ -320,6 +320,7 @@ class Converter(object):
         self.doc = list()
         self.log = list()
         self.defaults = defaults
+        self.abort = False
 
     def __getitem__(self, name):
         """Return the specified |NodeConverter|. """
@@ -429,7 +430,7 @@ class Converter(object):
     def convert(self, doc, namespace=False):
         """Convert the |Document| or |DocFrag| doc. """
         if not isinstance(doc, (LC.Document, LC.DocumentFragment)):
-            raise TypeError("The node is not a Document or DocumentFragment")
+            raise TypeError("Document or DocumentFragment required")
         if self._reload:
             self._set_node_converters(
                 self._fromlang, self._tolang, self._style, self.defaults
@@ -444,9 +445,10 @@ class Converter(object):
         if hasattr(self.style_module, 'pre_process'):
             self.style_module.pre_process(self, doccopy)
         self._compile_doc(doc, doccopy)
-        self._link_doc(doccopy)
-        if hasattr(self.style_module, 'post_process'):
-            self.style_module.post_process(self, doccopy)
+        if not self.abort:
+            self._link_doc(doccopy)
+            if hasattr(self.style_module, 'post_process'):
+                self.style_module.post_process(self, doccopy)
         map_explanations(
             self.log[-1].modules,
             self.log[-1].explanation
@@ -641,7 +643,27 @@ class Converter(object):
                             return directive, crt
             if optional:
                 return directive, None
-        raise LexorError('directive not found')
+        raise LexorError('Requirement not found: %r' % req, req=req)
+
+    @staticmethod
+    def _encode_requirement(req):
+        """Helper function for encode_requirement."""
+        result = '$' if req[0] else ''
+        if req[1] == -2:
+            result += '^^'
+        elif req[1] == -1:
+            result += '^'
+        elif req[1] > 0:
+            result += '^(' + str(req[1]) + ')'
+        result += req[2]
+        return result
+
+    @staticmethod
+    def encode_requirement(req):
+        """Encode a parsed requirement.
+        """
+        encode = Converter._encode_requirement
+        return '|'.join([encode(r) for r in req])
 
     @staticmethod
     def _gather_node_info(directive, node_c, info):
@@ -762,10 +784,20 @@ class Converter(object):
             else:
                 tdoc = node_c._t_element.clone_node(True)
             if clone is not None:
-                require = [
-                    self.get_requirement(clone, r)
-                    for r in node_c.require
-                ]
+                try:
+                    require = [
+                        self.get_requirement(clone, r)
+                        for r in node_c.require
+                    ]
+                except LexorError as exp:
+                    self.abort = exp
+                    self.msg(
+                        self.__module__, 'E200', clone, [
+                            self.encode_requirement(exp.data['req']),
+                            directive
+                        ]
+                    )
+                    return
             else:
                 require = []
             node_c.compile(clone, info, tdoc, require)
@@ -795,6 +827,8 @@ class Converter(object):
                     clone.__info__ = info
                     clone.__t_node__ = dict()
             self._run_compile_method(directives, info, clone)
+            if self.abort:
+                return
             if (clone is not None and
                     not remove_children and crt.child):
                 crtcopy = clone
@@ -1053,6 +1087,7 @@ MSG = {
     'E100': 'errors in python processing instruction section `{0}`',
     'W101': '--> begin ?python section `{0}` messages',
     'W102': '--> end ?python section `{0}` messages',
+    'E200': 'failed to find the requirement `{0}` for `{1}`',
 }
 MSG_EXPLANATION = [
     """
@@ -1066,13 +1101,17 @@ MSG_EXPLANATION = [
 
 """,
     """
-    - Python embeddings may generate output to be adapted to the
-      document. Such output also needs to be processed. When the
-      output generates errors these errors get appended to the
-      converter log document.
+    - Some directives are required to be declared on the same node
+      or parent nodes in order for a directive to work.
 
-    - All messages between W101 and W102 are are simply errors of the
-      parsed output.
+    - E200 informs us when a requirement has failed and the directive
+      cannot proceed unless the requirement is met.
+
+    - Note that when this error is reported, the compile phase is
+      stopped and the converting process comes to a halt. We
+      may use the writing style `lexor:repr` to see the element
+      that caused the error since this element will be the last one
+      in the document.
 
 """,
 ]

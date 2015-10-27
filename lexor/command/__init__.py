@@ -56,4 +56,7 @@ def date(short=False):
 
 class LexorError(Exception):
     """Every known error should be raised via this exception. """
-    pass
+
+    def __init__(self, *args, **data):
+        Exception.__init__(self, *args)
+        self.data = data

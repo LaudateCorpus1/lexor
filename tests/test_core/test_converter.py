@@ -94,11 +94,11 @@ def test__parse_requirement():
     eq_(parse('^2directive'), (False, 2, 'directive'))
     eq_(parse('^3directive'), (False, 3, 'directive'))
     eq_(parse('^100directive'), (False, 100, 'directive'))
-    eq_(parse('$^0directive'), (True, 0, 'directive'))
-    eq_(parse('$^1directive'), (True, 1, 'directive'))
-    eq_(parse('$^2directive'), (True, 2, 'directive'))
-    eq_(parse('$^3directive'), (True, 3, 'directive'))
-    eq_(parse('$^100directive'), (True, 100, 'directive'))
+    eq_(parse('$^(0)directive'), (True, 0, 'directive'))
+    eq_(parse('$^(1)directive'), (True, 1, 'directive'))
+    eq_(parse('$^(2)directive'), (True, 2, 'directive'))
+    eq_(parse('$^(3)directive'), (True, 3, 'directive'))
+    eq_(parse('$^(100)directive'), (True, 100, 'directive'))
 
     eq_(parse('?$^100directive'), (False, 0, '?$^100directive'))
     eq_(parse('$^^^100directive'), (True, -2, '^100directive'))
@@ -156,3 +156,24 @@ def test_get_requirement():
     eq_(get_req(node, '$^(2)l0-2'), ('l0-2', None))
     eq_(get_req(node, '^(2)l1-2'), ('l1-2', root[0]))
     eq_(get_req(node, '^(1)l2-2'), ('l2-2', node.parent))
+
+
+def test_encode_requirement():
+    """converter.encode_requirement(...)"""
+    encode = Converter._encode_requirement
+    eq_(encode((False, 0, 'directive')), 'directive')
+    eq_(encode((True, 0, 'directive')), '$directive')
+    eq_(encode((False, -1, 'directive')), '^directive')
+    eq_(encode((False, -2, 'directive')), '^^directive')
+    eq_(encode((True, -1, 'directive')), '$^directive')
+    eq_(encode((True, -2, 'directive')), '$^^directive')
+    eq_(encode((False, 1, 'directive')), '^(1)directive')
+    eq_(encode((False, 2, 'directive')), '^(2)directive')
+    eq_(encode((False, 3, 'directive')), '^(3)directive')
+    eq_(encode((False, 100, 'directive')), '^(100)directive')
+    eq_(
+        Converter.encode_requirement(
+            [(False, 100, 'directive'), (False, 1, 'directive')],
+        ),
+        '^(100)directive|^(1)directive'
+    )
