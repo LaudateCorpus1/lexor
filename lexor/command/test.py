@@ -225,6 +225,11 @@ def find_failed(tests, lang, style, defaults):
                 failed.append(test)
     return failed
 
+# TODO: Create a nose_msg_explanations for converter testing
+# it needs to be able to specify the parser used and the converter
+# we are testing. It should be able to tell us if the test failed
+# because of the parser.
+
 
 def nose_msg_explanations(lang, type_, style, name, to_lang=None,
                           defaults=None):

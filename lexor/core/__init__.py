@@ -73,4 +73,9 @@ from lexor.core.converter import (
     Converter,
     get_converter_namespace,
 )
+from lexor.core.zig import (
+    Zig,
+    parse_requirement,
+    encode_requirement,
+)
 from lexor.core.selector import Selector

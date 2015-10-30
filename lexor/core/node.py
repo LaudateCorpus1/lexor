@@ -73,7 +73,7 @@ class Node(object):
     """Primary datatype for the entire Document Object Model. """
     __slots__ = ('name', 'owner', 'parent', 'index',
                  'prev', 'next', 'child', 'level',
-                 'line', 'column')
+                 'line', 'column', 'zig')
 
     def __init__(self):
         """Initializes all data descriptors to ``None``. Each
@@ -91,6 +91,7 @@ class Node(object):
         self.level = 0
         self.line = 0
         self.column = 0
+        self.zig = None
 
     @property
     def node_name(self):

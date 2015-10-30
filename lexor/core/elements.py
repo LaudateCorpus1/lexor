@@ -421,9 +421,8 @@ class Element(Node):
         # the level of the child nodes when we move the node around
         node = Element(self.name)
         node.update_attributes(self)
-        if hasattr(self, '__directives__'):
-            node.__directives__ = self.__directives__
-            node.__info__ = self.__info__
+        if self.zig is not None:
+            node.zig = self.zig
         node.set_position(self.line, self.column)
         if deep is False or not self.child:
             return node

@@ -197,8 +197,8 @@ class NodeConverter(object):
             raise LexorError('missing directive name')
         if isinstance(self.require, str):
             self.require = [self.require]
-        parse = Converter.parse_requirement
-        self.require = [parse(r) for r in self.require]
+        parse = LC.parse_requirement
+        self._require = [parse(r) for r in self.require]
 
     def compile(self, node, dir_info, t_node, required):
         """Method to run during the compilation phase. Here we can
@@ -212,8 +212,7 @@ class NodeConverter(object):
         """
         pass
 
-    # node_c.pre_link(node=crt, transclude=transcluded_elements, info=crt.__info__)
-    def pre_link(self, **_):
+    def pre_link(self, node, dir_info, trans_ele, required):
         pass
 
     def post_link(self, **_):
@@ -322,9 +321,23 @@ class Converter(object):
         self.defaults = defaults
         self.abort = False
 
+    def __contains__(self, name):
+        """Weather or not the Converter has a node converter of
+        the given class name"""
+        return name in self._node_converter
+
     def __getitem__(self, name):
         """Return the specified |NodeConverter|. """
         return self._node_converter[name]
+
+    def has(self, directive):
+        """Weather or not the Converter has a node converter
+        registered with the specified directive"""
+        return directive in self._nc
+
+    def get(self, directive):
+        """Return the node converter with the specified directive."""
+        return self._nc[directive]
 
     @property
     def convert_from(self):
@@ -539,196 +552,11 @@ class Converter(object):
         for nc_class in repo:
             self.register(nc_class)
 
-    @staticmethod
-    def _parse_requirement(req):
-        """Parse a string ``req``. Each requiment can be prefixed with
-
-            - (no prefix)
-            - $
-            - ^
-            - ^^
-            - $^
-            - $^^
-            - ^N
-            - $^N
-
-        Returns a tuple formated as follows:
-
-            (optional, level, directive)
-
-        where
-
-            - optional: boolean specifying if the requirement is
-                        optional, that is, not to raise an
-                        exception.
-            - level: 0 if the directive should be on the same node
-                     N if the directive should be on the Nth parent
-                     -1 if the directive may be found in the same
-                        node or any of the parents.
-                     -2 if the directive may be found in any of the
-                        parent nodes.
-            - directive: The directive name
-        """
-        optional = req[0] == '$'
-        caret = int(optional)
-        if req[caret] != '^':
-            level = 0
-        elif req[caret+1] == '^':
-            level = -2
-            caret += 2
-        elif req[caret+1] == '(':
-            caret += 2
-            begin = caret
-            while req[caret] != ')':
-                caret += 1
-            tmp = req[begin:caret]
-            level = -1 if not tmp else int(tmp)
-            caret += 1
-        else:
-            caret += 1
-            begin = caret
-            while req[caret].isdigit():
-                caret += 1
-            tmp = req[begin:caret]
-            level = -1 if not tmp else int(tmp)
-        directive = req[caret:]
-        return optional, level, directive
-
-    @staticmethod
-    def parse_requirement(req):
-        """Parse a requirement containing ``|``. Splits the
-        requirement and runs the method ``parse_requirement`` for each
-        entry.
-        """
-        parse = Converter._parse_requirement
-        return [parse(r) for r in req.split('|')]
-
-    @staticmethod
-    def get_requirement(node, req):
-        """Find the given requirement in the node. The requirement
-        may be a string which will be parsed or an already parsed
-        requirement.
-
-        Returns a tuple containing the directive and the node where
-        it was found.
-        """
-        if isinstance(req, str):
-            req = Converter.parse_requirement(req)
-        for requirement in req:
-            optional, level, directive = requirement
-            if level in [-2, -1]:
-                if level == -1:
-                    for name, _ in node.__directives__:
-                        if directive == name:
-                            return directive, node
-                crt = node
-                while crt.parent is not None:
-                    crt = crt.parent
-                    for name, _ in crt.__directives__:
-                        if directive == name:
-                            return directive, crt
-            elif level == 0:
-                for name, _ in node.__directives__:
-                    if directive == name:
-                        return directive, node
-            else:
-                crt = node
-                parent_num = 0
-                while crt.parent is not None and parent_num < level:
-                    crt = crt.parent
-                    parent_num += 1
-                if parent_num == level:
-                    for name, _ in crt.__directives__:
-                        if directive == name:
-                            return directive, crt
-            if optional:
-                return directive, None
-        raise LexorError('Requirement not found: %r' % req, req=req)
-
-    @staticmethod
-    def _encode_requirement(req):
-        """Helper function for encode_requirement."""
-        result = '$' if req[0] else ''
-        if req[1] == -2:
-            result += '^^'
-        elif req[1] == -1:
-            result += '^'
-        elif req[1] > 0:
-            result += '^(' + str(req[1]) + ')'
-        result += req[2]
-        return result
-
-    @staticmethod
-    def encode_requirement(req):
-        """Encode a parsed requirement.
-        """
-        encode = Converter._encode_requirement
-        return '|'.join([encode(r) for r in req])
-
-    @staticmethod
-    def _gather_node_info(directive, node_c, info):
-        """Helper function to attach information on `info`. """
-        if node_c.remove:
-            info['remove'].append(directive)
-            values = ['compile', 'pre_link', 'post_link']
-            try:
-                new_val = values.index(node_c.remove)
-            except ValueError:
-                new_val = 0
-            if 'remove_after' in info:
-                crt_val = values.index(info['remove_after'])
-            else:
-                info['remove_after'] = values[2]
-                crt_val = 2
-            if new_val < crt_val:
-                info['remove_after'] = values[new_val]
-        if node_c.remove_children:
-            info['remove_children'].append(directive)
-        if node_c.replace:
-            info['replace'].append(directive)
-
-    def get_node_directives(self, node):
-        """Examine the node and return a list of directives that can
-        be applied to the node"""
-        directives = []
-        info = {
-            'remove': [],
-            'remove_children': [],
-            'replace': [],
-        }
-        name = node.name
-        if name in self._nc and 'E' in self._nc[name].restrict:
-            self._gather_node_info(name, self._nc[name], info)
-            priority = self._nc[name].priority
-            directives.append((name, priority))
-            if self._nc[name].terminal:
-                return directives, info
-        if not isinstance(node, LC.Element):
-            return directives, info
-        for att in node.attributes:
-            if att not in self._nc:
-                continue
-            node_c = self._nc[att]
-            if 'A' not in node_c.restrict:
-                continue
-            self._gather_node_info(att, node_c, info)
-            priority = node_c.priority
-            index = len(directives)
-            while index > 0:
-                if priority > directives[index-1][1]:
-                    index -= 1
-                else:
-                    break
-            directives.insert(index, (att, priority))
-            if node_c.terminal:
-                break
-        # TODO: Handle classes
-        return directives, info
-
     def _pre_link_node(self, crt):
-        if not hasattr(crt, '__directives__'):
+        if crt.zig is None:
             return crt
-        directives = crt.__directives__
+        directives = crt.zig.directives
+        info = crt.zig.shared_info
         for directive, priority in directives:
             node_c = self._nc[directive]
             if node_c._t_element is not None:
@@ -745,8 +573,9 @@ class Converter(object):
                 transcluded_elements = None
             else:
                 transcluded_elements = None
-            node_c.pre_link(node=crt, transclude=transcluded_elements, info=crt.__info__)
-        if crt.__info__['replace']:
+            require = crt.zig.requirements[directive]
+            node_c.pre_link(crt, info, transcluded_elements, require)
+        if info['replace']:
             crt.append_nodes_after(crt)
             new_crt = crt.next
             del crt.parent[crt.index]
@@ -754,53 +583,48 @@ class Converter(object):
         return crt
 
     def _post_link_node(self, crt):
-        if not hasattr(crt, '__directives__'):
-            return
-        for directive, priority in reversed(crt.__directives__):
+        if crt.zig is None:
+            return crt
+        for directive, priority in reversed(crt.zig.directives):
             node_c = self._nc[directive]
             node_c.post_link(node=crt)
 
-    def _run_compile_method(self, directives, info, clone):
+    def _run_compile_method(self, clone):
+        directives = clone.zig.directives
+        info = clone.zig.shared_info
         for directive, priority in directives:
-            node_c = self._nc[directive]
-            if not node_c._t_element:
-                if node_c.template is not None:
+            node_trans = self.get(directive)
+            if not node_trans._t_element:
+                if node_trans.template is not None:
                     # TODO: Adapt errors
-                    if node_c.template_parser is not None:
-                        settings = node_c.template_parser
+                    if node_trans.template_parser is not None:
+                        settings = node_trans.template_parser
                         self.parser.set(
                             settings['lang'],
                             settings['style'],
                             settings['defaults']
                         )
-                    self.parser.parse(node_c.template)
+                    self.parser.parse(node_trans.template)
                     parser_doc = self.parser.doc
                     compiled_doc = parser_doc.clone_node()
                     self._compile_doc(parser_doc, compiled_doc)
-                    node_c._t_element = compiled_doc
-                    tdoc = node_c._t_element.clone_node(True)
+                    node_trans._t_element = compiled_doc
+                    tdoc = node_trans._t_element.clone_node(True)
                 else:
                     tdoc = None
             else:
-                tdoc = node_c._t_element.clone_node(True)
-            if clone is not None:
-                try:
-                    require = [
-                        self.get_requirement(clone, r)
-                        for r in node_c.require
+                tdoc = node_trans._t_element.clone_node(True)
+            try:
+                require = clone.zig.store_requirements(directive)
+            except LexorError as exp:
+                self.abort = exp
+                return self.msg(
+                    self.__module__, 'E200', clone, [
+                        LC.encode_requirement(exp.data['req']),
+                        directive
                     ]
-                except LexorError as exp:
-                    self.abort = exp
-                    self.msg(
-                        self.__module__, 'E200', clone, [
-                            self.encode_requirement(exp.data['req']),
-                            directive
-                        ]
-                    )
-                    return
-            else:
-                require = []
-            node_c.compile(clone, info, tdoc, require)
+                )
+            node_trans.compile(clone, info, tdoc, require)
 
     def _compile_doc(self, doc, doccopy):
         """Creates a copy of the document and calls the compile
@@ -814,19 +638,17 @@ class Converter(object):
             return doccopy
         crt = crt[0]
         while True:
-            directives, info = self.get_node_directives(crt)
+            clone = crt.clone_node()
+            crtcopy.append_child(clone)
+            zig = LC.Zig(self, clone)
+            zig.get_directives()
+            info = zig.shared_info
+            self._run_compile_method(clone)
             remove = info['remove']
             remove_children = info['remove_children']
             if remove and info['remove_after'] == 'compile':
+                del crtcopy[clone.index]
                 clone = None
-            else:
-                clone = crt.clone_node()
-                crtcopy.append_child(clone)
-                if isinstance(clone, LC.Element):
-                    clone.__directives__ = directives
-                    clone.__info__ = info
-                    clone.__t_node__ = dict()
-            self._run_compile_method(directives, info, clone)
             if self.abort:
                 return
             if (clone is not None and
@@ -853,8 +675,8 @@ class Converter(object):
             return
         while True:
             crt = self._pre_link_node(crt)
-            if hasattr(crt, '__info__'):
-                info = crt.__info__
+            if crt.zig is not None:
+                info = crt.zig.shared_info
                 remove = info['remove']
                 if remove and info['remove_after'] == 'pre_link':
                     crt = self.remove_node(crt)
