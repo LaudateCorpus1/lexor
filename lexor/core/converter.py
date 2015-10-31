@@ -173,17 +173,15 @@ class NodeConverter(object):
     terminal = False
 
     template = None
-    template_parser = None
-    replace = False
-
     template_uri = None
-    template_options = None
-    _t_element = None
+    template_parser = None
+    _template = None
+    replace = False
 
     transclude = False
     auto_transclude = False
     require = []
-
+    _require = None
 
     def __init__(self, converter):
         """A node converter needs to be initialized with a converter
@@ -486,7 +484,8 @@ class Converter(object):
             else:
                 raise IndexError
         except IndexError:
-            parent.append_child('')
+            return parent
+            #parent.append_child('')
         return parent[0]
 
     # pylint: disable=R0913
@@ -558,15 +557,15 @@ class Converter(object):
         directives = crt.zig.directives
         info = crt.zig.shared_info
         for directive, priority in directives:
-            node_c = self._nc[directive]
-            if node_c._t_element is not None:
-                t_node = node_c._t_element.clone_node(True)
+            node_trans = self.get(directive)
+            if node_trans._template is not None:
+                t_node = node_trans._template.clone_node(True)
                 transcluded_elements = LC.DocumentFragment()
                 transcluded_elements.extend_children(crt)
                 crt.extend_children(t_node)
-                if node_c.auto_transclude:
+                if node_trans.auto_transclude:
                     target = crt.get_nodes_by_name(
-                        node_c.auto_transclude, 1
+                        node_trans.auto_transclude, 1
                     )[0]
                     target.append_nodes_after(transcluded_elements)
                     del target.parent[target.index]
@@ -574,7 +573,7 @@ class Converter(object):
             else:
                 transcluded_elements = None
             require = crt.zig.requirements[directive]
-            node_c.pre_link(crt, info, transcluded_elements, require)
+            node_trans.pre_link(crt, info, transcluded_elements, require)
         if info['replace']:
             crt.append_nodes_after(crt)
             new_crt = crt.next
@@ -586,15 +585,15 @@ class Converter(object):
         if crt.zig is None:
             return crt
         for directive, priority in reversed(crt.zig.directives):
-            node_c = self._nc[directive]
-            node_c.post_link(node=crt)
+            node_trans = self.get(directive)
+            node_trans.post_link(node=crt)
 
     def _run_compile_method(self, clone):
         directives = clone.zig.directives
         info = clone.zig.shared_info
         for directive, priority in directives:
             node_trans = self.get(directive)
-            if not node_trans._t_element:
+            if node_trans._template is None:
                 if node_trans.template is not None:
                     # TODO: Adapt errors
                     if node_trans.template_parser is not None:
@@ -608,12 +607,12 @@ class Converter(object):
                     parser_doc = self.parser.doc
                     compiled_doc = parser_doc.clone_node()
                     self._compile_doc(parser_doc, compiled_doc)
-                    node_trans._t_element = compiled_doc
-                    tdoc = node_trans._t_element.clone_node(True)
+                    node_trans._template = compiled_doc
+                    tdoc = node_trans._template.clone_node(True)
                 else:
                     tdoc = None
             else:
-                tdoc = node_trans._t_element.clone_node(True)
+                tdoc = node_trans._template.clone_node(True)
             try:
                 require = clone.zig.store_requirements(directive)
             except LexorError as exp:
@@ -625,6 +624,7 @@ class Converter(object):
                     ]
                 )
             node_trans.compile(clone, info, tdoc, require)
+            # TODO: store tdoc in the clone zig, this will be used later
 
     def _compile_doc(self, doc, doccopy):
         """Creates a copy of the document and calls the compile
@@ -644,13 +644,13 @@ class Converter(object):
             zig.get_directives()
             info = zig.shared_info
             self._run_compile_method(clone)
+            if self.abort:
+                return
             remove = info['remove']
             remove_children = info['remove_children']
             if remove and info['remove_after'] == 'compile':
                 del crtcopy[clone.index]
                 clone = None
-            if self.abort:
-                return
             if (clone is not None and
                     not remove_children and crt.child):
                 crtcopy = clone
@@ -675,21 +675,25 @@ class Converter(object):
             return
         while True:
             crt = self._pre_link_node(crt)
-            if crt.zig is not None:
-                info = crt.zig.shared_info
-                remove = info['remove']
-                if remove and info['remove_after'] == 'pre_link':
-                    crt = self.remove_node(crt)
+            crt = self._remove_node_after('pre_link', crt)
             if crt.child:
                 crt = crt[0]
             else:
                 self._post_link_node(crt)
                 while crt.next is None:
-                    crt = crt.parent
-                    self._post_link_node(crt)
                     if crt is root:
                         return root
+                    crt = crt.parent
+                    self._post_link_node(crt)
                 crt = crt.next
+
+    def _remove_node_after(self, phase, node):
+        if node.zig is not None:
+            info = node.zig.shared_info
+            remove = info['remove']
+            if remove and info['remove_after'] == phase:
+                node = self.remove_node(node)
+        return node
 
     def update_log(self, log, after=True):
         """Append the messages from a `log` document to the
