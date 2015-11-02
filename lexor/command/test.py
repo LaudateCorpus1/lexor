@@ -14,6 +14,7 @@ from nose.tools import eq_
 from lexor.command import exec_cmd, wdisp
 from lexor.command.lang import LEXOR_PATH, get_style_module
 from lexor.core.parser import Parser
+from lexor.core.converter import Converter
 from os.path import dirname, exists
 from lexor.command import config
 from lexor.util.logging import L
@@ -206,18 +207,38 @@ def parse_msg(msg):
     return '\n'.join([line[4:] for line in lines[:end]]), tests
 
 
-def find_failed(tests, lang, style, defaults):
+def find_failed(tests, parser_opt, converter_opt):
     """Run the tests and return a list of the tests that fail. """
+    parser = Parser(
+        parser_opt['lang'],
+        parser_opt['style'],
+        parser_opt['defaults']
+    )
     failed = []
-    parser = Parser(lang, style, defaults)
     for test in tests:
+        # TODO: Do a reset on the converter
+        if converter_opt is not None:
+            converter = Converter(
+                converter_opt['from_lang'],
+                converter_opt['to_lang'],
+                converter_opt['style'],
+                converter_opt['defaults'],
+                converter_opt['parser_info'],
+            )
+        else:
+            converter = None
         parser.parse(test[1])
+        if converter is not None:
+            converter.convert(parser.doc)
+            log = converter.lexor_log
+        else:
+            log = parser.lexor_log
         if test[0] == 'Okay':
-            if len(parser.log.child) != 0:
+            if len(log.child) != 0:
                 failed.append(test)
         else:
             found = False
-            for node in parser.log.child:
+            for node in log.child:
                 if test[0] == node['code']:
                     found = True
                     break
@@ -225,16 +246,17 @@ def find_failed(tests, lang, style, defaults):
                 failed.append(test)
     return failed
 
-# TODO: Create a nose_msg_explanations for converter testing
-# it needs to be able to specify the parser used and the converter
-# we are testing. It should be able to tell us if the test failed
-# because of the parser.
-
 
 def nose_msg_explanations(lang, type_, style, name, to_lang=None,
-                          defaults=None):
+                          parser_opt=None, converter_opt=None):
     """Gather the ``MSG_EXPLANATION`` list and run the tests it
     contains."""
+    if parser_opt is None:
+        parser_opt = {
+            'lang': lang,
+            'style': style,
+            'defaults': {}
+        }
     mod = get_style_module(type_, lang, style, to_lang)
     mod = sys.modules['%s_%s' % (mod.__name__, name)]
     if not hasattr(mod, 'MSG_EXPLANATION'):
@@ -244,7 +266,7 @@ def nose_msg_explanations(lang, type_, style, name, to_lang=None,
     for num, msg in enumerate(mod.MSG_EXPLANATION):
         wdisp('MSG_EXPLANATION[%d] ... ' % num)
         msg, tests = parse_msg(msg)
-        failed = find_failed(tests, lang, style, defaults)
+        failed = find_failed(tests, parser_opt, converter_opt)
         err = ['    %s: %r' % (fail[0], fail[1]) for fail in failed]
         if err:
             errors = True

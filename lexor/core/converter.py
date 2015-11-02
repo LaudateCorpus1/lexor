@@ -429,9 +429,17 @@ class Converter(object):
 
     @property
     def document(self):
-        """The parsed document. This is a |Document| or |DocFrag|
-        created by the :meth:`convert` method. """
+        """The current document. This is a |Document| or |DocFrag|
+        created by the :meth:`convert` method.
+        """
         return self.doc[-1]
+
+    @property
+    def root_document(self):
+        """The root converted document. This is a |Document|created
+        by the :meth:`convert` method.
+        """
+        return self.doc[0]
 
     def pop(self):
         """Remove the last document and last log document and return
@@ -442,17 +450,17 @@ class Converter(object):
         """Convert the |Document| or |DocFrag| doc. """
         if not isinstance(doc, (LC.Document, LC.DocumentFragment)):
             raise TypeError("Document or DocumentFragment required")
-        if self._reload:
-            self._set_node_converters(
-                self._fromlang, self._tolang, self._style, self.defaults
-            )
-            self._reload = False
         self.log.append(LC.Document("lexor", "log"))
         self.log[-1].modules = dict()
         self.log[-1].explanation = dict()
         doccopy = doc.clone_node()
         doccopy.namespace = dict()
         self.doc.append(doccopy)
+        if self._reload:
+            self._set_node_converters(
+                self._fromlang, self._tolang, self._style, self.defaults
+            )
+            self._reload = False
         if hasattr(self.style_module, 'pre_process'):
             self.style_module.pre_process(self, doccopy)
         self._compile_doc(doc, doccopy)
@@ -477,7 +485,7 @@ class Converter(object):
         returns an empty |Text| node. """
         parent = node.parent
         index = node.index
-        del node.parent[node.index]
+        del parent[node.index]
         try:
             if index > 0:
                 return parent[index-1]
@@ -485,8 +493,6 @@ class Converter(object):
                 raise IndexError
         except IndexError:
             return parent
-            #parent.append_child('')
-        return parent[0]
 
     # pylint: disable=R0913
     def msg(self, mod_name, code, node, arg=None, uri=None):
@@ -841,9 +847,9 @@ def include(input_file, **keywords):
     
     If the keyword ``adopt`` is set to false then a |Document| node
     will be inserted."""
-    parent_converter = include.converter[-1]
+    trans = include.converter[-1]
     if input_file[0] != '/':
-        input_file = pth.join(pth.dirname(parent_converter.doc[-1].uri),
+        input_file = pth.join(pth.dirname(trans.doc[-1].uri),
                               input_file)
     info = {
         'parser_style': 'default',
@@ -862,14 +868,14 @@ def include(input_file, **keywords):
         name = pth.basename(path)
         name = pth.splitext(name)
         info['parser_lang'] = name[1][1:]
-    with open(input_file, 'r') as tmpf:
+    with open(input_file) as tmpf:
         text = tmpf.read()
     parser = LC.Parser(info['parser_lang'],
                        info['parser_style'],
                        info['parser_defaults'])
     parser.parse(text, input_file)
     if parser.log:
-        parent_converter.update_log(parser.log)
+        trans.update_log(parser.log)
     crt = get_current_node()
     if info['convert_to'] is not None:
         if info['convert_from'] is None:
@@ -880,7 +886,7 @@ def include(input_file, **keywords):
                               info['convert_defaults'])
         converter.convert(parser.doc)
         if converter.log:
-            parent_converter.update_log(converter.log)
+            trans.update_log(converter.log)
         doc = converter.document
     else:
         doc = parser.doc
