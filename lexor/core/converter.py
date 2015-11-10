@@ -7,7 +7,6 @@ involves using objects derived from the abstract class
 There are a couple of functions that have been written to be used
 inside python embeddings. These are:
 
-- :func:`get_converter_namespace`
 - :func:`echo`
 - :func:`include`
 - :func:`import_module`
@@ -34,23 +33,15 @@ that can be used:
 import sys
 import os.path as pth
 import traceback
+import inspect
 import lexor
+from lexor import load_aux
 from imp import load_source
 from cStringIO import StringIO
 from lexor.command import config, LexorError
 from lexor.command.lang import get_style_module, map_explanations
 from lexor.util.logging import L
 LC = sys.modules['lexor.core']
-
-
-def get_converter_namespace():
-    """Many converters may be defined during the conversion of a
-    document. In some cases we may need to save references to objects
-    in documents. If this is the case, then call this function to
-    obtain the namespace where you can save those references. """
-    return get_converter_namespace.namespace
-if not hasattr(get_converter_namespace, 'namespace'):
-    get_converter_namespace.namespace = dict()
 
 
 class NodeConverter(object):
@@ -213,7 +204,7 @@ class NodeConverter(object):
     def pre_link(self, node, dir_info, trans_ele, required):
         pass
 
-    def post_link(self, **_):
+    def post_link(self, node, dir_info, trans_ele, required):
         pass
 
     def msg(self, code, node, arg=None, uri=None):
@@ -226,6 +217,19 @@ class NodeConverter(object):
         location.
         """
         self.converter.msg(self.__module__, code, node, arg, uri)
+
+
+class NCContainer(object):
+
+    def __init__(self, nc):
+        self.nc_class = nc
+        self.instance = None
+
+    def get(self, converter):
+        if self.instance is None:
+            L.info('... initializing %r', self.nc_class)
+            self.instance = self.nc_class(converter)
+        return self.instance
 
 
 class PythonNC(NodeConverter):
@@ -308,8 +312,11 @@ class Converter(object):
         self._fromlang = fromlang
         self._tolang = tolang
         self._style = style
-        self._nc = None
-        self._node_converter = None
+
+        self._nc_container = None
+        self._directives = None
+        self._node_converters = None
+
         self._convert_func = None
         self._reload = True
         self.parser = LC.Parser(**parser_info)
@@ -322,20 +329,20 @@ class Converter(object):
     def __contains__(self, name):
         """Weather or not the Converter has a node converter of
         the given class name"""
-        return name in self._node_converter
+        return name in self._node_converters
 
     def __getitem__(self, name):
         """Return the specified |NodeConverter|. """
-        return self._node_converter[name]
+        return self._node_converters[name].get(self)
 
     def has(self, directive):
         """Weather or not the Converter has a node converter
         registered with the specified directive"""
-        return directive in self._nc
+        return directive in self._directives
 
     def get(self, directive):
         """Return the node converter with the specified directive."""
-        return self._nc[directive]
+        return self._directives[directive].get(self)
 
     @property
     def convert_from(self):
@@ -450,17 +457,18 @@ class Converter(object):
         """Convert the |Document| or |DocFrag| doc. """
         if not isinstance(doc, (LC.Document, LC.DocumentFragment)):
             raise TypeError("Document or DocumentFragment required")
+        self._set_node_converters(
+            self._fromlang,
+            self._tolang,
+            self._style,
+            self.defaults
+        )
         self.log.append(LC.Document("lexor", "log"))
         self.log[-1].modules = dict()
         self.log[-1].explanation = dict()
         doccopy = doc.clone_node()
         doccopy.namespace = dict()
         self.doc.append(doccopy)
-        if self._reload:
-            self._set_node_converters(
-                self._fromlang, self._tolang, self._style, self.defaults
-            )
-            self._reload = False
         if hasattr(self.style_module, 'pre_process'):
             self.style_module.pre_process(self, doccopy)
         self._compile_doc(doc, doccopy)
@@ -524,38 +532,76 @@ class Converter(object):
         """Add a node converter class. This function takes in a
         class object derived rom `Node Converter`.
         """
-        node_c = nc_class(self)
+        container = NCContainer(nc_class)
         class_name = nc_class.__name__
         if not override:
-            if class_name in self._node_converter:
+            if class_name in self._node_converters:
                 msg = 'overriding existing node converter class {0}'
                 raise LexorError(msg.format(class_name))
-            if node_c.directive in self._nc:
+            if nc_class.directive in self._directives:
                 msg = 'overriding existing node directive {0}'
-                raise LexorError(msg.format(node_c.directive))
-        self._node_converter[class_name] = node_c
-        self._nc[node_c.directive] = node_c
-        for alias in node_c.directive_alias:
-            self._nc[alias] = node_c
-        return node_c
+                L.info("DIRECTIVES: %r", self._directives.keys())
+                raise LexorError(msg.format(nc_class.directive))
+        self._node_converters[class_name] = container
+        self._directives[nc_class.directive] = container
+        for alias in nc_class.directive_alias:
+            self._directives[alias] = container
+        return container
 
-    def _set_node_converters(self, fromlang, tolang, style, defaults=None):
+    @staticmethod
+    def find_subclasses(mod, clazz):
+        result = []
+        for name in dir(mod):
+            obj = getattr(mod, name)
+            try:
+                if (obj != clazz) and issubclass(obj, clazz):
+                    result.append(obj)
+            except TypeError:
+                pass
+        return result
+
+    def _set_node_converters(self, fromlang, tolang, style, defaults):
         """Imports the correct module based on the languages and
         style. """
+        if self._reload is False:
+            return
+        name = '%s-converter-%s-%s' % (fromlang, tolang, style)
+        L.info('setting node converters for `%s`', name)
         mod = self.style_module = get_style_module(
             'converter', fromlang, style, tolang
         )
-        name = '%s-converter-%s-%s' % (fromlang, tolang, style)
         config.set_style_cfg(self, name, defaults)
-        self._nc = dict()
-        self._node_converter = dict()
+        self._directives = dict()
+        self._node_converters = dict()
         self.register(PythonNC)
         try:
             repo = mod.REPOSITORY
+            L.info('found REPOSITORY in converting style')
         except AttributeError:
+            path = pth.dirname(mod.INFO['path'])
+            L.info('searching for converters in %r', path)
             repo = []
+            try:
+                repo.extend(mod.REPOSITORY)
+            except AttributeError:
+                converters = self.find_subclasses(
+                    mod, NodeConverter
+                )
+                repo.extend(converters)
+            aux = load_aux(mod.INFO)
+            for key in aux:
+                aux_mod = aux[key]
+                try:
+                    repo.extend(aux_mod.REPOSITORY)
+                except AttributeError:
+                    converters = self.find_subclasses(
+                        aux_mod, NodeConverter
+                    )
+                    repo.extend(converters)
         for nc_class in repo:
+            L.info('- adding `%s`', nc_class)
             self.register(nc_class)
+        self._reload = False
 
     def _pre_link_node(self, crt):
         if crt.zig is None:
@@ -590,11 +636,29 @@ class Converter(object):
     def _post_link_node(self, crt):
         if crt.zig is None:
             return crt
-        for directive, priority in reversed(crt.zig.directives):
+        directives = crt.zig.directives
+        info = crt.zig.shared_info
+        for directive, priority in reversed(directives):
             node_trans = self.get(directive)
-            node_trans.post_link(node=crt)
+            if node_trans._template is not None:
+                t_node = node_trans._template.clone_node(True)
+                transcluded_elements = LC.DocumentFragment()
+                transcluded_elements.extend_children(crt)
+                crt.extend_children(t_node)
+                if node_trans.auto_transclude:
+                    target = crt.get_nodes_by_name(
+                        node_trans.auto_transclude, 1
+                    )[0]
+                    target.append_nodes_after(transcluded_elements)
+                    del target.parent[target.index]
+                transcluded_elements = None
+            else:
+                transcluded_elements = None
+            require = crt.zig.requirements[directive]
+            node_trans.post_link(crt, info, transcluded_elements, require)
+        # TODO: replace?
 
-    def _run_compile_method(self, clone):
+    def _compile_node(self, clone):
         directives = clone.zig.directives
         info = clone.zig.shared_info
         for directive, priority in directives:
@@ -632,6 +696,26 @@ class Converter(object):
             node_trans.compile(clone, info, tdoc, require)
             # TODO: store tdoc in the clone zig, this will be used later
 
+    def compile(self, node):
+        """
+
+        """
+        root = node
+        crt = root
+        while True:
+            zig = LC.Zig(self, crt)
+            zig.get_directives()
+            self._compile_node(crt)
+            crt = self._remove_node_after('compile', crt)
+            if crt.child:
+                crt = crt[0]
+            else:
+                while crt.next is None:
+                    if crt is root:
+                        return root
+                    crt = crt.parent
+                crt = crt.next
+
     def _compile_doc(self, doc, doccopy):
         """Creates a copy of the document and calls the compile
         method on each of the template elements (if any).
@@ -649,7 +733,7 @@ class Converter(object):
             zig = LC.Zig(self, clone)
             zig.get_directives()
             info = zig.shared_info
-            self._run_compile_method(clone)
+            self._compile_node(clone)
             if self.abort:
                 return
             remove = info['remove']

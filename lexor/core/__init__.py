@@ -71,7 +71,6 @@ from lexor.core.converter import (
     BaseLog,
     NodeConverter,
     Converter,
-    get_converter_namespace,
 )
 from lexor.core.zig import (
     Zig,
