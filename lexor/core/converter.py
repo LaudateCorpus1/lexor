@@ -490,7 +490,8 @@ class Converter(object):
     def remove_node(node):
         """Removes the node from the current document it is in.
         Returns the previous sibling is possible, otherwise it
-        returns an empty |Text| node. """
+        returns the parent node.
+        """
         parent = node.parent
         index = node.index
         del parent[node.index]
@@ -532,6 +533,7 @@ class Converter(object):
         """Add a node converter class. This function takes in a
         class object derived rom `Node Converter`.
         """
+        L.info('- adding `%s`', nc_class)
         container = NCContainer(nc_class)
         class_name = nc_class.__name__
         if not override:
@@ -549,7 +551,8 @@ class Converter(object):
         return container
 
     @staticmethod
-    def find_subclasses(mod, clazz):
+    def find_node_converters(mod):
+        clazz = NodeConverter
         result = []
         for name in dir(mod):
             obj = getattr(mod, name)
@@ -584,9 +587,7 @@ class Converter(object):
             try:
                 repo.extend(mod.REPOSITORY)
             except AttributeError:
-                converters = self.find_subclasses(
-                    mod, NodeConverter
-                )
+                converters = self.find_node_converters(mod)
                 repo.extend(converters)
             aux = load_aux(mod.INFO)
             for key in aux:
@@ -594,12 +595,9 @@ class Converter(object):
                 try:
                     repo.extend(aux_mod.REPOSITORY)
                 except AttributeError:
-                    converters = self.find_subclasses(
-                        aux_mod, NodeConverter
-                    )
+                    converters = self.find_node_converters(aux_mod)
                     repo.extend(converters)
         for nc_class in repo:
-            L.info('- adding `%s`', nc_class)
             self.register(nc_class)
         self._reload = False
 
