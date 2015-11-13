@@ -30,6 +30,7 @@ that can be used:
 .. |PI| replace:: :class:`~lexor.core.elements.ProcessingInstruction`
 
 """
+import os
 import sys
 import os.path as pth
 import traceback
@@ -251,8 +252,7 @@ class PythonNC(NodeConverter):
         self.exe = self.exe not in ['off', 'false', '0']
         self.num = 0
 
-    def compile(self, **info):
-        node = info['clone']
+    def compile(self, node, dir_info, t_node, required):
         self.num += 1
         ctr = self.converter
         if not self.exe:
@@ -494,14 +494,10 @@ class Converter(object):
         """
         parent = node.parent
         index = node.index
-        del parent[node.index]
-        try:
-            if index > 0:
-                return parent[index-1]
-            else:
-                raise IndexError
-        except IndexError:
-            return parent
+        del parent[index]
+        if -1 < index < len(parent):
+            return parent[index]
+        return parent
 
     # pylint: disable=R0913
     def msg(self, mod_name, code, node, arg=None, uri=None):
@@ -722,7 +718,9 @@ class Converter(object):
         crt = root
         crtcopy = doccopy
         if not crt.child:
-            # Compile the document?
+            zig = LC.Zig(self, doccopy)
+            zig.get_directives()
+            self._compile_node(doccopy)
             return doccopy
         crt = crt[0]
         while True:
@@ -757,10 +755,6 @@ class Converter(object):
         """
         root = doccopy
         crt = root
-        if not crt.child:
-            #on_enter(crt)
-            #on_exit(crt)
-            return
         while True:
             crt = self._pre_link_node(crt)
             crt = self._remove_node_after('pre_link', crt)
@@ -768,11 +762,13 @@ class Converter(object):
                 crt = crt[0]
             else:
                 self._post_link_node(crt)
+                crt = self._remove_node_after('post_link', crt)
                 while crt.next is None:
                     if crt is root:
                         return root
                     crt = crt.parent
                     self._post_link_node(crt)
+                    crt = self._remove_node_after('post_link', crt)
                 crt = crt.next
 
     def _remove_node_after(self, phase, node):
@@ -797,6 +793,46 @@ class Converter(object):
             self.log[-1].extend_children(log)
         else:
             self.log[-1].extend_before(0, log)
+
+    def load_module(self, src):
+        """Load the module specified by src. """
+        name = pth.basename(src)
+        name = pth.splitext(name)[0]
+        if src[0] != '/':
+            base = pth.dirname(self.doc[-1].uri_)
+            if base != '':
+                base += '/'
+            path = '%s%s' % (base, src)
+        else:
+            path = src
+        if not path.endswith('.py'):
+            path += '.py'
+        try:
+            return load_source('lexor-package_%s' % name, path)
+        except IOError:
+            try:
+                lexorinputs = os.environ['LEXORINPUTS']
+            except KeyError:
+                raise ImportError
+            for directory in lexorinputs.split(':'):
+                path = '%s/%s.py' % (directory, name)
+                if pth.exists(path):
+                    modname = 'lexor-package_%s' % name
+                    return load_source(modname, path)
+            raise ImportError
+
+    def load_package(self, name, node):
+        """Load a lexor package. """
+        try:
+            mod = self.load_module(name)
+        except ImportError:
+            return self.msg(self.__module__, 'E404', node, [name])
+        try:
+            repo = mod.REPOSITORY
+        except AttributeError:
+            repo = self.find_node_converters(mod)
+        for nc_class in repo:
+            self.register(nc_class)
 
     # pylint: disable=W0122,E1103
     def exec_python(self, node, id_num, parser, error=True):
@@ -1002,6 +1038,7 @@ MSG = {
     'W101': '--> begin ?python section `{0}` messages',
     'W102': '--> end ?python section `{0}` messages',
     'E200': 'failed to find the requirement `{0}` for `{1}`',
+    'E404': 'package `{0}` not found',
 }
 MSG_EXPLANATION = [
     """
@@ -1026,6 +1063,19 @@ MSG_EXPLANATION = [
       may use the writing style `lexor:repr` to see the element
       that caused the error since this element will be the last one
       in the document.
+
+""",
+    """
+    - A "lexor" package is a python script which declares one or
+      several node converters and optionally a post_process
+      function.
+
+    - If the package is not found in the same directory as the
+      document or some relative location to the document then it
+      searches in each of the paths declared by the environment
+      variable `LEXORINPUTS`.
+
+    Reports error E404.
 
 """,
 ]
