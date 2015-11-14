@@ -122,7 +122,7 @@ def test_get_requirement():
 def test_get_directives():
     """Zig.get_directives()"""
     trans = Converter()
-    trans._nc = {
+    trans._directives = {
         'e1': NodeTrans('e1', restrict='E'),
         'e2': NodeTrans('e2', restrict='E'),
         'a1': NodeTrans('a1', restrict='A', priority=1),

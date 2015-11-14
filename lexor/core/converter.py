@@ -325,6 +325,8 @@ class Converter(object):
         self.log = list()
         self.defaults = defaults
         self.abort = False
+        self.packages = []
+        self._post_process_list = []
 
     def __contains__(self, name):
         """Weather or not the Converter has a node converter of
@@ -471,11 +473,15 @@ class Converter(object):
         self.doc.append(doccopy)
         if hasattr(self.style_module, 'pre_process'):
             self.style_module.pre_process(self, doccopy)
+        for pkg in self.packages:
+            self.load_package(pkg, doccopy)
         self._compile_doc(doc, doccopy)
         if not self.abort:
             self._link_doc(doccopy)
             if hasattr(self.style_module, 'post_process'):
                 self.style_module.post_process(self, doccopy)
+            for post_process in self._post_process_list:
+                post_process(self, doccopy)
         map_explanations(
             self.log[-1].modules,
             self.log[-1].explanation
@@ -756,7 +762,10 @@ class Converter(object):
         root = doccopy
         crt = root
         while True:
-            crt = self._pre_link_node(crt)
+            node_ref = self._pre_link_node(crt)
+            while node_ref is not crt:
+                crt = node_ref
+                node_ref = self._pre_link_node(crt)
             crt = self._remove_node_after('pre_link', crt)
             if crt.child:
                 crt = crt[0]
@@ -831,6 +840,8 @@ class Converter(object):
             repo = mod.REPOSITORY
         except AttributeError:
             repo = self.find_node_converters(mod)
+        if hasattr(mod, 'post_process'):
+            self._post_process_list.append(mod.post_process)
         for nc_class in repo:
             self.register(nc_class)
 

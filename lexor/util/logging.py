@@ -44,9 +44,10 @@ class LogMessage(object):
 class Logger(object):
     """Provides methods function to tag an event. """
 
-    def __init__(self):
+    def __init__(self, root='lexor/lexor/'):
         self.on = False
         self.history = []
+        self.root = root
 
     def enable(self):
         self.on = True
@@ -57,7 +58,7 @@ class Logger(object):
     def _push(self, cfr, kind, msg, *args, **kwargs):
         f_back = cfr.f_back
         fname = getframeinfo(f_back).filename
-        parts = fname.split('lexor/lexor/')
+        parts = fname.split(self.root)
         if len(parts) == 2:
             fname = parts[1]
         lineno = f_back.f_lineno
