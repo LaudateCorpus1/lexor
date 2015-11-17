@@ -258,6 +258,7 @@ def nose_msg_explanations(lang, type_, style, name, to_lang=None,
             'defaults': {}
         }
     mod = get_style_module(type_, lang, style, to_lang)
+    lexor.load_aux(mod.INFO)  # in case the module does not call it
     mod = sys.modules['%s_%s' % (mod.__name__, name)]
     if not hasattr(mod, 'MSG_EXPLANATION'):
         return

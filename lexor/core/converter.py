@@ -166,7 +166,13 @@ class NodeConverter(object):
 
     template = None
     template_uri = None
-    template_parser = None
+    template_parser = {
+        'lang': 'lexor',
+        'style': '_',
+        'defaults': {
+            'inline': 'on'
+        }
+    }
     _template = None
     replace = False
 
@@ -458,14 +464,14 @@ class Converter(object):
     def convert(self, doc, namespace=False):
         """Convert the |Document| or |DocFrag| doc. """
         if not isinstance(doc, (LC.Document, LC.DocumentFragment)):
-            raise TypeError("Document or DocumentFragment required")
+            raise TypeError('Document or DocumentFragment required')
         self._set_node_converters(
             self._fromlang,
             self._tolang,
             self._style,
             self.defaults
         )
-        self.log.append(LC.Document("lexor", "log"))
+        self.log.append(LC.Document('lexor', 'log'))
         self.log[-1].modules = dict()
         self.log[-1].explanation = dict()
         doccopy = doc.clone_node()
@@ -586,11 +592,8 @@ class Converter(object):
             path = pth.dirname(mod.INFO['path'])
             L.info('searching for converters in %r', path)
             repo = []
-            try:
-                repo.extend(mod.REPOSITORY)
-            except AttributeError:
-                converters = self.find_node_converters(mod)
-                repo.extend(converters)
+            converters = self.find_node_converters(mod)
+            repo.extend(converters)
             aux = load_aux(mod.INFO)
             for key in aux:
                 aux_mod = aux[key]
