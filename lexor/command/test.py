@@ -207,12 +207,12 @@ def parse_msg(msg):
     return '\n'.join([line[4:] for line in lines[:end]]), tests
 
 
-def find_failed(tests, parser_opt, converter_opt):
+def find_failed(tests, parser_settings, converter_opt):
     """Run the tests and return a list of the tests that fail. """
     parser = Parser(
-        parser_opt['lang'],
-        parser_opt['style'],
-        parser_opt['defaults']
+        parser_settings['lang'],
+        parser_settings['style'],
+        parser_settings['defaults']
     )
     failed = []
     for test in tests:
@@ -251,12 +251,11 @@ def nose_msg_explanations(lang, type_, style, name, to_lang=None,
                           parser_opt=None, converter_opt=None):
     """Gather the ``MSG_EXPLANATION`` list and run the tests it
     contains."""
-    if parser_opt is None:
-        parser_opt = {
-            'lang': lang,
-            'style': style,
-            'defaults': {}
-        }
+    parser_settings = {
+        'lang': lang,
+        'style': style,
+        'defaults': parser_opt
+    }
     mod = get_style_module(type_, lang, style, to_lang)
     lexor.load_aux(mod.INFO)  # in case the module does not call it
     mod = sys.modules['%s_%s' % (mod.__name__, name)]
@@ -267,7 +266,7 @@ def nose_msg_explanations(lang, type_, style, name, to_lang=None,
     for num, msg in enumerate(mod.MSG_EXPLANATION):
         wdisp('MSG_EXPLANATION[%d] ... ' % num)
         msg, tests = parse_msg(msg)
-        failed = find_failed(tests, parser_opt, converter_opt)
+        failed = find_failed(tests, parser_settings, converter_opt)
         err = ['    %s: %r' % (fail[0], fail[1]) for fail in failed]
         if err:
             errors = True
