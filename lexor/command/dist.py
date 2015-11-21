@@ -2,44 +2,22 @@
 Package a style along with auxiliary and test files.
 
 """
-
 import os
 import textwrap
-import glob
 from glob import iglob
 from imp import load_source
 from zipfile import ZipFile
-from lexor.command import config
+from lexor.command import config, disp, LexorError
+from lexor.util.logging import L
+
 
 DEFAULTS = {
     'path': '.'
 }
-
 DESC = """
 Distribute a style along with auxiliary and test files.
 
 """
-
-
-def _style_completer(parsed_args, **_):
-    """Return a list of valid files to edit."""
-    config.CONFIG['arg'] = parsed_args
-    cfg = config.get_cfg('dist', DEFAULTS)
-    root = cfg['lexor']['root']
-    path = cfg['dist']['path']
-    choices = []
-    if path[0] in ['/', '.']:
-        abspath = path
-    else:
-        abspath = '%s/%s' % (root, path)
-    try:
-        if abspath == '.':
-            choices.extend(glob.glob('*.py'))
-        else:
-            choices.extend(glob.glob('%s/*.py' % abspath))
-    except OSError:
-        pass
-    return choices
 
 
 def add_parser(subp, fclass):
@@ -54,9 +32,11 @@ def add_parser(subp, fclass):
                            description=textwrap.dedent(DESC))
     tmpp.add_argument(
         'style', type=str, help='name of style to distribute'
-    ).completer = _style_completer
-    tmpp.add_argument('--path', type=str,
-                      help='distribution directory')
+    )
+    tmpp.add_argument(
+        '--path', type=str,
+        help='directoy where zip file will be placed'
+    )
 
 
 def run():
@@ -80,7 +60,7 @@ def run():
     if '.py' not in style:
         style = '%s.py' % style
     if not os.path.exists(style):
-        error("ERROR: No such file or directory.\n")
+        raise LexorError('no such file or directory: %r' % style)
 
     moddir = os.path.splitext(style)[0]
     base, name = os.path.split(moddir)
@@ -91,21 +71,24 @@ def run():
     info = mod.INFO
     if info['to_lang']:
         filename = '%s/lexor.%s.%s.%s.%s-%s.zip'
-        filename = filename % (dirpath, info['lang'], info['type'],
-                               info['to_lang'], info['style'], info['ver'])
+        filename %= (dirpath, info['lang'], info['type'],
+                     info['to_lang'], info['style'], info['ver'])
     else:
         filename = '%s/lexor.%s.%s.%s-%s.zip'
-        filename = filename % (dirpath, info['lang'], info['type'],
-                               info['style'], info['ver'])
+        filename %= (dirpath, info['lang'], info['type'],
+                     info['style'], info['ver'])
 
-    warn('Writing %s ...\n' % filename)
+    disp('Writing %s ...\n' % filename)
     zipf = ZipFile(filename, 'w')
-    warn(' including %s\n' % style)
+    disp('  attaching %s\n' % style)
     zipf.write(style)
+    L.info('added %r', style)
     for path in iglob('%s/*.py' % moddir):
-        warn(' including %s\n' % path)
+        disp('  attaching %s\n' % path)
         zipf.write(path)
+        L.info('  added %r', path)
     for path in iglob('%s/test_%s/*.py' % (base, name)):
-        warn(' including %s\n' % path)
+        disp('  attaching %s\n' % path)
         zipf.write(path)
+        L.info('  added %r', path)
     zipf.close()
