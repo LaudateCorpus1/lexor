@@ -94,7 +94,9 @@ def lexor(src, search=False, **keywords):
         info[key] = keywords[key]
     text = _read_text(src, search)
     if text is None:
-        match = re.match(r'^(\.|/)(.*/)?(?:$|(.+?)(?:(\.[^.]*$)|$))', src)
+        match = re.match(
+            r'^(\.|/)(.*/)?(?:$|(.+?)(?:(\.[^.]*$)|$))', src
+        )
         if match:
             raise IOError('file `%s` not found' % src)
         else:
@@ -149,7 +151,7 @@ def read(filename, style="default", lang=None):
         name = basename(path)
         name = splitext(name)
         lang = name[1][1:]
-    with open(filename, 'r') as tmpf:
+    with open(filename) as tmpf:
         text = tmpf.read()
     parser = core.Parser(lang, style)
     parser.parse(text, filename)

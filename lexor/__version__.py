@@ -7,7 +7,6 @@ version_info conforms to PEP 386
 (1, 2, 0, 'beta', 2) => "1.2b2"
 
 """
-
 VERSION_INFO = (0, 1, 4, 'rc', 0)
 
 
@@ -27,5 +26,6 @@ def get_version(version_info):
         sub = mapping[version_info[3]] + str(version_info[4])
 
     return str(main + sub)
+
 
 VERSION = get_version(VERSION_INFO)

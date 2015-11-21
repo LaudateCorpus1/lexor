@@ -45,6 +45,7 @@ def exec_cmd(cmd, verbose=False):
 
 def date(short=False):
     """Return the current date as a string. """
+    # pylint: disable=maybe-no-member
     if isinstance(short, str):
         now = parser.parse(short)
         return now.strftime("%a %b %d, %Y %r")

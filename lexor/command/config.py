@@ -54,8 +54,12 @@ class _ConfigDispAction(argparse.Action):
     """Derived argparse Action class to use when displaying the
     configuration file and location."""
     def __call__(self, parser, namespace, values, option_string=None):
-        CONFIG['cfg_user'] = namespace.cfg_user
-        CONFIG['cfg_path'] = namespace.cfg_path
+        CONFIG['cfg_user'] = '--cfg-user' in sys.argv
+        try:
+            index = sys.argv.index('--cfg')
+            CONFIG['cfg_path'] = sys.argv[index+1]
+        except (IndexError, ValueError):
+            pass
         cfg_file = read_config()
         fname = '%s/%s' % (CONFIG['path'], CONFIG['name'])
         disp('lexor configuration file: %s\n' % fname)
@@ -77,7 +81,7 @@ def add_parser(subp, fclass):
                       help='Must be in the form of sec.key')
     tmpp.add_argument('value', type=str, nargs='?', default=None,
                       help='var value')
-    tmpp.add_argument('-v', action='store_true',
+    tmpp.add_argument('--verbose', action='store_true',
                       help='print config file location')
     tmpp.add_argument('--display', action=_ConfigDispAction,
                       nargs=0,

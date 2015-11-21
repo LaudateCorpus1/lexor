@@ -17,7 +17,7 @@ from lexor.command import config, import_mod, LexorError
 from lexor.util.logging import L
 
 
-# pylint: disable=W0212
+# pylint: disable=protected-access
 def get_argparse_options(argp):
     """Helper function to preparse the arguments. """
     opt = dict()
@@ -102,7 +102,6 @@ version:
                                dest='parser_name',
                                help='additional help',
                                metavar="<command>")
-
     names = sorted(mod.keys())
     for name in names:
         mod[name].add_parser(subp, raw)
@@ -130,6 +129,7 @@ def run():
     config.CONFIG['cfg_path'] = arg.cfg_path
     config.CONFIG['cfg_user'] = arg.cfg_user
     config.CONFIG['arg'] = arg
+    # pylint: disable=broad-except
     try:
         if L.on:
             msg = 'running lexor v%s `%s` command from `%s`'
@@ -141,16 +141,18 @@ def run():
         L.error('Unhandled error: %r' % err.message, exception=err)
 
     if arg.debug:
-        fp = sys.stderr
+        err_stream = sys.stderr
         if arg.debug_path:
             try:
-                fp = open(pt.join(arg.debug_path, 'lexor.debug'), 'w')
+                err_stream = open(
+                    pt.join(arg.debug_path, 'lexor.debug'), 'w'
+                )
             except IOError as err:
                 L.error('invalid debug log directory', exception=err)
-        fp.write('[LEXOR DEBUG LOG]\n')
-        fp.write('%r\n' % L)
+        err_stream.write('[LEXOR DEBUG LOG]\n')
+        err_stream.write('%r\n' % L)
         if arg.debug_path:
-            fp.close()
+            err_stream.close()
 
 
 if __name__ == '__main__':

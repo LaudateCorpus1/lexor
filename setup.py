@@ -51,7 +51,7 @@ setup(
     ],
     install_requires=[
         'configparser>=3.3.0r2',
-        'argcomplete>=0.6.7',
+        'argparse>=1.4.0',
         'nose>=1.3',
         'python-dateutil>=2.2',
     ],
