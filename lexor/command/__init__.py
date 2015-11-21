@@ -8,14 +8,14 @@ from datetime import datetime
 from subprocess import Popen, PIPE
 
 
-def disp(msg):
+def disp(msg, *args):
     """Print a message to the standard output. """
-    sys.stdout.write(msg)
+    sys.stdout.write(msg % args)
 
 
-def wdisp(msg):
+def wdisp(msg, *args):
     """Print a message to the standard error. """
-    sys.stderr.write(msg)
+    sys.stderr.write(msg % args)
 
 
 def import_mod(name):

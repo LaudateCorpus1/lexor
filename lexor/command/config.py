@@ -229,14 +229,14 @@ def update_single(cfg, name, defaults=None):
 
 
 def _update_from_file(cfg, name, cfg_file):
-    "Helper function for get_cfg."
+    """Helper function for get_cfg."""
     if name in cfg_file:
         for var, val in cfg_file[name].iteritems():
             cfg[name][var] = pth.expandvars(val)
 
 
 def _update_from_arg(cfg, argdict, key):
-    "Helper function for get_cfg."
+    """Helper function for get_cfg."""
     for var in cfg[key]:
         if var in argdict and argdict[var] is not None:
             cfg[key][var] = argdict[var]
