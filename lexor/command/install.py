@@ -3,7 +3,6 @@
 Routine to install a parser/writer/converter style.
 
 """
-
 import os
 import re
 import sys
@@ -32,6 +31,9 @@ GITHUB_PATTERN = re.compile(
     r'(?:@|://)github.com[:/]([^/\s]+?)/([^/\s]+?)(?:\.git)?/?$',
     re.IGNORECASE
 )
+DEFAULTS = {
+    'path': 'lexor_modules'
+}
 
 
 def add_parser(subp, fclass):
@@ -206,7 +208,10 @@ def _get_install_dir(arg):
         install_dir = pth.abspath(arg['path'])
         L.info('custom installation: %r', install_dir)
     else:
-        install_dir = pth.join(pth.abspath('.'), 'lexor_modules')
+        cfg = config.get_cfg(['install'])
+        install_dir = cfg['install']['path']
+        if install_dir[0] != '/':
+            install_dir = pth.join(pth.abspath('.'), install_dir)
         L.info('default installation: %r', install_dir)
     return install_dir
 

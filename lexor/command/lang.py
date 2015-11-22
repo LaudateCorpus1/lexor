@@ -8,12 +8,11 @@ enviromental variable ``LEXORPATH`` and appending paths to it
 separating them by a colon ``:``.
 
 """
-
 import os
 import sys
 import site
 import textwrap
-from os.path import splitext, abspath
+from os.path import splitext, abspath, join
 from imp import load_source
 from glob import iglob, glob
 from lexor.util.logging import L
@@ -33,6 +32,8 @@ DEFAULTS = {
     'lex': 'lexor',
     'pyhtml': 'html',
     'pyxml': 'xml',
+    'cfml': 'coldfusion',
+    'cfc': 'coldfusion',
 }
 DESC = """
 Show all the lexor modules which are installed in the directories
@@ -155,7 +156,7 @@ def _get_info(cfg, type_, lang, style, to_lang=None):
 
 def get_style_module(type_, lang, style, to_lang=None):
     """Return a parsing/writing/converting module. """
-    cfg = config.get_cfg(['lang', 'develop'])
+    cfg = config.get_cfg(['lang', 'develop', 'install'])
     config.update_single(cfg, 'lang', DEFAULTS)
     key, name, modname = _get_info(cfg, type_, lang, style, to_lang)
     L.info('searching for %s', name)
@@ -174,6 +175,10 @@ def get_style_module(type_, lang, style, to_lang=None):
             return module
         except KeyError:
             pass
+    install_dir = cfg['install']['path']
+    if install_dir[0] != '/':
+        install_dir = join(abspath('.'), install_dir)
+    LEXOR_PATH[0] = install_dir
     for base in LEXOR_PATH:
         path = '%s/%s.py' % (base, name)
         try:

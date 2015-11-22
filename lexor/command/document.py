@@ -21,6 +21,9 @@ DESC = """
 Generate a json file with the documentation data of a lexor language
 style.
 
+Note: this command uses the inputfile argument to obtain the python
+module to document. Make sure to not skip it.
+
 """
 
 
