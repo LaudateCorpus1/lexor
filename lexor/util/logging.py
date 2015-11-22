@@ -17,7 +17,8 @@ from inspect import currentframe, getframeinfo
 class LogMessage(object):
     """Simple object to store an event information."""
 
-    def __init__(self, fname, func_name, lineno, kind, msg, lvl, exception=None):
+    def __init__(self, fname, func_name, lineno, kind, msg, lvl,
+                 exception=None):
         self.date = datetime.now()
         self.file_name = fname
         self.func_name = func_name
@@ -29,7 +30,6 @@ class LogMessage(object):
         self.level = lvl
         if exception is not None:
             self.exceptionTraceback = traceback.format_exc()
-
 
     def __repr__(self):
         msg = '[%s][%s][%s:%d] => %s' % (

@@ -3,33 +3,23 @@ Routine to create an xml file with the documentation of a lexor
 style.
 
 """
-# pylint: disable=star-args
 import re
-import os
 import sys
 import textwrap
 import inspect
-import lexor
 import os.path as pth
+import json
 from imp import load_source
-from lexor.core import elements as core
-from lexor.command import config
-from lexor.command.to import style_parameters
-
-
-def xml_style(lang_str):
-    """Parses a style string. """
-    input_style = style_parameters(lang_str)
-    if input_style['name'] == '':
-        input_style['name'] = '_'
-    return input_style
+from lexor.command import config, LexorError, disp
+from lexor.util.logging import L
 
 
 DEFAULTS = {
     'path': '.',
 }
 DESC = """
-Generate an xml file with the documentation of a lexor language style.
+Generate a json file with the documentation data of a lexor language
+style.
 
 """
 
@@ -39,153 +29,140 @@ def add_parser(subp, fclass):
     tmpp = subp.add_parser('document', help='document a style',
                            formatter_class=fclass,
                            description=textwrap.dedent(DESC))
-    tmpp.add_argument('style', type=xml_style, nargs='?',
-                      help='the xml style to write the documentation')
     tmpp.add_argument('--path', type=str,
                       help='search for styles in this directory')
-    tmpp.add_argument('--output-dir', type=str, default='', metavar="DIR",
-                      help='writes to file in the specified dir if set')
+    tmpp.add_argument('--output-dir', type=str, default='',
+                      metavar="DIR",
+                      help='writes file in the specified dir if set')
 
 
 def run():
     """Run the command. """
     arg = config.CONFIG['arg']
     dirpath, fname = check_filename(arg)
-
-    moddir = os.path.splitext(fname)[0]
-    base, _ = os.path.split(moddir)
-    if base == '':
-        base = '.'
+    L.info('style to document: %r', pth.join(dirpath, fname))
 
     mod = load_source('tmp-module', fname)
-    doc = core.Document()
+    doc_modules = {}
     if not hasattr(mod, 'INFO') or 'lang' not in mod.INFO:
-        filename = fname[:-3] + '.xml'
-        doc.append_child(make_module_node(mod, "main"))
+        filename = fname[:-3] + '.json'
+        append_module(doc_modules, mod, "main")
     else:
         info = mod.INFO
         if info['to_lang']:
-            filename = '%s/lexor.%s.%s.%s.%s-%s.xml'
-            filename = filename % (dirpath, info['lang'],
-                                   info['type'], info['to_lang'],
-                                   info['style'], info['ver'])
+            filename = '%s/lexor.%s.%s.%s.%s-%s.json'
+            filename %= (dirpath, info['lang'], info['type'],
+                         info['to_lang'], info['style'], info['ver'])
         else:
-            filename = '%s/lexor.%s.%s.%s-%s.xml'
-            filename = filename % (dirpath, info['lang'],
-                                   info['type'], info['style'],
-                                   info['ver'])
-        modules = append_main(doc, mod)
-        #for mod_name in modules:
-        #    doc.append_child(make_module_node(modules[mod_name]))
+            filename = '%s/lexor.%s.%s.%s-%s.json'
+            filename %= (dirpath, info['lang'], info['type'],
+                         info['style'], info['ver'])
+        modules = append_main_module(doc_modules, mod)
+        for mod_name in modules:
+            append_module(doc_modules, modules[mod_name])
 
-    warn('Writing %s ... ' % filename)
+    disp('Writing %s ... ' % filename)
     if arg.output_dir == '':
         filename = None
-    try:
-        if arg.style:
-            doc.style = arg.style['name']
-            doc.defaults = arg.style['params']
-        lexor.write(doc, filename)
-    except IOError:
-        error("\nERROR: unable to write file.\n"
-              "xml writer default style missing?\n")
+    if filename is None:
+        json.dump(doc_modules, sys.stdout,
+                  indent=2, separators=(',', ': '))
     else:
-        warn('done\n')
+        with open(filename, 'w') as stream:
+            json.dump(doc_modules, stream)
+    disp('done\n')
 
 
 def export_object(obj):
     """Process objects before they are exported into an xml document.
     Objects such as modules are exported as links in the restructured
     text format."""
+    result = obj
     if isinstance(obj, str):
-        return obj
-    if inspect.ismodule(obj):
-        return ':ref:`%s`' % obj.__name__
-    if isinstance(obj, list):
-        return [export_object(x) for x in obj]
-    if isinstance(obj, dict):
-        return {k: export_object(obj[k]) for k in obj}
-    return obj
+        pass
+    elif inspect.ismodule(obj):
+        result = ':ref:`%s`' % obj.__name__
+    elif inspect.isclass(obj):
+        result = ':ref:`%s`' % obj.__name__
+    elif isinstance(obj, list):
+        result = [export_object(x) for x in obj]
+    elif isinstance(obj, dict):
+        result = {k: export_object(obj[k]) for k in obj}
+    else:
+        try:
+            json.dumps(obj)
+        except TypeError:
+            result = repr(obj)
+    return result
 
 
-def get_info_node(info):
-    """Generate the info node. """
-    node_info = core.Element('info')
+def get_module_info(info):
+    """Copy the info dictionary with the exception of those
+    entries which are None or the `path` entry.
+    """
+    obj = {}
     for key in info:
         if info[key] is None or key == 'path':
             continue
-        node = core.Element('info-entry')
-        node['key'] = key
-        if key == 'description':
-            node.append_child(core.CData(str(info[key])))
-        else:
-            node.append_child(core.Text(str(info[key])))
-        node_info.append_child(node)
-    return node_info
+        obj[key] = info[key]
+    return obj
 
 
-def get_defaults_node(obj):
-    """Obtain defaults node. """
-    defaults_node = core.Element('defaults')
-    for ele in obj:
-        node = core.Element('entry')
-        node['key'] = ele
-        node.append_child(core.CData(repr(obj[ele])))
-        defaults_node.append_child(node)
-    return defaults_node
+def get_module_defaults(defaults):
+    """copy the defaults object"""
+    obj = {}
+    for key in defaults:
+        obj[key] = defaults[key]
+    return obj
 
 
-def get_mapping_node(mapping, repository=None):
-    """Generate the mapping node. """
+def _append_module(modules, name):
+    """Append a module only it is missing"""
+    if name not in modules:
+        modules[name] = sys.modules[name]
+
+
+def get_module_mapping(mapping, repository=None):
+    """Examine the mapping object and return an object with its
+    information.
+    """
     if repository is None:
         repository = list()
     modules = dict()
-    mapping_node = core.Element('mapping')
+    obj = dict()
     keys = sorted(mapping.keys())
-    for ele in keys:
-        if isinstance(mapping[ele], tuple):
-            entry = core.Element('mapping-entry')
-            entry['key'] = ele
-            entry.append_child(
-                core.Element('checker').append_child(
-                    core.CData(repr(mapping[ele][0]))
-                )
-            )
-            for mod in mapping[ele][1]:
-                node = core.Element('processor')
+    for key in keys:
+        info = obj[key] = dict()
+        if isinstance(mapping[key], tuple):
+            info['checker'] = mapping[key][0]
+            info['processors'] = []
+            for mod in mapping[key][1]:
                 if isinstance(mod, str):
                     for val in repository:
                         if val.__name__ == mod:
                             mod = val
                             break
                 mod_name = mod.__module__
-                node['module'] = mod_name
-                node['name'] = mod.__name__
-                mapping_node.append_child(node)
-                if mod_name not in modules:
-                    modules[mod_name] = sys.modules[mod_name]
-                entry.append_child(node)
-            mapping_node.append_child(entry)
+                info['processors'].append({
+                    'module': mod_name,
+                    'name': mod.__name__
+                })
+                _append_module(modules, mod_name)
         else:
-            node = core.Element('entry')
-            node['key'] = ele
-            mod = mapping[ele]
+            mod = mapping[key]
             if isinstance(mod, str):
                 for val in repository:
                     if val.__name__ == mod:
                         mod = val
                         break
             if isinstance(mod, str):
-                node['from-entry'] = mod
-                mapping_node.append_child(node)
+                info['fromEntry'] = mod
                 continue
             mod_name = mod.__module__
-            node['module'] = mod_name
-            node['name'] = mod.__name__
-            if mod_name not in modules:
-                modules[mod_name] = sys.modules[mod_name]
-            mapping_node.append_child(node)
-    return modules, mapping_node
+            info['module'] = mod_name
+            info['name'] = mod.__name__
+            _append_module(modules, mod_name)
+    return obj, modules
 
 
 def separate_objects(mod, remove=None):
@@ -222,56 +199,52 @@ def separate_objects(mod, remove=None):
     return info
 
 
-def get_function_node(func):
-    """Return a function node. """
-    node = core.Element('function')
-    node['name'] = func.__name__
+def get_function_obj(func):
+    """Return the function information"""
+    obj = {
+        'name': func.__name__,
+        'argspec': {}
+    }
     argspec = inspect.getargspec(func)
-    node_argspec = core.Element('argspec')
-    node_argspec['varargs'] = str(argspec[1])
-    node_argspec['keywords'] = str(argspec[2])
-    node_args = core.Element('args')
+    if argspec[1]:
+        obj['argspec']['varargs'] = argspec[1]
+    if argspec[2]:
+        obj['argspec']['keywords'] = argspec[2]
+    args = obj['argspec']['arg'] = []
     for item in argspec[0]:
-        node_args.append_child(core.Void('arg', {'name': item}))
+        args.append({
+            'name': item
+        })
     if argspec[3] is not None:
         largs = len(argspec[0])
         ldefs = len(argspec[3])
         num = 0
         for index in xrange(largs-ldefs, largs):
-            node_args[index]['default'] = argspec[3][num]
+            args[index]['default'] = argspec[3][num]
             num += 1
-    node_argspec.append_child(node_args)
-    node.append_child(node_argspec)
     doc = inspect.getdoc(func)
     if doc is not None:
-        node.append_child(
-            core.Element('doc').append_child(
-                core.CData(doc)
-            )
-        )
-    # return core.Text(func.__name__)
-    return node
+        obj['doc'] = doc
+    return obj
 
 
-def get_property_node(prop):
-    """Return a property node. """
-    node = core.Element('property')
-    node['name'] = prop[0]
+def get_property_obj(prop):
+    """Return a property object"""
+    print repr(prop)
+    obj = {
+        'name': prop[0]
+    }
     doc = inspect.getdoc(prop[1])
     if doc is not None:
-        node.append_child(
-            core.Element('doc').append_child(
-                core.CData(doc)
-            )
-        )
-    return node
+        obj['doc'] = doc
+    return obj
 
 
-def get_member_node(member):
-    """Return a property node. """
-    node = core.Element('member')
-    node['name'] = member.__name__
-    return node
+def get_member_obj(member):
+    """Return a member object"""
+    return {
+        'name': member.__name__
+    }
 
 
 def full_class_name(cls):
@@ -298,65 +271,67 @@ def _update_class_tree(tree, cls, mro):
                         tree[mod]['member'].append(val)
 
 
-def _update_node(node, tree, mro):
-    """Helper function for get_class_node. Updates the node. """
+def _update_obj(obj, tree, mro):
+    """Helper function for get_class_obj. Updates the obj. """
+    obj['cls_method_block'] = []
+    obj['method_block'] = []
+    obj['property_block'] = []
+    obj['member_block'] = []
     for index in xrange(len(mro)):
-        tmp = core.Element('cls_method_block')
-        tmp['from'] = full_class_name(mro[index])
+        tmp = {
+            'from': full_class_name(mro[index])
+        }
         for func in tree[mro[index]]['cls_method']:
-            tmp.append_child(get_function_node(func))
-        if len(tmp) > 0:
-            node.append_child(tmp)
+            tmp['function'] = get_function_obj(func)
+        if len(tree[mro[index]]['cls_method']) > 0:
+            obj['cls_method_block'].append(tmp)
 
-        tmp = core.Element('method_block')
-        tmp['from'] = full_class_name(mro[index])
+        tmp = {
+            'from': full_class_name(mro[index])
+        }
         for func in tree[mro[index]]['method']:
-            tmp.append_child(get_function_node(func))
-        if len(tmp) > 0:
-            node.append_child(tmp)
+            tmp['function'] = get_function_obj(func)
+        if len(tree[mro[index]]['method']) > 0:
+            obj['method_block'].append(tmp)
 
-        tmp = core.Element('property_block')
-        tmp['from'] = full_class_name(mro[index])
+        tmp = {
+            'from': full_class_name(mro[index])
+        }
         for prop in tree[mro[index]]['property']:
-            tmp.append_child(get_property_node(prop))
-        if len(tmp) > 0:
-            node.append_child(tmp)
+            tmp['property'] = get_property_obj(prop)
+        if len(tree[mro[index]]['property']) > 0:
+            obj['property_block'].append(tmp)
 
-        tmp = core.Element('member_block')
-        tmp['from'] = full_class_name(mro[index])
+        tmp = {
+            'from': full_class_name(mro[index])
+        }
         for member in tree[mro[index]]['member']:
-            tmp.append_child(get_member_node(member))
-        if len(tmp) > 0:
-            node.append_child(tmp)
+            tmp['member'] = get_member_obj(member)
+        if len(tree[mro[index]]['member']) > 0:
+            obj['member_block'].append(tmp)
 
 
-def get_class_node(cls):
-    """Return a class node. Assumes that cls is a valid class. """
-    node = core.Element('class')
-    node['name'] = cls.__name__
+def get_class_obj(cls):
+    """Return the class info. Assumes that cls is a valid class. """
+    obj = dict()
+    obj['name'] = cls.__name__
 
-    tmp = core.Element('bases')
+    obj['bases'] = []
     for base in cls.__bases__:
-        tmp.append_child(
-            core.Void('base', {'name': full_class_name(base)})
-        )
-    node.append_child(tmp)
+        obj['bases'].append({
+            'base': full_class_name(base)
+        })
 
     mro = inspect.getmro(cls)
-    tmp = core.Element('mro')
+    obj['mro'] = []
     for base in mro:
-        tmp.append_child(
-            core.Void('class', {'name': full_class_name(base)})
-        )
-    node.append_child(tmp)
+        obj['mro'].append({
+            'class': full_class_name(base)
+        })
 
     doc = inspect.getdoc(cls)
     if doc is not None:
-        node.append_child(
-            core.Element('doc').append_child(
-                core.CData(doc)
-            )
-        )
+        obj['doc'] = doc
 
     tree = dict()
     for mod in mro:
@@ -367,126 +342,76 @@ def get_class_node(cls):
             'member': [],
         }
     _update_class_tree(tree, cls, mro)
-    _update_node(node, tree, mro)
-    return node
+    _update_obj(obj, tree, mro)
+    return obj
 
 
-def append_main(doc, mod):
-    """Append the main module. Return a dictionary containing all the
-    modules used in the style. """
-    module = core.Element('module')
-    module['name'] = 'main'
+def _append_info(main, info):
+    """Helper function for `append_main_module` and `append_module`"""
+    main['classes'] = []
+    for cls in info['class']:
+        main['classes'].append(get_class_obj(cls))
+    main['functions'] = []
+    for func in info['function']:
+        main['functions'].append(get_function_obj(func))
+    main['dataBlock'] = []
+    for item in info['data']:
+        if item[0][0] == '_':
+            continue
+        if isinstance(item[1], type(re.compile(''))):
+            val = item[1].pattern
+        else:
+            val = export_object(item[1])
+        main['dataBlock'].append({
+            item[0]: val
+        })
+    main['imports'] = []
+    for item in info['module']:
+        main['imports'].append({
+            'name': item[0],
+            'fullname': item[1].__name__,
+            'type': item[1].__class__.__name__
+        })
+    for item in info['other']:
+        main['imports'].append({
+            'name': item[0],
+            'fullname': full_class_name(item[1]),
+            'type': item[1].__class__.__name__
+        })
 
-    module.append_child(
-        core.Element('doc').append_child(
-            core.CData(str(mod.__doc__))
-        )
-    )
-    module.append_child(get_info_node(mod.INFO))
-    
+
+def append_main_module(doc_module, mod):
+    """Append the main module to `doc_module`"""
+    main = doc_module['main'] = {}
+    main['doc'] = str(mod.__doc__)
+    main['info'] = get_module_info(mod.INFO)
     if hasattr(mod, 'DEFAULTS'):
-        module.append_child(get_defaults_node(mod.DEFAULTS))
+        main['defaults'] = get_module_defaults(mod.DEFAULTS)
     if hasattr(mod, 'REPOSITORY'):
         repository = mod.REPOSITORY
     else:
         repository = None
-    modules, m_node = get_mapping_node(mod.MAPPING, repository)
-    module.append_child(m_node)
-    info = separate_objects(mod, ['INFO', 'DEFAULTS',
-                                  'MAPPING', 'DESCRIPTION'])
-
-    node = core.Element('classes')
-    for cls in info['class']:
-        node.append_child(get_class_node(cls))
-    module.append_child(node)
-
-    node = core.Element('functions')
-    for func in info['function']:
-        node.append_child(get_function_node(func))
-    module.append_child(node)
-
-    node = core.Element('data_block')
-    for ele in info['data']:
-        if ele[0][0] == '_':
-            continue
-        tmp = core.Element('data', {'name': ele[0]})
-        if isinstance(ele[1], type(re.compile(''))):
-            tmp.append_child(core.CData(repr(ele[1].pattern)))
-        else:
-            tmp.append_child(core.CData(repr(export_object(ele[1]))))
-        node.append_child(tmp)
-    if len(node) > 0:
-        module.append_child(node)
-
-    node = core.Element('imports')
-    for ele in info['module']:
-        node.append_child(
-            core.Void('module', {'name': ele[0],
-                                 'fullname': ele[1].__name__})
+    if hasattr(mod, 'MAPPING'):
+        main['mapping'], modules = get_module_mapping(
+            mod.MAPPING, repository
         )
-    for ele in info['other']:
-        node.append_child(
-            core.Void('other', {'name': ele[0],
-                                'fullname': full_class_name(ele[1]),
-                                'type': ele[1].__class__.__name__})
-        )
-    module.append_child(node)
-    doc.append_child(module)
+    else:
+        modules = None
+    info = separate_objects(mod, [
+        'INFO', 'DEFAULTS', 'MAPPING', 'DESCRIPTION'
+    ])
+    _append_info(main, info)
     return modules
 
 
-def make_module_node(mod, name=None):
+def append_module(doc_module, mod, name=None):
     """Create a module node documenation. """
-    module = core.Element('module')
     if name is None:
         name = mod.__name__
-    module['name'] = name
-
-    module.append_child(
-        core.Element('doc').append_child(
-            core.CData(str(mod.__doc__))
-        )
-    )
-
+    main = doc_module[name] = {}
+    main['doc'] = str(mod.__doc__)
     info = separate_objects(mod)
-
-    node = core.Element('classes')
-    for cls in info['class']:
-        node.append_child(get_class_node(cls))
-    module.append_child(node)
-
-    node = core.Element('functions')
-    for func in info['function']:
-        node.append_child(get_function_node(func))
-    module.append_child(node)
-
-    node = core.Element('data_block')
-    for ele in info['data']:
-        if ele[0][0] == '_':
-            continue
-        tmp = core.Element('data', {'name': ele[0]})
-        if isinstance(ele[1], type(re.compile(''))):
-            tmp.append_child(core.CData(repr(ele[1].pattern)))
-        else:
-            tmp.append_child(core.CData(repr(ele[1])))
-        node.append_child(tmp)
-    if len(node) > 0:
-        module.append_child(node)
-
-    node = core.Element('imports')
-    for ele in info['module']:
-        node.append_child(
-            core.Void('module', {'name': ele[0],
-                                 'fullname': ele[1].__name__})
-        )
-    for ele in info['other']:
-        node.append_child(
-            core.Void('other', {'name': ele[0],
-                                'fullname': full_class_name(ele[1]),
-                                'type': ele[1].__class__.__name__})
-        )
-    module.append_child(node)
-    return module
+    _append_info(main, info)
 
 
 def check_filename(arg):
@@ -504,5 +429,5 @@ def check_filename(arg):
     if '.py' not in fname:
         fname = '%s.py' % fname
     if not pth.exists(pth.join(dirpath, fname)):
-        error("ERROR: %r not found.\n" % (pth.join(dirpath, fname)))
+        raise LexorError("%r not found" % (pth.join(dirpath, fname)))
     return dirpath, fname
