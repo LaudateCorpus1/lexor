@@ -30,6 +30,7 @@ DEFAULTS = {
     'mdtext': 'markdown',
     'text': 'markdown',
     'lex': 'lexor',
+    'htm': 'html',
     'pyhtml': 'html',
     'pyxml': 'xml',
     'cfml': 'coldfusion',

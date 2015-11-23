@@ -12,6 +12,7 @@ import configparser
 import os.path as pth
 from lexor.util.logging import L
 from lexor.command import config, import_mod, LexorError, disp
+from lexor import core
 
 
 DESC = """
@@ -48,10 +49,22 @@ def run():
     arg = config.CONFIG['arg']
     path = pth.abspath(arg.path)
     files = gather_files(path)
+    log_writer = core.Writer('lexor', 'log')
+    missing_parsers = []
     for ext in files:
-        print 'EXT: ', ext
-        for f in files[ext]:
-            print '  --> ', repr(f)
+        ext = ext[1:]
+        parser = core.Parser(ext, )
+        try:
+            parser.parse('')
+        except ImportError:
+            missing_parsers.append(ext)
+            continue
+        for f in files['.'+ext]:
+            parser.parse(open(f).read(), f)
+            if len(parser.log) > 0:
+                log_writer.write(parser.log, sys.stdout)
+                disp('\n')
+    disp('No parser for: %r\n', missing_parsers)
 
 
 def gather_files(path):
