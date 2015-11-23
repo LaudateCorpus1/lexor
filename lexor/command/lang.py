@@ -33,6 +33,7 @@ DEFAULTS = {
     'pyhtml': 'html',
     'pyxml': 'xml',
     'cfml': 'coldfusion',
+    'cfm': 'coldfusion',
     'cfc': 'coldfusion',
 }
 DESC = """
@@ -138,6 +139,7 @@ def _get_info(cfg, type_, lang, style, to_lang=None):
     """Helper function for get_style_module. """
     if style == '_':
         style = 'default'
+    # TODO: parse the language to see if they specify a style
     if lang in cfg['lang']:
         lang = cfg['lang'][lang]
     if to_lang:
