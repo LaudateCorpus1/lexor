@@ -7,7 +7,7 @@ version_info conforms to PEP 386
 (1, 2, 0, 'beta', 2) => "1.2b2"
 
 """
-VERSION_INFO = (0, 1, 4, 'rc', 0)
+VERSION_INFO = (0, 1, 5, 'rc', 0)
 
 
 def get_version(version_info):
