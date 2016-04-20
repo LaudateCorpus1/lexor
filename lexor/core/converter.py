@@ -266,6 +266,32 @@ class PythonNC(NodeConverter):
         ctr.exec_python(node, self.num, self.parser, self.err)
 
 
+class PythonEvalNC(NodeConverter):
+    """Append a node with python instructions to a list. """
+
+    directive = '?py_eval'
+
+    def __init__(self, converter):
+        NodeConverter.__init__(self, converter)
+        self.parser = LC.Parser(converter._fromlang, 'default')
+        self.err = 'on'
+        self.exe = 'on'
+        if 'py_error' in converter.defaults:
+            self.err = converter.defaults['py_error']
+        if 'py_eval' in converter.defaults:
+            self.exe = converter.defaults['py_exec']
+        self.err = self.err not in ['off', 'false', '0']
+        self.exe = self.exe not in ['off', 'false', '0']
+        self.num = 0
+
+    def compile(self, node, dir_info, t_node, required):
+        self.num += 1
+        ctr = self.converter
+        if not self.exe:
+            return node
+        ctr.eval_python(node, self.num, self.err)
+
+
 # pylint: disable=R0903
 class BaseLog(object):
     """A simple class to provide messages to a converter. You must
@@ -585,6 +611,7 @@ class Converter(object):
         self._directives = dict()
         self._node_converters = dict()
         self.register(PythonNC)
+        self.register(PythonEvalNC)
         try:
             repo = mod.REPOSITORY
             L.info('found REPOSITORY in converting style')
@@ -781,6 +808,7 @@ class Converter(object):
                     crt = crt.parent
                     self._post_link_node(crt)
                     crt = self._remove_node_after('post_link', crt)
+                    crt.normalize(recurse=False)
                 crt = crt.next
 
     def _remove_node_after(self, phase, node):
@@ -896,6 +924,53 @@ class Converter(object):
             self.msg(self.__module__, 'W101', node, [id_num])
             self.update_log(parser.log)
             self.msg(self.__module__, 'W102', node, [id_num])
+        get_current_node.current.pop()
+        include.converter.pop()
+        if include.converter:
+            doc = include.converter[-1].doc[-1]
+            namespace['__FILE__'] = pth.realpath(doc.uri)
+            namespace['__DIR__'] = pth.dirname(namespace['__FILE__'])
+            namespace['__NODE__'] = get_current_node()
+            namespace['__CONVERTER__'] = get_converter()
+        else:
+            namespace['__FILE__'] = None
+            namespace['__DIR__'] = None
+            namespace['__NODE__'] = None
+            namespace['__CONVERTER__'] = None
+        return newnode
+
+    # pylint: disable=W0122,E1103
+    def eval_python(self, node, id_num, error=True):
+        """Evaluates the contents of the |PI| node. You must provide
+        an id number identifying the processing instruction. If `error` is
+        True then any errors generated during the execution will be appended
+        to the output of the document."""
+        get_current_node.current.append(node)
+        include.converter.append(self)
+        namespace = get_lexor_namespace()
+        if '__NAMESPACE__' not in namespace:
+            namespace['__NAMESPACE__'] = namespace
+            namespace['import_module'] = import_module
+            namespace['include'] = include
+            namespace['echo'] = echo
+        namespace['__FILE__'] = pth.realpath(self.doc[-1].uri)
+        namespace['__DIR__'] = pth.dirname(namespace['__FILE__'])
+        namespace['__NODE__'] = get_current_node()
+        namespace['__CONVERTER__'] = self
+        try:
+            result = eval(node.code, namespace)
+        except BaseException:
+            self.msg(self.__module__, 'E100', node, [id_num])
+            if error:
+                err_node = LC.Element('python_pi_error')
+                err_node.set_position(*node.node_position)
+                err_node['section'] = str(id_num)
+                err_node.append_child(
+                    LC.CData(traceback.format_exc())
+                )
+                node.parent.insert_before(node.index, err_node)
+        node.parent.insert_before(node.index, str(result))
+        newnode = Converter.remove_node(node)
         get_current_node.current.pop()
         include.converter.pop()
         if include.converter:

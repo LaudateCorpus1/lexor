@@ -108,7 +108,7 @@ class ProcessingInstruction(CharacterData):
         node._code = self._code
         return node
 
-    def compile_python(self, uri='<?python>'):
+    def compile_python(self, uri='<?python>', mode='exec'):
         """Compiles the processing instruction to python bytecode.
         Since this is just a wrapper around the built in compile,
         this function may raise SyntaxError and TypeError exceptions.
@@ -118,7 +118,7 @@ class ProcessingInstruction(CharacterData):
         executing the instructions.
         """
         data = '{0}{1}'.format('\n'*(self.line-1), self.data)
-        self._code = compile(data, uri, 'exec')
+        self._code = compile(data, uri, mode)
 
 
 class Comment(CharacterData):
